@@ -138,11 +138,5 @@
   "resolutions": {
     "@typescript-eslint/utils": "^8.0.0-alpha.30"
   },
-  "packageManager": "pnpm@9.4.0",
-  "pnpm": {
-    "overrides": {
-      "sourcemap-codec": "@jridgewell/sourcemap-codec@1.10.0",
-      "rollup-plugin-inject": "@rollup/plugin-inject@4.0.0"
-    }
-  }
+  "packageManager": "pnpm@9.4.0"
 }
