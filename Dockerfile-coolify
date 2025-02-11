@@ -16,7 +16,6 @@ COPY . .
 RUN rm -rf node_modules && \
     rm -f pnpm-lock.yaml && \
     pnpm install --no-frozen-lockfile && \
-    pnpm remove @remix-run/node && \
     pnpm add @remix-run/cloudflare
 
 # Fix bindings.sh file format
