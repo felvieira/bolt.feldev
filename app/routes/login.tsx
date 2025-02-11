@@ -1,6 +1,6 @@
 // app/routes/login.tsx
-import type { ActionFunction } from '@remix-run/node';
-import { json, redirect } from '@remix-run/node';
+import type { ActionFunction } from '@remix-run/cloudflare';
+import { json, redirect } from '@remix-run/cloudflare';
 import { Form, useActionData } from '@remix-run/react';
 import { supabase } from '~/utils/supabase.server';
 import { getSession, commitSession } from '~/session.server';

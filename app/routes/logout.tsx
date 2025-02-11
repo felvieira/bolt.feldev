@@ -1,6 +1,6 @@
 // app/routes/logout.tsx
-import type { LoaderFunction } from '@remix-run/node';
-import { redirect } from '@remix-run/node';
+import type { ActionFunction } from '@remix-run/cloudflare';
+import { redirect } from '@remix-run/cloudflare';
 import { getSession, destroySession } from '~/session.server';
 
 export const loader: LoaderFunction = async ({ request }) => {

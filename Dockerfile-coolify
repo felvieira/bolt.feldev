@@ -12,8 +12,11 @@ RUN npm install -g npm@latest && \
 # Copiar arquivos de dependências
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependências via pnpm
-RUN pnpm install
+# Instalar dependências via pnpm e fazer as alterações necessárias
+RUN pnpm install && \
+    pnpm remove @remix-run/node && \
+    pnpm add @remix-run/cloudflare && \
+    pnpm install
 
 # Copiar código fonte e scripts
 COPY . .
