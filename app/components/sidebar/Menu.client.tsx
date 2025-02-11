@@ -260,7 +260,7 @@ export const Menu = () => {
             <SettingsButton onClick={() => setIsSettingsOpen(true)} />
             <Link to="/logout">
               <button className="flex items-center p-1.5 rounded-md bg-bolt-elements-item-backgroundDefault hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary">
-                <div className="i-ph:logout text-lg" />
+                <div className="i-ph:sign-out text-lg" />
               </button>
             </Link>
           </div>
