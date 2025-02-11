@@ -4,11 +4,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-coolify
+      args:
+        - SESSION_SECRET=${SESSION_SECRET}
+        - NODE_ENV=${NODE_ENV:-production}
+        - RUNNING_IN_DOCKER=true
     ports:
       - "3000:5173"
     environment:
       - SESSION_SECRET=${SESSION_SECRET}
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
       - PORT=5173
       - GROQ_API_KEY=${GROQ_API_KEY}
       - HuggingFace_API_KEY=${HuggingFace_API_KEY}
@@ -84,7 +88,6 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
       - NODE_ENV=production
       - COMPOSE_PROFILES=production
-      # No strictly needed but serving as hints for Coolify
       - PORT=5173
       - OLLAMA_API_BASE_URL=http://127.0.0.1:11434
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}

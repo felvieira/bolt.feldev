@@ -1,5 +1,10 @@
 FROM node:20.18.0
 
+# Define build arguments
+ARG SESSION_SECRET
+ARG NODE_ENV
+ARG RUNNING_IN_DOCKER
+
 WORKDIR /app
 
 # Update npm and install essential tools
@@ -27,10 +32,6 @@ RUN pnpm run build
 
 # Expose application port
 EXPOSE 5173
-
-# Set environment variables
-ENV NODE_ENV=production \
-    RUNNING_IN_DOCKER=true
 
 # Start application
 CMD ["pnpm", "run", "dockerstart"]
