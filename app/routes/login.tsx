@@ -15,6 +15,7 @@ export const action: ActionFunction = async ({ request }) => {
     return json({ error: 'Email and password are required.' }, { status: 400 });
   }
 
+  // Utiliza supabase-js para efetuar login
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -24,6 +25,7 @@ export const action: ActionFunction = async ({ request }) => {
     return json({ error: error?.message || 'Login failed' }, { status: 400 });
   }
 
+  // Armazena o token de acesso na sessão (por exemplo, em um cookie)
   const session = await getSession(request.headers.get('Cookie'));
   session.set('access_token', data.session.access_token);
 
