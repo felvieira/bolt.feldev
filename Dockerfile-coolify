@@ -2,39 +2,38 @@ FROM node:20.18.0
 
 WORKDIR /app
 
-# Atualiza o npm, instala o Corepack e configura o pnpm, e atualiza o Wrangler para a versão mais recente
+# Update npm and install essential tools
 RUN npm install -g npm@latest && \
     npm install -g corepack@latest && \
     corepack enable pnpm && \
     corepack use pnpm@latest-10 && \
     npm install -g wrangler@latest
 
-# Copiar arquivos de dependências
-COPY package.json pnpm-lock.yaml ./
+# Copy dependency files
+COPY package.json ./
 
-# Instalar dependências via pnpm e fazer as alterações necessárias
-RUN pnpm install && \
-    pnpm remove @remix-run/node && \
-    pnpm add @remix-run/cloudflare && \
-    pnpm install
+# Clean install with only cloudflare dependency
+RUN pnpm install --force && \
+    pnpm install @remix-run/cloudflare --save && \
+    pnpm uninstall @remix-run/node
 
-# Copiar código fonte e scripts
+# Copy source code and scripts
 COPY . .
 
-# Garantir que o bindings.sh tenha permissões de execução e o formato correto
+# Fix bindings.sh file format
 RUN tr -d '\r' < bindings.sh > bindings.tmp && \
     mv bindings.tmp bindings.sh && \
     chmod +x bindings.sh
 
-# Build da aplicação
+# Build application
 RUN pnpm run build
 
-# Expor a porta da aplicação
+# Expose application port
 EXPOSE 5173
 
-# Configurar variáveis de ambiente
+# Set environment variables
 ENV NODE_ENV=production \
     RUNNING_IN_DOCKER=true
 
-# Comando para iniciar a aplicação via script dockerstart
+# Start application
 CMD ["pnpm", "run", "dockerstart"]
