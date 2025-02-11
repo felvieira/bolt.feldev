@@ -7,6 +7,7 @@ services:
     ports:
       - "3000:5173"
     environment:
+      - SESSION_SECRET=${SESSION_SECRET}
       - NODE_ENV=production
       - PORT=5173
       - GROQ_API_KEY=${GROQ_API_KEY}
@@ -35,6 +36,7 @@ services:
       target: bolt-ai-development
     env_file: ".env.local"
     environment:
+      - SESSION_SECRET=${SESSION_SECRET}
       - NODE_ENV=development
       - VITE_HMR_PROTOCOL=ws
       - VITE_HMR_HOST=localhost
@@ -79,6 +81,7 @@ services:
     ports:
       - "5173:5173"
     environment:
+      - SESSION_SECRET=${SESSION_SECRET}
       - NODE_ENV=production
       - COMPOSE_PROFILES=production
       # No strictly needed but serving as hints for Coolify
@@ -99,4 +102,4 @@ services:
 
 networks:
   bolt_network:
-    driver: bridge
+    external: true
