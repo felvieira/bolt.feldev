@@ -2,16 +2,17 @@ FROM node:20.18.0
 
 WORKDIR /app
 
-# Atualiza o Corepack para a versão mais recente, habilita o pnpm e fixa sua versão; instala o wrangler globalmente
-RUN npm install -g corepack@latest && \
+# Atualiza o npm, instala o Corepack e configura o pnpm, e atualiza o Wrangler para a versão mais recente
+RUN npm install -g npm@latest && \
+    npm install -g corepack@latest && \
     corepack enable pnpm && \
     corepack use pnpm@latest-10 && \
-    npm install -g wrangler
+    npm install -g wrangler@latest
 
 # Copiar arquivos de dependências
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependências usando pnpm via Corepack
+# Instalar dependências via pnpm
 RUN pnpm install
 
 # Copiar código fonte e scripts
