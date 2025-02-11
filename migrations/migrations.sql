@@ -1,16 +1,19 @@
 -- migrations.sql
--- Script de migração para o banco de dados do Bolt.diy
--- Cria a tabela que armazena o histórico de chats
+-- Criação da tabela "chats" para armazenar o histórico de conversas dos usuários
 
 CREATE TABLE IF NOT EXISTS chats (
   id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL,
   messages JSONB NOT NULL,
   url_id TEXT UNIQUE NOT NULL,
   description TEXT,
   timestamp TIMESTAMPTZ DEFAULT NOW(),
-  metadata JSONB
+  metadata JSONB,
+  CONSTRAINT fk_user
+    FOREIGN KEY (user_id)
+      REFERENCES auth.users(id)
 );
 
--- Índices para otimizar consultas
+-- Criação de índices para otimizar as consultas
 CREATE INDEX IF NOT EXISTS idx_chats_url_id ON chats (url_id);
 CREATE INDEX IF NOT EXISTS idx_chats_timestamp ON chats (timestamp);
