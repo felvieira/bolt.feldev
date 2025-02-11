@@ -9,13 +9,15 @@ RUN npm install -g npm@latest && \
     corepack use pnpm@latest-10 && \
     npm install -g wrangler@latest
 
-# Copy dependency files
-COPY package.json ./
+# Copy package files first
+COPY package.json pnpm-lock.yaml ./
 
-# Clean install with only cloudflare dependency
-RUN pnpm install --force && \
-    pnpm install @remix-run/cloudflare --save && \
-    pnpm uninstall @remix-run/node
+# Clean install dependencies
+RUN pnpm install --no-frozen-lockfile
+
+# Install Cloudflare dependencies
+RUN pnpm add @remix-run/cloudflare && \
+    pnpm remove @remix-run/node
 
 # Copy source code and scripts
 COPY . .
