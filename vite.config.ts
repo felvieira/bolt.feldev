@@ -1,7 +1,4 @@
-import {
-  cloudflareDevProxyVitePlugin as remixCloudflareDevProxy,
-  vitePlugin as remixVitePlugin,
-} from '@remix-run/dev';
+import { cloudflareDevProxyVitePlugin as remixCloudflareDevProxy, vitePlugin as remixVitePlugin } from '@remix-run/dev';
 import UnoCSS from 'unocss/vite';
 import { defineConfig, type ViteDevServer } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
@@ -9,10 +6,16 @@ import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 dotenv.config();
 
-// Recupera o hash do Git com fallback
+// Configuração para resolver o caminho do arquivo atual e da raiz do projeto
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Get git hash with fallback
 const getGitHash = () => {
   try {
     return execSync('git rev-parse --short HEAD').toString().trim();
@@ -23,39 +26,45 @@ const getGitHash = () => {
 
 export default defineConfig((config) => {
   return {
+    // Aqui definimos o alias para @remix-run/node
+    resolve: {
+      alias: {
+        '@remix-run/node': join(__dirname, 'cloudflare.ts')
+      }
+    },
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
+      // 'process.env': JSON.stringify(process.env)
     },
     build: {
       target: 'esnext',
+      // Externaliza o módulo @remix-run/node para evitar que seja incluído no bundle final
       rollupOptions: {
-        // Removemos a externalização de '@remix-run/node', pois estamos utilizando o adaptador Cloudflare
+        external: ['@remix-run/node'],
         output: {
-          // Exemplo: configuração de manualChunks para melhorar a divisão dos chunks
+          // Se desejar melhorar a divisão dos chunks, utilize manualChunks. Exemplo:
           manualChunks(id) {
             if (id.includes('node_modules')) {
               return id.toString().split('node_modules/')[1].split('/')[0];
             }
-          },
-        },
+          }
+        }
       },
-      // Ajuste do limite de aviso de tamanho de chunk (valor em kB)
+      // Ajuste o limite do tamanho do chunk se necessário (valor em kB)
       chunkSizeWarningLimit: 1000,
     },
     plugins: [
-      // Caso necessário, mantém os polyfills para módulos Node
       nodePolyfills({
         include: ['path', 'buffer', 'process'],
       }),
-      // Plugin para proxy do Cloudflare em ambiente de desenvolvimento (exceto testes)
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
         future: {
           v3_fetcherPersist: true,
           v3_relativeSplatPath: true,
           v3_throwAbortReason: true,
-          v3_lazyRouteDiscovery: true,
+          v3_lazyRouteDiscovery: true
         },
       }),
       UnoCSS(),
@@ -64,11 +73,11 @@ export default defineConfig((config) => {
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
     envPrefix: [
-      'VITE_',
-      'OPENAI_LIKE_API_BASE_URL',
-      'OLLAMA_API_BASE_URL',
-      'LMSTUDIO_API_BASE_URL',
-      'TOGETHER_API_BASE_URL',
+      "VITE_",
+      "OPENAI_LIKE_API_BASE_URL",
+      "OLLAMA_API_BASE_URL",
+      "LMSTUDIO_API_BASE_URL",
+      "TOGETHER_API_BASE_URL"
     ],
     css: {
       preprocessorOptions: {
@@ -86,8 +95,10 @@ function chrome129IssuePlugin() {
     configureServer(server: ViteDevServer) {
       server.middlewares.use((req, res, next) => {
         const raw = req.headers['user-agent']?.match(/Chrom(e|ium)\/([0-9]+)\./);
+
         if (raw) {
           const version = parseInt(raw[2], 10);
+
           if (version === 129) {
             res.setHeader('content-type', 'text/html');
             res.end(
