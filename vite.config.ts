@@ -6,16 +6,10 @@ import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
 dotenv.config();
 
-// Configuração para resolver o caminho do arquivo atual e da raiz do projeto
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Get git hash with fallback
+// Obtém o hash do git com fallback
 const getGitHash = () => {
   try {
     return execSync('git rev-parse --short HEAD').toString().trim();
@@ -24,70 +18,60 @@ const getGitHash = () => {
   }
 };
 
-export default defineConfig((config) => {
-  return {
-    // Aqui definimos o alias para @remix-run/node
-    resolve: {
-      alias: {
-        '@remix-run/node': join(__dirname, 'cloudflare.ts')
-      }
-    },
-    define: {
-      __COMMIT_HASH: JSON.stringify(getGitHash()),
-      __APP_VERSION: JSON.stringify(process.env.npm_package_version),
-      // 'process.env': JSON.stringify(process.env)
-    },
-    build: {
-      target: 'esnext',
-      // Externaliza o módulo @remix-run/node para evitar que seja incluído no bundle final
-      rollupOptions: {
-        external: ['@remix-run/node'],
-        output: {
-          // Se desejar melhorar a divisão dos chunks, utilize manualChunks. Exemplo:
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              return id.toString().split('node_modules/')[1].split('/')[0];
-            }
+export default defineConfig((config) => ({
+  define: {
+    __COMMIT_HASH: JSON.stringify(getGitHash()),
+    __APP_VERSION: JSON.stringify(process.env.npm_package_version),
+  },
+  build: {
+    target: 'esnext',
+    // Marca @remix-run/node como externa para que não seja incluída no bundle final
+    rollupOptions: {
+      external: ['@remix-run/node'],
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return id.toString().split('node_modules/')[1].split('/')[0];
           }
         }
-      },
-      // Ajuste o limite do tamanho do chunk se necessário (valor em kB)
-      chunkSizeWarningLimit: 1000,
+      }
     },
-    plugins: [
-      nodePolyfills({
-        include: ['path', 'buffer', 'process'],
-      }),
-      config.mode !== 'test' && remixCloudflareDevProxy(),
-      remixVitePlugin({
-        future: {
-          v3_fetcherPersist: true,
-          v3_relativeSplatPath: true,
-          v3_throwAbortReason: true,
-          v3_lazyRouteDiscovery: true
-        },
-      }),
-      UnoCSS(),
-      tsconfigPaths(),
-      chrome129IssuePlugin(),
-      config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-    ],
-    envPrefix: [
-      "VITE_",
-      "OPENAI_LIKE_API_BASE_URL",
-      "OLLAMA_API_BASE_URL",
-      "LMSTUDIO_API_BASE_URL",
-      "TOGETHER_API_BASE_URL"
-    ],
-    css: {
-      preprocessorOptions: {
-        scss: {
-          api: 'modern-compiler',
-        },
+    // Limite para avisos de tamanho de chunk (em kB)
+    chunkSizeWarningLimit: 1000,
+  },
+  plugins: [
+    nodePolyfills({
+      include: ['path', 'buffer', 'process'],
+    }),
+    config.mode !== 'test' && remixCloudflareDevProxy(),
+    remixVitePlugin({
+      future: {
+        v3_fetcherPersist: true,
+        v3_relativeSplatPath: true,
+        v3_throwAbortReason: true,
+        v3_lazyRouteDiscovery: true,
+      },
+    }),
+    UnoCSS(),
+    tsconfigPaths(),
+    chrome129IssuePlugin(),
+    config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
+  ],
+  envPrefix: [
+    "VITE_",
+    "OPENAI_LIKE_API_BASE_URL",
+    "OLLAMA_API_BASE_URL",
+    "LMSTUDIO_API_BASE_URL",
+    "TOGETHER_API_BASE_URL"
+  ],
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler',
       },
     },
-  };
-});
+  },
+}));
 
 function chrome129IssuePlugin() {
   return {
@@ -95,10 +79,8 @@ function chrome129IssuePlugin() {
     configureServer(server: ViteDevServer) {
       server.middlewares.use((req, res, next) => {
         const raw = req.headers['user-agent']?.match(/Chrom(e|ium)\/([0-9]+)\./);
-
         if (raw) {
           const version = parseInt(raw[2], 10);
-
           if (version === 129) {
             res.setHeader('content-type', 'text/html');
             res.end(
