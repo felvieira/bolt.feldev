@@ -15,8 +15,7 @@ COPY . .
 # Handle dependencies in a single layer
 RUN rm -rf node_modules && \
     rm -f pnpm-lock.yaml && \
-    pnpm install --no-frozen-lockfile && \
-    pnpm add @remix-run/cloudflare
+    pnpm install --no-frozen-lockfile
 
 # Fix bindings.sh file format
 RUN tr -d '\r' < bindings.sh > bindings.tmp && \
