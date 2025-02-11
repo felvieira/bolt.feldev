@@ -6,5 +6,5 @@ module.exports = {
   assetsBuildDirectory: "public/build",
   serverBuildPath: "build/server/index.js",
   publicPath: "/build/",
-  // Outras configurações podem ser adicionadas conforme necessário
+  serverBuildTarget: "cloudflare-pages"
 };
