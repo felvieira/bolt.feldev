@@ -15,11 +15,6 @@ COPY . .
 # Torna o script postdeploy.sh executável
 RUN chmod +x postdeploy.sh
 
-# Handle dependencies in a single layer and skip husky install
-RUN rm -rf node_modules && \
-    rm -f pnpm-lock.yaml && \
-    HUSKY=0 pnpm install --no-frozen-lockfile --ignore-scripts
-
 # Fix bindings.sh file format
 RUN tr -d '\r' < bindings.sh > bindings.tmp && \
     mv bindings.tmp bindings.sh && \
