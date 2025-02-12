@@ -11,7 +11,7 @@ services:
     ports:
       - "3000:5173"
     environment:
-      - SESSION_SECRET=${SESSION_SECRET}
+      - SESSION_SECRET=yyLHd/wlFnHeBWSyP9u+bVgltnDjzfN31TAT2z5svy4=
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=5173
       - GROQ_API_KEY=${GROQ_API_KEY}
@@ -40,7 +40,7 @@ services:
       target: bolt-ai-development
     env_file: ".env.local"
     environment:
-      - SESSION_SECRET=${SESSION_SECRET}
+      - SESSION_SECRET=yyLHd/wlFnHeBWSyP9u+bVgltnDjzfN31TAT2z5svy4=
       - NODE_ENV=development
       - VITE_HMR_PROTOCOL=ws
       - VITE_HMR_HOST=localhost
@@ -85,7 +85,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - SESSION_SECRET=${SESSION_SECRET}
+      - SESSION_SECRET=yyLHd/wlFnHeBWSyP9u+bVgltnDjzfN31TAT2z5svy4=
       - NODE_ENV=production
       - COMPOSE_PROFILES=production
       - PORT=5173
