@@ -4,7 +4,7 @@ set -e
 echo "=== INICIANDO POSTDEPLOY ==="
 
 echo "=== Configurando Wrangler Secret para SESSION_SECRET ==="
-echo "$SESSION_SECRET" | wrangler secret put SESSION_SECRET
+echo "$SESSION_SECRET" | wrangler pages secret put SESSION_SECRET
 
 echo "=== Verificando a existência da network 'bolt_network' ==="
 if ! docker network inspect bolt_network >/dev/null 2>&1; then
