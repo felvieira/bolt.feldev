@@ -3,17 +3,14 @@ set -e
 
 echo "=== INICIANDO POSTDEPLOY ==="
 
-# Função para aguardar por um container utilizando filtros do docker ps
+# Função que aguarda a disponibilidade de um container utilizando um filtro de label
 wait_for_container() {
-  local filter_args="$1"
-  local timeout="$2"
+  local filter="$1"
+  local timeout=$2
   local container_id=""
-  # Remover aspas (se houver) do argumento para evitar erros
-  local clean_filter_args
-  clean_filter_args=$(echo "$filter_args" | tr -d '"')
-  echo "Aguardando container com filtros: $clean_filter_args"
+  echo "Aguardando container com label ${filter}..."
   while [ $timeout -gt 0 ]; do
-    container_id=$(docker ps --filter $clean_filter_args --format "{{.ID}}" | head -n 1)
+    container_id=$(docker ps --filter "label=${filter}" --format "{{.ID}}" | head -n 1)
     if [ -n "$container_id" ]; then
       echo "Container encontrado: $container_id"
       echo "$container_id"
@@ -22,12 +19,12 @@ wait_for_container() {
     sleep 2
     timeout=$((timeout-2))
   done
-  echo "Container não encontrado após aguardar."
+  echo "Container com label '${filter}' não encontrado após aguardar."
   return 1
 }
 
-# 1. Configurar o Wrangler Secret (SESSION_SECRET) no container do serviço "app"
-app_container=$(wait_for_container 'label=com.docker.compose.service=app' 60)
+# 1. Configurar o Wrangler Secret no container do serviço 'app'
+app_container=$(wait_for_container "com.docker.compose.service=app" 60)
 if [ -z "$app_container" ]; then
   echo "Container para o serviço 'app' não encontrado!"
   exit 1
@@ -36,20 +33,20 @@ fi
 echo "=== Configurando Wrangler Secret para SESSION_SECRET no container 'app' ==="
 docker exec -T "$app_container" sh -c "echo '$SESSION_SECRET' | wrangler secret put SESSION_SECRET"
 
-# 2. Configurar o bucket no Minio (no container do serviço supabase-minio)
-minio_container=$(wait_for_container 'network=bolt_network --filter name=supabase-minio' 60)
+# 2. Configurar o bucket no Minio no container do serviço 'supabase-minio'
+minio_container=$(wait_for_container "com.docker.compose.service=supabase-minio" 60)
 if [ -z "$minio_container" ]; then
-  echo "Container para o serviço 'supabase-minio' não encontrado na rede bolt_network!"
+  echo "Container para o serviço 'supabase-minio' não encontrado!"
   exit 1
 fi
 
 echo "=== Configurando bucket no Minio no container 'supabase-minio' ==="
-# Dentro do container, o endpoint do Minio é "http://localhost:9000"
-docker exec -T "$minio_container" sh -c "mc alias set supabase-minio http://localhost:9000 \"${SERVICE_USER_MINIO}\" \"${SERVICE_PASSWORD_MINIO}\""
+# Dentro do container supabase-minio, o endpoint local é http://localhost:9000
+docker exec -T "$minio_container" sh -c "mc alias set supabase-minio http://localhost:9000 ${SERVICE_USER_MINIO} ${SERVICE_PASSWORD_MINIO}"
 docker exec -T "$minio_container" sh -c "mc mb --ignore-existing supabase-minio/bolt-app-files"
 
-# 3. Executar migrações do banco de dados no container do Supabase (serviço "supabase-db")
-db_container=$(wait_for_container 'label=com.docker.compose.service=supabase-db' 60)
+# 3. Executar as migrações do banco de dados no container do serviço 'supabase-db'
+db_container=$(wait_for_container "com.docker.compose.service=supabase-db" 60)
 if [ -z "$db_container" ]; then
   echo "Container para o serviço 'supabase-db' não encontrado!"
   exit 1
