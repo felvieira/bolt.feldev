@@ -18,9 +18,6 @@ const getGitHash = () => {
   }
 };
 
-
-
-
 export default defineConfig((config) => {
   return {
     define: {
@@ -30,6 +27,9 @@ export default defineConfig((config) => {
     },
     build: {
       target: 'esnext',
+      rollupOptions: {
+        external: ['@remix-run/node']
+      }
     },
     plugins: [
       nodePolyfills({
