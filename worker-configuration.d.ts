@@ -1,4 +1,9 @@
 interface Env {
+  SESSION_SECRET: Settings;
+  SUPABASE_URL: Settings;
+  SUPABASE_ANON_KEY: Settings;
+  DATABASE_URL: Settings;
+  NODE_ENV: Settings;
   RUNNING_IN_DOCKER: Settings;
   DEFAULT_NUM_CTX: Settings;
   ANTHROPIC_API_KEY: string;
