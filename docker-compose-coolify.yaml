@@ -70,9 +70,9 @@ services:
     volumes:
       - type: bind
         source: .
-        target: /app
+        target: /bolt-app
         consistency: cached
-      - /app/node_modules
+      - /bolt-app/node_modules
     ports:
       - "5173:5173"
     command: pnpm run dev --host 0.0.0.0
