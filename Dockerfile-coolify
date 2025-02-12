@@ -12,6 +12,9 @@ RUN npm install -g npm@latest && \
 # Copy the entire project
 COPY . .
 
+# Torna o script postdeploy.sh executável
+RUN chmod +x postdeploy.sh
+
 # Handle dependencies in a single layer and skip husky install
 RUN rm -rf node_modules && \
     rm -f pnpm-lock.yaml && \
