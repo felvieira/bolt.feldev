@@ -3,10 +3,22 @@ set -e
 
 echo "=== INICIANDO POSTDEPLOY ==="
 
-# Identifica o container do serviço "bolt-app" pela label do Docker Compose
-container_id=$(docker ps --filter "label=com.docker.compose.service=bolt-app" --format "{{.ID}}")
+# Aguardar até que o container do serviço "bolt-app" esteja disponível (timeout de 30 segundos)
+timeout=30
+container_id=""
+echo "Aguardando o container do serviço 'bolt-app' estar disponível..."
+while [ $timeout -gt 0 ]; do
+  container_id=$(docker ps --filter "label=com.docker.compose.service=bolt-app" --format "{{.ID}}")
+  if [ -n "$container_id" ]; then
+    echo "Container encontrado: $container_id"
+    break
+  fi
+  sleep 2
+  timeout=$((timeout-2))
+done
+
 if [ -z "$container_id" ]; then
-  echo "Container para o serviço 'bolt-app' não encontrado!"
+  echo "Container para o serviço 'bolt-app' não encontrado após aguardar 30 segundos!"
   exit 1
 fi
 
