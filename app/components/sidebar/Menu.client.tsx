@@ -26,6 +26,7 @@ import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { Link } from '@remix-run/react';
+import { LogoutButton } from '~/components/ui/LogoutButton';
 
 const menuVariants = {
   closed: {
@@ -58,7 +59,7 @@ function CurrentDateTime() {
   useEffect(() => {
     const timer = setInterval(() => {
       setDateTime(new Date());
-    }, 60000); // Update every minute
+    }, 60000); // Atualiza a cada minuto
 
     return () => clearInterval(timer);
   }, []);
@@ -106,7 +107,7 @@ export const Menu = () => {
             loadEntries();
 
             if (chatId.get() === item.id) {
-              // hard page navigation to clear the stores
+              // Navegação forçada para limpar os stores
               window.location.pathname = '/';
             }
           })
@@ -137,7 +138,6 @@ export const Menu = () => {
       if (event.pageX < enterThreshold) {
         setOpen(true);
       }
-
       if (
         menuRef.current &&
         event.clientX >
@@ -161,7 +161,7 @@ export const Menu = () => {
 
   const handleDuplicate = async (id: string) => {
     await duplicateCurrentChat(id);
-    loadEntries(); // Reload the list after duplication
+    loadEntries(); // Recarrega a lista após duplicação
   };
 
   return (
@@ -172,7 +172,7 @@ export const Menu = () => {
       variants={menuVariants}
       className="flex selection-accent flex-col side-menu fixed top-0 w-[350px] h-full bg-bolt-elements-background-depth-2 border-r rounded-r-3xl border-bolt-elements-borderColor z-sidebar shadow-xl shadow-bolt-elements-sidebar-dropdownShadow text-sm"
     >
-      <div className="h-[60px]" /> {/* Spacer for top margin */}
+      <div className="h-[60px]" /> {/* Espaço para a margem superior */}
       <CurrentDateTime />
       <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
         <div className="p-4 select-none">
@@ -258,11 +258,7 @@ export const Menu = () => {
         <div className="flex items-center justify-between border-t border-bolt-elements-borderColor p-4">
           <div className="flex items-center gap-4">
             <SettingsButton onClick={() => setIsSettingsOpen(true)} />
-            <Link to="/logout">
-              <button className="flex items-center p-1.5 rounded-md bg-bolt-elements-item-backgroundDefault hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary">
-                <div className="i-ph:sign-out text-lg" />
-              </button>
-            </Link>
+            <LogoutButton />
           </div>
           <ThemeSwitch />
         </div>
