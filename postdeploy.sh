@@ -32,8 +32,8 @@ else
 fi
 
 echo "=== Configurando bucket no Minio ==="
-mc alias set supabase-minio http://supabase-minio:9000 "${SERVICE_USER_MINIO}" "${SERVICE_PASSWORD_MINIO}"
-mc mb --ignore-existing supabase-minio/bolt-app-files
+docker run --rm --network bolt_network minio/mc alias set supabase-minio http://supabase-minio:9000 "${SERVICE_USER_MINIO}" "${SERVICE_PASSWORD_MINIO}"
+docker run --rm --network bolt_network minio/mc mb --ignore-existing supabase-minio/bolt-app-files
 
 echo "=== Executando migrações do banco de dados ==="
 if [ -f migrations.sql ]; then
