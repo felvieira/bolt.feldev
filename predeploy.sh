@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "=== INICIANDO PREDEPLOY ==="
+
 echo "=== Verificando instalação do postgresql-client ==="
 if ! command -v psql >/dev/null 2>&1; then
   echo "psql não encontrado. Instalando postgresql-client..."
