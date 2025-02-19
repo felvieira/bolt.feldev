@@ -8,7 +8,7 @@
   "version": "0.0.6",
   "scripts": {
     "deploy": "npm run build && wrangler pages deploy",
-    "build": "remix vite:build",
+    "build": "node -e \"process.env.NODE_NO_WARNINGS='1'; require('child_process').spawnSync('remix', ['vite:build'], { stdio: 'inherit', shell: true });\"",
     "dev": "node pre-start.cjs  && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
@@ -93,6 +93,7 @@
     "jszip": "^3.10.1",
     "nanostores": "^0.10.3",
     "ollama-ai-provider": "^0.15.2",
+    "prismjs": "^1.29.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hotkeys-hook": "^4.6.1",

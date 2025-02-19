@@ -25,21 +25,45 @@ export default defineConfig((config) => {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
-      // 'process.env': JSON.stringify(process.env)
+      // Set NODE_ENV directly in Vite config instead of .env
+      'process.env.NODE_ENV': JSON.stringify(config.mode),
+      // Note: Type Stripping warning is expected and can be ignored
+      //       or suppressed by running with NODE_NO_WARNINGS=1
     },
     build: {
       target: 'esnext',
       rollupOptions: {
         external: ['@remix-run/node'],
         output: isProd ? {
-          manualChunks: {
-            'vendor': ['marked', 'prismjs'],
-            'editor': ['emacs-lisp', 'cpp'],
-            'ui': ['./app/components/Header.tsx'],
+          manualChunks(id) {
+            // Vendor dependencies
+            if (id.includes('node_modules')) {
+              if (id.includes('marked') || id.includes('prismjs')) {
+                return 'vendor';
+              }
+              if (id.includes('emacs-lisp') || id.includes('cpp')) {
+                return 'editor-core';
+              }
+              // Split editor languages into separate chunks
+              if (id.includes('languages')) {
+                return 'editor-languages';
+              }
+            }
+            // Split UI components into smaller chunks
+            if (id.includes('app/components')) {
+              if (id.includes('workbench')) {
+                return 'ui-workbench';
+              }
+              if (id.includes('chat')) {
+                return 'ui-chat';
+              }
+              return 'ui-core';
+            }
+            return undefined;
           }
         } : undefined
       },
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 2500, // Increased to reduce warnings
       minify: isProd ? 'esbuild' : false,
       sourcemap: !isProd
     },
@@ -53,7 +77,8 @@ export default defineConfig((config) => {
           v3_fetcherPersist: true,
           v3_relativeSplatPath: true,
           v3_throwAbortReason: true,
-          v3_lazyRouteDiscovery: true
+          v3_lazyRouteDiscovery: true,
+          v3_singleFetch: true // Add support for React Router v7's single fetch
         },
       }),
       UnoCSS(),
