@@ -4,3 +4,12 @@ compatibility_flags = ["nodejs_compat"]
 compatibility_date = "2024-07-01"
 pages_build_output_dir = "./build/client"
 send_metrics = false
+
+[vars]
+# This ensures Wrangler will look for environment variables at runtime
+# rather than build time
+NODE_ENV = "production"
+
+# Add this section to ensure environment variables are passed through
+[env.production]
+inherit_from = ["vars"]
