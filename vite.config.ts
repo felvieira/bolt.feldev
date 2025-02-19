@@ -19,6 +19,8 @@ const getGitHash = () => {
 };
 
 export default defineConfig((config) => {
+  const isProd = config.mode === 'production';
+  
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
@@ -28,8 +30,18 @@ export default defineConfig((config) => {
     build: {
       target: 'esnext',
       rollupOptions: {
-        external: ['@remix-run/node']
-      }
+        external: ['@remix-run/node'],
+        output: isProd ? {
+          manualChunks: {
+            'vendor': ['marked', 'prismjs'],
+            'editor': ['emacs-lisp', 'cpp'],
+            'ui': ['./app/components/Header.tsx'],
+          }
+        } : undefined
+      },
+      chunkSizeWarningLimit: 2000,
+      minify: isProd ? 'esbuild' : false,
+      sourcemap: !isProd
     },
     plugins: [
       nodePolyfills({
@@ -49,7 +61,18 @@ export default defineConfig((config) => {
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
-    envPrefix: ["VITE_","OPENAI_LIKE_API_BASE_URL", "OLLAMA_API_BASE_URL", "LMSTUDIO_API_BASE_URL","TOGETHER_API_BASE_URL"],
+    optimizeDeps: {
+      include: ['marked', 'prismjs']
+    },
+    envPrefix: [
+      "VITE_",
+      "OPENAI_LIKE_API_BASE_URL", 
+      "OLLAMA_API_BASE_URL", 
+      "LMSTUDIO_API_BASE_URL",
+      "TOGETHER_API_BASE_URL",
+      "SESSION_SECRET",
+      "XAI_API_KEY"
+    ],
     css: {
       preprocessorOptions: {
         scss: {

@@ -13,6 +13,9 @@ import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
 
+import { json, type LoaderFunction } from "@remix-run/cloudflare";
+import { requireAuth } from "~/utils/auth.server";
+
 export const links: LinksFunction = () => [
   {
     rel: 'icon',
@@ -51,6 +54,19 @@ const inlineThemeCode = stripIndents`
     document.querySelector('html')?.setAttribute('data-theme', theme);
   }
 `;
+
+export const loader: LoaderFunction = async ({ request }) => {
+  const pathname = new URL(request.url).pathname;
+  
+  // Skip auth check for login page
+  if (pathname === "/login") {
+    return json({});
+  }
+
+  // Check auth for all other routes
+  await requireAuth(request);
+  return json({});
+};
 
 export const Head = createHead(() => (
   <>
