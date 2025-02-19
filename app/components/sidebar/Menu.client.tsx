@@ -1,31 +1,16 @@
-// app/components/header/Menu.client.tsx
 import { motion, type Variants } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import {
-  Dialog,
-  DialogButton,
-  DialogDescription,
-  DialogRoot,
-  DialogTitle,
-} from '~/components/ui/Dialog';
+import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
 import { SettingsButton } from '~/components/ui/SettingsButton';
-import {
-  db,
-  deleteById,
-  getAll,
-  chatId,
-  type ChatHistoryItem,
-  useChatHistory,
-} from '~/lib/persistence';
+import { db, deleteById, getAll, chatId, type ChatHistoryItem, useChatHistory } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
-import { Link } from '@remix-run/react';
 import { LogoutButton } from '~/components/ui/LogoutButton';
 
 const menuVariants = {
@@ -49,9 +34,7 @@ const menuVariants = {
   },
 } satisfies Variants;
 
-type DialogContent =
-  | { type: 'delete'; item: ChatHistoryItem }
-  | null;
+type DialogContent = { type: 'delete'; item: ChatHistoryItem } | null;
 
 function CurrentDateTime() {
   const [dateTime, setDateTime] = useState(new Date());
@@ -67,8 +50,7 @@ function CurrentDateTime() {
   return (
     <div className="flex items-center gap-2 px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-b border-bolt-elements-borderColor">
       <div className="h-4 w-4 i-ph:clock-thin" />
-      {dateTime.toLocaleDateString()}{' '}
-      {dateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      {dateTime.toLocaleDateString()} {dateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
     </div>
   );
 }
@@ -89,36 +71,31 @@ export const Menu = () => {
   const loadEntries = useCallback(() => {
     if (db) {
       getAll(db)
-        .then((list) =>
-          list.filter((item) => item.urlId && item.description)
-        )
+        .then((list) => list.filter((item) => item.urlId && item.description))
         .then(setList)
         .catch((error) => toast.error(error.message));
     }
   }, []);
 
-  const deleteItem = useCallback(
-    (event: React.UIEvent, item: ChatHistoryItem) => {
-      event.preventDefault();
+  const deleteItem = useCallback((event: React.UIEvent, item: ChatHistoryItem) => {
+    event.preventDefault();
 
-      if (db) {
-        deleteById(db, item.id)
-          .then(() => {
-            loadEntries();
+    if (db) {
+      deleteById(db, item.id)
+        .then(() => {
+          loadEntries();
 
-            if (chatId.get() === item.id) {
-              // Navegação forçada para limpar os stores
-              window.location.pathname = '/';
-            }
-          })
-          .catch((error) => {
-            toast.error('Failed to delete conversation');
-            logger.error(error);
-          });
-      }
-    },
-    []
-  );
+          if (chatId.get() === item.id) {
+            // Navegação forçada para limpar os stores
+            window.location.pathname = '/';
+          }
+        })
+        .catch((error) => {
+          toast.error('Failed to delete conversation');
+          logger.error(error);
+        });
+    }
+  }, []);
 
   const closeDialog = () => {
     setDialogContent(null);
@@ -138,11 +115,8 @@ export const Menu = () => {
       if (event.pageX < enterThreshold) {
         setOpen(true);
       }
-      if (
-        menuRef.current &&
-        event.clientX >
-          menuRef.current.getBoundingClientRect().right + exitThreshold
-      ) {
+
+      if (menuRef.current && event.clientX > menuRef.current.getBoundingClientRect().right + exitThreshold) {
         setOpen(false);
       }
     }
@@ -193,15 +167,11 @@ export const Menu = () => {
             />
           </div>
         </div>
-        <div className="text-bolt-elements-textPrimary font-medium pl-6 pr-5 my-2">
-          Your Chats
-        </div>
+        <div className="text-bolt-elements-textPrimary font-medium pl-6 pr-5 my-2">Your Chats</div>
         <div className="flex-1 overflow-auto pl-4 pr-5 pb-5">
           {filteredList.length === 0 && (
             <div className="pl-2 text-bolt-elements-textTertiary">
-              {list.length === 0
-                ? 'No previous conversations'
-                : 'No matches found'}
+              {list.length === 0 ? 'No previous conversations' : 'No matches found'}
             </div>
           )}
           <DialogRoot open={dialogContent !== null}>
@@ -228,12 +198,9 @@ export const Menu = () => {
                   <DialogDescription asChild>
                     <div>
                       <p>
-                        You are about to delete{' '}
-                        <strong>{dialogContent.item.description}</strong>.
+                        You are about to delete <strong>{dialogContent.item.description}</strong>.
                       </p>
-                      <p className="mt-1">
-                        Are you sure you want to delete this chat?
-                      </p>
+                      <p className="mt-1">Are you sure you want to delete this chat?</p>
                     </div>
                   </DialogDescription>
                   <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">

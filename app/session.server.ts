@@ -2,8 +2,9 @@
 import { createCookieSessionStorage } from '@remix-run/cloudflare';
 
 const sessionSecret = process.env.SESSION_SECRET;
+
 if (!sessionSecret) {
-  throw new Error("SESSION_SECRET must be set");
+  throw new Error('SESSION_SECRET must be set');
 }
 
 export const sessionStorage = createCookieSessionStorage({

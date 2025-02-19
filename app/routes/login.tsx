@@ -21,15 +21,17 @@ export const action: ActionFunction = async ({ request }) => {
   try {
     if (isSignUp) {
       // Handle sign up
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (signUpError) throw signUpError;
-      
-      return json({ 
-        message: 'Please check your email to confirm your account.' 
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      return json({
+        message: 'Please check your email to confirm your account.',
       });
     } else {
       // Handle sign in
@@ -38,7 +40,9 @@ export const action: ActionFunction = async ({ request }) => {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       const session = await getSession(request.headers.get('Cookie'));
       session.set('access_token', data.session.access_token);
@@ -51,14 +55,17 @@ export const action: ActionFunction = async ({ request }) => {
     }
   } catch (error) {
     const authError = error as AuthError;
-    return json({ 
-      error: authError.message || 'Authentication failed' 
-    }, { status: 400 });
+    return json(
+      {
+        error: authError.message || 'Authentication failed',
+      },
+      { status: 400 },
+    );
   }
 };
 
 export default function Login() {
-  const actionData = useActionData<{ error?: string, message?: string }>();
+  const actionData = useActionData<{ error?: string; message?: string }>();
   const [isSignUp, setIsSignUp] = useState(false);
 
   return (
@@ -70,16 +77,11 @@ export default function Login() {
             {isSignUp ? 'Join Bolt.diy Community' : 'Welcome Back to Bolt.diy'}
           </h1>
           <p className="text-lg text-bolt-elements-textSecondary">
-            {isSignUp 
-              ? 'Create an account to get started'
-              : 'Sign in to continue building amazing things'
-            }
+            {isSignUp ? 'Create an account to get started' : 'Sign in to continue building amazing things'}
           </p>
         </div>
-        
-        {actionData?.error && (
-          <p className="mb-6 text-red-600 bg-red-50 px-4 py-2 rounded-lg">{actionData.error}</p>
-        )}
+
+        {actionData?.error && <p className="mb-6 text-red-600 bg-red-50 px-4 py-2 rounded-lg">{actionData.error}</p>}
         {actionData?.message && (
           <p className="mb-6 text-green-600 bg-green-50 px-4 py-2 rounded-lg">{actionData.message}</p>
         )}
@@ -87,24 +89,16 @@ export default function Login() {
         <Form method="post" className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
           <input type="hidden" name="isSignUp" value={isSignUp.toString()} />
           <div className="mb-4">
-            <label htmlFor="email" className="block mb-1">Email:</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              className="w-full border px-3 py-2 rounded"
-            />
+            <label htmlFor="email" className="block mb-1">
+              Email:
+            </label>
+            <input id="email" name="email" type="email" required className="w-full border px-3 py-2 rounded" />
           </div>
           <div className="mb-6">
-            <label htmlFor="password" className="block mb-1">Password:</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="w-full border px-3 py-2 rounded"
-            />
+            <label htmlFor="password" className="block mb-1">
+              Password:
+            </label>
+            <input id="password" name="password" type="password" required className="w-full border px-3 py-2 rounded" />
           </div>
           <button
             type="submit"
@@ -117,9 +111,7 @@ export default function Login() {
             onClick={() => setIsSignUp(!isSignUp)}
             className="w-full text-blue-600 hover:text-blue-800 text-sm"
           >
-            {isSignUp 
-              ? 'Already building with Bolt.diy? Sign in' 
-              : 'New to Bolt.diy? Create account'}
+            {isSignUp ? 'Already building with Bolt.diy? Sign in' : 'New to Bolt.diy? Create account'}
           </button>
         </Form>
       </div>

@@ -13,8 +13,8 @@ import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
 
-import { json, type LoaderFunction } from "@remix-run/cloudflare";
-import { requireAuth } from "~/utils/auth.server";
+import { json, type LoaderFunction } from '@remix-run/cloudflare';
+import { requireAuth } from '~/utils/auth.server';
 
 export const links: LinksFunction = () => [
   {
@@ -57,14 +57,15 @@ const inlineThemeCode = stripIndents`
 
 export const loader: LoaderFunction = async ({ request }) => {
   const pathname = new URL(request.url).pathname;
-  
+
   // Skip auth check for login page
-  if (pathname === "/login") {
+  if (pathname === '/login') {
     return json({});
   }
 
   // Check auth for all other routes
   await requireAuth(request);
+
   return json({});
 };
 

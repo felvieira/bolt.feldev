@@ -1,5 +1,5 @@
 // app/components/ui/LogoutButton.tsx
-import { Link } from "@remix-run/react";
+import { Link } from '@remix-run/react';
 
 export function LogoutButton() {
   return (
