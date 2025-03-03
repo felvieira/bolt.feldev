@@ -32,7 +32,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
     networks:
-      - bolt_network
+      - shared
 
   app-dev:
     image: bolt-ai:development
@@ -78,7 +78,7 @@ services:
     command: pnpm run dev --host 0.0.0.0
     profiles: ["development", "default"]
     networks:
-      - bolt_network
+      - shared
 
   app-prebuild:
     image: ghcr.io/stackblitz-labs/bolt.diy:latest 
@@ -101,8 +101,8 @@ services:
     profiles:
       - prebuilt
     networks:
-      - bolt_network
+      - shared
 
 networks:
-  bolt_network:
+  shared:
     external: true
