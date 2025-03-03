@@ -22,5 +22,6 @@ console.log(`
 `);
 console.log('📍 Current Version Tag:', `v${commitJson.version}`);
 console.log('📍 Current Commit Version:', commitJson.hash);
+console.log("SESSION_SECRET:", Deno.env.get("SESSION_SECRET"));
 console.log('  Please wait until the URL appears here');
 console.log('★═══════════════════════════════════════★');
