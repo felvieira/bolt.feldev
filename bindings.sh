@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 bindings=""
 
 # Lista os nomes das variáveis que você deseja obter (de acordo com sua interface)
