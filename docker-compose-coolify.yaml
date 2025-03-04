@@ -6,13 +6,13 @@ services:
       dockerfile: Dockerfile-coolify
       args:
         - SESSION_SECRET
-        - NODE_ENV=${NODE_ENV:-production}
+        - NODE_ENV=production
         - RUNNING_IN_DOCKER=true
     ports:
       - "3000:5173"
     environment:
       - SESSION_SECRET=${SESSION_SECRET}
-      - NODE_ENV=${NODE_ENV:-production}
+      - NODE_ENV=production
       - PORT=5173
       - GROQ_API_KEY=${GROQ_API_KEY}
       - HuggingFace_API_KEY=${HuggingFace_API_KEY}
