@@ -1,8 +1,11 @@
 # Etapa base
-ARG BASE=node:20.18.0
+ARG BASE=node:20.18.0-bullseye
 FROM ${BASE} AS base
 
 WORKDIR /app
+
+# Força o uso do bash para todos os comandos RUN
+SHELL ["/bin/bash", "-c"]
 
 # Copia os arquivos de dependência para aproveitar o cache
 COPY package.json pnpm-lock.yaml ./
