@@ -15,7 +15,9 @@ RUN npm install -g npm@latest && \
     npm install -g corepack@latest && \
     corepack enable pnpm && \
     corepack use pnpm@latest-10 && \
-    npm install -g wrangler@latest
+    npm cache clean --force && \
+    npm uninstall -g wrangler && \
+    npm install -g wrangler@latest --force
 
 # Instala as dependências do projeto
 RUN pnpm install
@@ -49,10 +51,14 @@ EXPOSE 5173
 # Etapa final: imagem de produção para uso com Coolify
 FROM build AS production
 
-# Recebe o argumento SESSION_SECRET, que pode ser injetado no build
+# Recebe os argumentos de build para injeção de variáveis de ambiente
 ARG SESSION_SECRET
-ENV NODE_ENV=production \
-    RUNNING_IN_DOCKER=true \
+ARG NODE_ENV
+ARG RUNNING_IN_DOCKER
+
+# Define as variáveis de ambiente na imagem de produção
+ENV NODE_ENV=${NODE_ENV} \
+    RUNNING_IN_DOCKER=${RUNNING_IN_DOCKER} \
     SESSION_SECRET=${SESSION_SECRET}
 
 # Comando final para iniciar a aplicação
