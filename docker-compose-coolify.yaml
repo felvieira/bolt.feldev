@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile-coolify
       args:
-        - SESSION_SECRET
+        - SESSION_SECRET=${SESSION_SECRET}
         - NODE_ENV=production
         - RUNNING_IN_DOCKER=true
     ports:
