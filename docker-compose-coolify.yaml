@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-coolify
+      target: bolt-ai-production
       args:
         - NODE_ENV=production
         - RUNNING_IN_DOCKER=true
