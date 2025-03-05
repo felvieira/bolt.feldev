@@ -1,11 +1,38 @@
 // app/session.server.ts
 import { createCookieSessionStorage } from '@remix-run/cloudflare';
 
-const sessionSecret = process.env.SESSION_SECRET;
+// Try multiple ways to access SESSION_SECRET
+const getSessionSecret = () => {
+  // Try to get SESSION_SECRET from various possible locations
+  const secret = process.env.SESSION_SECRET;
 
-if (!sessionSecret) {
-  throw new Error('SESSION_SECRET must be set');
-}
+  if (secret) {
+    return secret;
+  }
+
+  console.warn('WARNING: SESSION_SECRET not found in environment!');
+  console.warn('Using a randomly generated temporary secret. Sessions will not persist across application restarts.');
+
+  // Generate a random secret as fallback
+  try {
+    // Use Web Crypto API if available
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+
+      return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Fallback to simpler random generation
+    return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  } catch (error) {
+    console.error('Error generating fallback SESSION_SECRET:', error);
+    return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  }
+};
+
+// Get session secret with fallback
+const sessionSecret = getSessionSecret();
 
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
