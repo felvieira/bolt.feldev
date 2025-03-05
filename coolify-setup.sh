@@ -36,15 +36,16 @@ EOF
 # Make a copy for the volume mount
 cp .env.local ./bolt-env/.env.local
 
-# 2. Set Wrangler secret (try multiple approaches)
-echo "Setting Wrangler secret via direct approach"
-echo "${SESSION_SECRET}" | wrangler secret put SESSION_SECRET --stdin --no-interactive || true
+# 2. Set Wrangler secret for Pages (try multiple approaches)
+echo "Setting Wrangler Pages environment variable"
+echo "Note: This may fail in certain environments, but the app has fallbacks"
 
-# 3. Also try setting it through a temporary file for non-interactive environments
-echo "Setting Wrangler secret via file approach"
-echo "${SESSION_SECRET}" > .secret_temp
-wrangler secret put SESSION_SECRET --name bolt < .secret_temp || true
-rm .secret_temp
+# Current Wrangler version uses this format for Pages
+wrangler pages project env put SESSION_SECRET --project-name bolt --env production || true
+
+# Alternative method: Write to .env file that wrangler will pick up
+echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars
+echo "Created .dev.vars file with SESSION_SECRET for local development"
 
 # 4. Ensure it's passed to docker-compose
 echo "Ensuring SESSION_SECRET is available for docker-compose"

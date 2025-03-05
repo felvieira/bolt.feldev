@@ -19,34 +19,36 @@ export default async function handleRequest(
   loadContext: AppLoadContext,
 ) {
   const env = loadContext.env as Env;
-  
+
   // Get SESSION_SECRET from the environment or context
   let sessionSecret = env?.SESSION_SECRET || process.env.SESSION_SECRET;
-  
+
   // Fallback mechanism: Generate a random SESSION_SECRET if not found
   if (!sessionSecret) {
-    console.warn("WARNING: SESSION_SECRET not found in environment! Using a randomly generated value for this session only.");
-    console.warn("Sessions will not persist across application restarts!");
-    
+    console.warn(
+      'WARNING: SESSION_SECRET not found in environment! Using a randomly generated value for this session only.',
+    );
+    console.warn('Sessions will not persist across application restarts!');
+
     try {
       // Generate a random session secret as fallback
       sessionSecret = crypto.randomBytes(32).toString('hex');
-      
+
       // Try to set it in the environment if possible
       if (typeof process !== 'undefined' && process.env) {
         process.env.SESSION_SECRET = sessionSecret;
       }
-      
-      console.log("Generated temporary SESSION_SECRET for this session");
+
+      console.log('Generated temporary SESSION_SECRET for this session');
     } catch (error) {
-      console.error("Error generating fallback SESSION_SECRET:", error);
-      
+      console.error('Error generating fallback SESSION_SECRET:', error);
+
       // Last resort fallback
       sessionSecret = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-      console.log("Using simple random string as SESSION_SECRET fallback");
+      console.log('Using simple random string as SESSION_SECRET fallback');
     }
   } else {
-    console.log("SESSION_SECRET status: Set ✓");
+    console.log('SESSION_SECRET status: Set ✓');
   }
 
   const readable = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {

@@ -60,9 +60,10 @@ ENV NODE_ENV=${NODE_ENV:-production} \
 # Create a .env.local file with the SESSION_SECRET for local development
 RUN echo "SESSION_SECRET=${SESSION_SECRET}" > .env.local
 
-# Create Wrangler secret before starting the application
-RUN echo "Setting Wrangler secret for SESSION_SECRET (this may fail if already set, which is okay)" && \
-    echo "${SESSION_SECRET}" | wrangler secret put SESSION_SECRET --stdin || true
+# Create .dev.vars file for Wrangler Pages
+RUN echo "Creating .dev.vars file for Wrangler Pages" && \
+    echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars && \
+    echo "Created .dev.vars with SESSION_SECRET for local development"
 
 # Use the entrypoint script to ensure the secret is set before startup
 ENTRYPOINT ["/app/entrypoint.sh"]

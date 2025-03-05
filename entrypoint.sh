@@ -15,9 +15,17 @@ fi
 echo "Creating .env.local with SESSION_SECRET"
 echo "SESSION_SECRET=${SESSION_SECRET}" > .env.local
 
-# Try to set the Wrangler secret (ignore errors if it already exists)
-echo "Setting Wrangler secret for SESSION_SECRET"
-echo "${SESSION_SECRET}" | wrangler secret put SESSION_SECRET --stdin --no-interactive || true
+# Try to set the Wrangler Pages environment variable (ignore errors if it fails)
+echo "Setting Wrangler Pages environment variable for SESSION_SECRET"
+echo "Note: This may fail in CI environments but the app has fallbacks"
+
+# For local development, create a .dev.vars file that Wrangler will use
+echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars
+echo "Created .dev.vars file with SESSION_SECRET for local development"
+
+# Try to set the environment variable in Wrangler Pages project
+# This requires authentication and may fail in CI environments
+wrangler pages project env put SESSION_SECRET --project-name bolt --env production || true
 
 # If bindings.sh exists, use it to generate bindings for Wrangler
 if [ -f "./bindings.sh" ]; then
