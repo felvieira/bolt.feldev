@@ -10,14 +10,15 @@ SHELL ["/bin/bash", "-c"]
 # Copia os arquivos de dependência para aproveitar o cache
 COPY package.json pnpm-lock.yaml ./
 
-# Atualiza o npm, instala o Corepack, configura o pnpm e instala o Wrangler
+# Atualiza o npm, instala o Corepack, configura o pnpm, limpa o cache,
+# desinstala a versão antiga do Wrangler e instala a versão atualizada (3.112.0)
 RUN npm install -g npm@latest && \
     npm install -g corepack@latest && \
     corepack enable pnpm && \
     corepack use pnpm@latest-10 && \
     npm cache clean --force && \
     npm uninstall -g wrangler && \
-    npm install -g wrangler@latest --force
+    npm install -g wrangler@3.112.0 --force
 
 # Instala as dependências do projeto
 RUN pnpm install
