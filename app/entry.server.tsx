@@ -5,17 +5,51 @@ import { renderToReadableStream } from 'react-dom/server';
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from '~/lib/stores/theme';
+import crypto from 'crypto';
 
-console.log("SESSION_SECRET:", Deno.env.get("SESSION_SECRET") || process.env.SESSION_SECRET);
+interface Env {
+  SESSION_SECRET?: string;
+}
 
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   remixContext: any,
-  _loadContext: AppLoadContext,
+  loadContext: AppLoadContext,
 ) {
-  // await initializeModelList({});
+  const env = loadContext.env as Env;
+
+  // Get SESSION_SECRET from the environment or context
+  let sessionSecret = env?.SESSION_SECRET || process.env.SESSION_SECRET;
+
+  // Fallback mechanism: Generate a random SESSION_SECRET if not found
+  if (!sessionSecret) {
+    console.warn(
+      'WARNING: SESSION_SECRET not found in environment! Using a randomly generated value for this session only.',
+    );
+    console.warn('Sessions will not persist across application restarts!');
+
+    try {
+      // Generate a random session secret as fallback
+      sessionSecret = crypto.randomBytes(32).toString('hex');
+
+      // Try to set it in the environment if possible
+      if (typeof process !== 'undefined' && process.env) {
+        process.env.SESSION_SECRET = sessionSecret;
+      }
+
+      console.log('Generated temporary SESSION_SECRET for this session');
+    } catch (error) {
+      console.error('Error generating fallback SESSION_SECRET:', error);
+
+      // Last resort fallback
+      sessionSecret = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      console.log('Using simple random string as SESSION_SECRET fallback');
+    }
+  } else {
+    console.log('SESSION_SECRET status: Set ✓');
+  }
 
   const readable = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {
     signal: request.signal,
