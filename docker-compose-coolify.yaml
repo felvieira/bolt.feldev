@@ -5,13 +5,13 @@ services:
       context: .
       dockerfile: Dockerfile-coolify
       args:
-        - SESSION_SECRET=${SESSION_SECRET}
+        - SESSION_SECRET=nK9qj2P8vL5mX4dR3fA7hE1tY6wQ8sZ0
         - NODE_ENV=production
         - RUNNING_IN_DOCKER=true
     ports:
       - "3000:5173"
     environment:
-      - SESSION_SECRET=${SESSION_SECRET}
+      - SESSION_SECRET=nK9qj2P8vL5mX4dR3fA7hE1tY6wQ8sZ0
       - NODE_ENV=production
       - PORT=5173
       - GROQ_API_KEY=${GROQ_API_KEY}
