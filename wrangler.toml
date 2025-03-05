@@ -8,6 +8,15 @@ send_metrics = false
 [vars]
 NODE_ENV = "production"
 SESSION_SECRET = "${SESSION_SECRET}"
+SUPABASE_URL = "${SUPABASE_URL}"
+SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}"
+DATABASE_URL = "${DATABASE_URL}"
+DEFAULT_NUM_CTX = "${DEFAULT_NUM_CTX}"
+# Adicione aqui outras variáveis que seu Worker necessite, por exemplo:
+# GROQ_API_KEY = "${GROQ_API_KEY}"
+# HuggingFace_API_KEY = "${HuggingFace_API_KEY}"
+# OPENAI_API_KEY = "${OPENAI_API_KEY}"
+# etc.
 
 [env.production]
 inherit_from = ["vars"]
