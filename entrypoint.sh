@@ -5,27 +5,28 @@ echo "Starting entrypoint script for bolt.diy"
 
 # Check if SESSION_SECRET is set
 if [ -z "${SESSION_SECRET}" ]; then
-  echo "ERROR: SESSION_SECRET environment variable is not set!"
-  exit 1
+  echo "WARNING: SESSION_SECRET environment variable is not set!"
+  
+  # Run setup script if available to generate SESSION_SECRET
+  if [ -f "./coolify-setup.sh" ]; then
+    echo "Running coolify-setup.sh to generate SESSION_SECRET"
+    chmod +x ./coolify-setup.sh
+    ./coolify-setup.sh
+  else
+    # Generate a temporary SESSION_SECRET
+    export SESSION_SECRET=$(openssl rand -base64 32)
+    echo "Generated temporary SESSION_SECRET (value hidden for security)"
+  fi
 else
   echo "SESSION_SECRET is set (value hidden for security)"
 fi
 
-# Create or update .env.local with SESSION_SECRET
-echo "Creating .env.local with SESSION_SECRET"
+# Ensure .env.local and .dev.vars are created with current SESSION_SECRET
+echo "Ensuring configuration files have current SESSION_SECRET"
 echo "SESSION_SECRET=${SESSION_SECRET}" > .env.local
-
-# Try to set the Wrangler Pages environment variable (ignore errors if it fails)
-echo "Setting Wrangler Pages environment variable for SESSION_SECRET"
-echo "Note: This may fail in CI environments but the app has fallbacks"
-
-# For local development, create a .dev.vars file that Wrangler will use
 echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars
-echo "Created .dev.vars file with SESSION_SECRET for local development"
 
-# Try to set the environment variable in Wrangler Pages project
-# This requires authentication and may fail in CI environments
-wrangler pages project env put SESSION_SECRET --project-name bolt --env production || true
+echo "Configuration complete. Starting application..."
 
 # If bindings.sh exists, use it to generate bindings for Wrangler
 if [ -f "./bindings.sh" ]; then

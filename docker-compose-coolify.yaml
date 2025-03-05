@@ -31,17 +31,15 @@ services:
       # Pass SESSION_SECRET as an environment variable as well
       - SESSION_SECRET=${SESSION_SECRET}
     volumes:
-      # Optional volume to persist .env.local across container restarts
+      # Volume to persist .env.local across container restarts
       - ./bolt-env:/app/.env.local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
-    # Ensure wrangler uses the correct command for Pages
-    command: >
-      sh -c "
-        # Create .dev.vars for local development
-        echo 'SESSION_SECRET=${SESSION_SECRET}' > .dev.vars && 
-        # Start the application with Wrangler Pages
-        pnpm run dockerstart
-      "
     networks:
       - shared
 
