@@ -6,6 +6,8 @@ import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from '~/lib/stores/theme';
 
+console.log("SESSION_SECRET:", Deno.env.get("SESSION_SECRET") || process.env.SESSION_SECRET);
+
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
