@@ -11,6 +11,11 @@ dotenv.config();
 
 // Get git hash with fallback
 const getGitHash = () => {
+  // Skip Git commands in production/Coolify environments
+  if (process.env.NODE_ENV === 'production' || process.env.RUNNING_IN_DOCKER === 'true') {
+    return 'production-build';
+  }
+
   try {
     return execSync('git rev-parse --short HEAD').toString().trim();
   } catch {
@@ -20,7 +25,7 @@ const getGitHash = () => {
 
 export default defineConfig((config) => {
   const isProd = config.mode === 'production';
-  
+
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
@@ -34,38 +39,40 @@ export default defineConfig((config) => {
       target: 'esnext',
       rollupOptions: {
         external: ['@remix-run/node'],
-        output: isProd ? {
-          manualChunks(id) {
-            // Vendor dependencies
-            if (id.includes('node_modules')) {
-              if (id.includes('marked') || id.includes('prismjs')) {
-                return 'vendor';
-              }
-              if (id.includes('emacs-lisp') || id.includes('cpp')) {
-                return 'editor-core';
-              }
-              // Split editor languages into separate chunks
-              if (id.includes('languages')) {
-                return 'editor-languages';
-              }
+        output: isProd
+          ? {
+              manualChunks(id) {
+                // Vendor dependencies
+                if (id.includes('node_modules')) {
+                  if (id.includes('marked') || id.includes('prismjs')) {
+                    return 'vendor';
+                  }
+                  if (id.includes('emacs-lisp') || id.includes('cpp')) {
+                    return 'editor-core';
+                  }
+                  // Split editor languages into separate chunks
+                  if (id.includes('languages')) {
+                    return 'editor-languages';
+                  }
+                }
+                // Split UI components into smaller chunks
+                if (id.includes('app/components')) {
+                  if (id.includes('workbench')) {
+                    return 'ui-workbench';
+                  }
+                  if (id.includes('chat')) {
+                    return 'ui-chat';
+                  }
+                  return 'ui-core';
+                }
+                return undefined;
+              },
             }
-            // Split UI components into smaller chunks
-            if (id.includes('app/components')) {
-              if (id.includes('workbench')) {
-                return 'ui-workbench';
-              }
-              if (id.includes('chat')) {
-                return 'ui-chat';
-              }
-              return 'ui-core';
-            }
-            return undefined;
-          }
-        } : undefined
+          : undefined,
       },
       chunkSizeWarningLimit: 2500, // Increased to reduce warnings
       minify: isProd ? 'esbuild' : false,
-      sourcemap: !isProd
+      sourcemap: !isProd,
     },
     plugins: [
       nodePolyfills({
@@ -78,7 +85,7 @@ export default defineConfig((config) => {
           v3_relativeSplatPath: true,
           v3_throwAbortReason: true,
           v3_lazyRouteDiscovery: true,
-          v3_singleFetch: true // Add support for React Router v7's single fetch
+          v3_singleFetch: true, // Add support for React Router v7's single fetch
         },
       }),
       UnoCSS(),
@@ -87,16 +94,16 @@ export default defineConfig((config) => {
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
     optimizeDeps: {
-      include: ['marked', 'prismjs']
+      include: ['marked', 'prismjs'],
     },
     envPrefix: [
-      "VITE_",
-      "OPENAI_LIKE_API_BASE_URL", 
-      "OLLAMA_API_BASE_URL", 
-      "LMSTUDIO_API_BASE_URL",
-      "TOGETHER_API_BASE_URL",
-      "SESSION_SECRET",
-      "XAI_API_KEY"
+      'VITE_',
+      'OPENAI_LIKE_API_BASE_URL',
+      'OLLAMA_API_BASE_URL',
+      'LMSTUDIO_API_BASE_URL',
+      'TOGETHER_API_BASE_URL',
+      'SESSION_SECRET',
+      'XAI_API_KEY',
     ],
     css: {
       preprocessorOptions: {
