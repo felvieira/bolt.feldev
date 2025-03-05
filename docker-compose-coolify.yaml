@@ -4,7 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-coolify
-      target: bolt-ai-production
     ports:
       - "5173:5173"
     environment:
