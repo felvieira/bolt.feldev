@@ -5,10 +5,31 @@ import { renderToReadableStream } from 'react-dom/server';
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from '~/lib/stores/theme';
-import crypto from 'crypto';
 
 interface Env {
   SESSION_SECRET?: string;
+}
+
+/**
+ * Helper function to generate a random string using Web Crypto API
+ * This works in Cloudflare Workers environment
+ */
+async function generateSecureRandom(length = 32) {
+  // Create array of random values
+  const array = new Uint8Array(length);
+
+  // Fill with random values using Web Crypto API
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(array);
+  } else {
+    // Fallback for extremely old browsers (should never happen in Cloudflare)
+    for (let i = 0; i < length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  // Convert to hex string
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export default async function handleRequest(
@@ -31,8 +52,8 @@ export default async function handleRequest(
     console.warn('Sessions will not persist across application restarts!');
 
     try {
-      // Generate a random session secret as fallback
-      sessionSecret = crypto.randomBytes(32).toString('hex');
+      // Generate a random session secret using Web Crypto API
+      sessionSecret = await generateSecureRandom(32);
 
       // Try to set it in the environment if possible
       if (typeof process !== 'undefined' && process.env) {
