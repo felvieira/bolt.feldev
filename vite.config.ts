@@ -82,7 +82,7 @@ export default defineConfig((config) => {
       },
       chunkSizeWarningLimit: 2500, // Increased to reduce warnings
       minify: isProd ? 'esbuild' : false,
-      sourcemap: !isProd,
+      sourcemap: true, // Enable source maps in all environments
     },
     plugins: [
       nodePolyfills({
