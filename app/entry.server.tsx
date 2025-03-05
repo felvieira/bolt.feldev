@@ -79,22 +79,21 @@ export default async function handleRequest(
     },
   });
 
-  // Ensure proper content type with charset and force standards mode
   responseHeaders.set('Content-Type', 'text/html; charset=UTF-8');
   responseHeaders.set('X-UA-Compatible', 'IE=edge');
   responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
   responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
 
-  // Create response with encoding declaration in HTML
   const body = new ReadableStream({
     start(controller) {
       const head = renderHeadToString({ request, remixContext, Head });
       const encoder = new TextEncoder();
-      const initialHtml = encoder.encode(
-        `<!DOCTYPE html>\n<html lang="en" data-theme="${themeStore.value}"><head><meta charset="utf-8" />${head}</head><body><div id="root" class="w-full h-full">`,
-      );
 
-      controller.enqueue(initialHtml);
+      // Ensure DOCTYPE is the very first thing written
+      controller.enqueue(encoder.encode('<!DOCTYPE html>'));
+
+      const html = `<html lang="en" data-theme="${themeStore.value}"><head><meta charset="utf-8">${head}</head><body><div id="root" class="w-full h-full">`;
+      controller.enqueue(encoder.encode(html));
 
       const reader = readable.getReader();
 
@@ -103,8 +102,8 @@ export default async function handleRequest(
           .read()
           .then(({ done, value }) => {
             if (done) {
-              const endHtml = encoder.encode('</div></body></html>');
-              controller.enqueue(endHtml);
+              const endHtml = '</div></body></html>';
+              controller.enqueue(encoder.encode(endHtml));
               controller.close();
 
               return;
