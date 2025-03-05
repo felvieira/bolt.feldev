@@ -2,7 +2,7 @@
 import type { ActionFunction } from '@remix-run/cloudflare';
 import { json, redirect } from '@remix-run/cloudflare';
 import { Form, useActionData } from '@remix-run/react';
-import { supabase } from '~/utils/supabase.server';
+import { getSupabaseClient } from '~/utils/supabase.server';
 import { getSession, commitSession } from '~/session.server';
 import { Header } from '~/components/header/Header';
 import { useState } from 'react';
@@ -19,6 +19,9 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   try {
+    // Get Supabase client when needed
+    const supabase = getSupabaseClient();
+
     if (isSignUp) {
       // Handle sign up
       const { error: signUpError } = await supabase.auth.signUp({

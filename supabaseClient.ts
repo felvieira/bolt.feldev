@@ -1,6 +1,14 @@
+// supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL as string;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY as string;
+// Factory function to create Supabase client
+export function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase credentials not available. Please check environment variables.');
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
