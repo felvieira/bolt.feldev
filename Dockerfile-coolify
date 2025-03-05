@@ -61,5 +61,8 @@ ENV NODE_ENV=${NODE_ENV} \
     RUNNING_IN_DOCKER=${RUNNING_IN_DOCKER} \
     SESSION_SECRET=${SESSION_SECRET}
 
-# Comando final para iniciar a aplicação
-CMD ["pnpm", "run", "dockerstart"]
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Comando final para iniciar a aplicação usando o entrypoint personalizado
+CMD ["/app/entrypoint.sh"]
