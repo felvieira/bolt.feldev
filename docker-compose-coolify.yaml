@@ -30,6 +30,12 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       # Pass SESSION_SECRET as an environment variable as well
       - SESSION_SECRET=${SESSION_SECRET}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     volumes:
       # Optional volume to persist .env.local across container restarts
       - ./bolt-env:/app/.env.local
