@@ -6,10 +6,8 @@ pages_build_output_dir = "./build/client"
 send_metrics = false
 
 [vars]
-# This ensures Wrangler will look for environment variables at runtime
-# rather than build time
 NODE_ENV = "production"
+SESSION_SECRET = "${SESSION_SECRET}"
 
-# Add this section to ensure environment variables are passed through
 [env.production]
 inherit_from = ["vars"]
