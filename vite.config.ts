@@ -30,10 +30,14 @@ export default defineConfig((config) => {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
+
       // Set NODE_ENV directly in Vite config instead of .env
       'process.env.NODE_ENV': JSON.stringify(config.mode),
-      // Note: Type Stripping warning is expected and can be ignored
-      //       or suppressed by running with NODE_NO_WARNINGS=1
+
+      /*
+       * Note: Type Stripping warning is expected and can be ignored
+       * or suppressed by running with NODE_NO_WARNINGS=1
+       */
     },
     build: {
       target: 'esnext',
@@ -47,24 +51,30 @@ export default defineConfig((config) => {
                   if (id.includes('marked') || id.includes('prismjs')) {
                     return 'vendor';
                   }
+
                   if (id.includes('emacs-lisp') || id.includes('cpp')) {
                     return 'editor-core';
                   }
+
                   // Split editor languages into separate chunks
                   if (id.includes('languages')) {
                     return 'editor-languages';
                   }
                 }
+
                 // Split UI components into smaller chunks
                 if (id.includes('app/components')) {
                   if (id.includes('workbench')) {
                     return 'ui-workbench';
                   }
+
                   if (id.includes('chat')) {
                     return 'ui-chat';
                   }
+
                   return 'ui-core';
                 }
+
                 return undefined;
               },
             }
