@@ -30,7 +30,9 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       # Pass SESSION_SECRET as an environment variable as well
       - SESSION_SECRET=${SESSION_SECRET}
-    # Remove the volume mount that's causing the issue
+    volumes:
+      # Volume to persist session data
+      - session-data:/app/session-data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5173/health"]
       interval: 30s
@@ -44,3 +46,7 @@ services:
 networks:
   shared:
     external: true
+
+volumes:
+  session-data:
+    driver: local

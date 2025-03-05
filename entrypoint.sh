@@ -3,6 +3,14 @@ set -e
 
 echo "Starting entrypoint script for bolt.diy"
 
+# Check for and use persisted session secret
+PERSISTED_SECRET_PATH="/app/session-data/session-secret"
+
+if [ -z "${SESSION_SECRET}" ] && [ -f "${PERSISTED_SECRET_PATH}" ]; then
+  echo "Found persisted SESSION_SECRET, using it instead of environment variable"
+  export SESSION_SECRET=$(cat "${PERSISTED_SECRET_PATH}")
+fi
+
 # Check if SESSION_SECRET is set
 if [ -z "${SESSION_SECRET}" ]; then
   echo "WARNING: SESSION_SECRET environment variable is not set!"

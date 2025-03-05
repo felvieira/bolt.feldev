@@ -67,5 +67,9 @@ RUN echo "Creating .dev.vars file for Wrangler Pages" && \
     echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars && \
     echo "Created .dev.vars with SESSION_SECRET for local development"
 
-# Use the entrypoint script to ensure the secret is set before startup
+# Create session-data directory with proper permissions
+RUN mkdir -p /app/session-data && \
+    chmod 777 /app/session-data
+
+    # Use the entrypoint script to ensure the secret is set before startup
 ENTRYPOINT ["/app/entrypoint.sh"]
