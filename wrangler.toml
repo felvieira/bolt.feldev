@@ -4,13 +4,3 @@ compatibility_flags = ["nodejs_compat"]
 compatibility_date = "2024-07-01"
 pages_build_output_dir = "./build/client"
 send_metrics = false
-
-[vars]
-NODE_ENV = "production"
-SUPABASE_URL = "${SUPABASE_URL}"
-SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}"
-DATABASE_URL = "${DATABASE_URL}"
-DEFAULT_NUM_CTX = "${DEFAULT_NUM_CTX}"
-
-[env.production]
-inherit_from = ["vars"]
