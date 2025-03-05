@@ -39,7 +39,7 @@ services:
     volumes:
       # Optional volume to persist .env.local across container restarts
       - ./bolt-env:/app/.env.local
-    restart: unless-stopped
+    restart: no
     networks:
       - shared
 
