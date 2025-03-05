@@ -32,6 +32,6 @@ else
 fi
 
 # Remove espaços em branco no final
-bindings=$(echo "$bindings" | sed 's/[[:space:]]*$//')
+bindings=$(echo $bindings | sed 's/[[:space:]]*$//')
 
-echo "$bindings"
+echo $bindings
