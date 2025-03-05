@@ -59,8 +59,36 @@ ENV NODE_ENV=${NODE_ENV:-production} \
     RUNNING_IN_DOCKER=${RUNNING_IN_DOCKER} \
     SESSION_SECRET=${SESSION_SECRET}
 
-# Create a .env.local file with the SESSION_SECRET for local development
-RUN echo "SESSION_SECRET=${SESSION_SECRET}" > .env.local
+# Create a comprehensive .env.local file with all possible environment variables
+RUN echo "# Environment variables for bolt.diy" > .env.local && \
+    echo "SESSION_SECRET=${SESSION_SECRET}" >> .env.local && \
+    echo "SUPABASE_URL=${SUPABASE_URL}" >> .env.local && \
+    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env.local && \
+    echo "DATABASE_URL=${DATABASE_URL}" >> .env.local && \
+    echo "NODE_ENV=${NODE_ENV:-production}" >> .env.local && \
+    echo "RUNNING_IN_DOCKER=true" >> .env.local && \
+    echo "DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX}" >> .env.local && \
+    echo "GROQ_API_KEY=${GROQ_API_KEY}" >> .env.local && \
+    echo "HuggingFace_API_KEY=${HuggingFace_API_KEY}" >> .env.local && \
+    echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> .env.local && \
+    echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" >> .env.local && \
+    echo "OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}" >> .env.local && \
+    echo "GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}" >> .env.local && \
+    echo "OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL}" >> .env.local && \
+    echo "OPENAI_LIKE_API_BASE_URL=${OPENAI_LIKE_API_BASE_URL}" >> .env.local && \
+    echo "OPENAI_LIKE_API_KEY=${OPENAI_LIKE_API_KEY}" >> .env.local && \
+    echo "TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL}" >> .env.local && \
+    echo "TOGETHER_API_KEY=${TOGETHER_API_KEY}" >> .env.local && \
+    echo "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}" >> .env.local && \
+    echo "HYPERBOLIC_API_KEY=${HYPERBOLIC_API_KEY}" >> .env.local && \
+    echo "HYPERBOLIC_API_BASE_URL=${HYPERBOLIC_API_BASE_URL}" >> .env.local && \
+    echo "MISTRAL_API_KEY=${MISTRAL_API_KEY}" >> .env.local && \
+    echo "COHERE_API_KEY=${COHERE_API_KEY}" >> .env.local && \
+    echo "LMSTUDIO_API_BASE_URL=${LMSTUDIO_API_BASE_URL}" >> .env.local && \
+    echo "XAI_API_KEY=${XAI_API_KEY}" >> .env.local && \
+    echo "PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}" >> .env.local && \
+    echo "AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}" >> .env.local && \
+    echo "VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}" >> .env.local
 
 # Create .dev.vars file for Wrangler Pages
 RUN echo "Creating .dev.vars file for Wrangler Pages" && \
