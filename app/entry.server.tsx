@@ -1,6 +1,5 @@
 import type { AppLoadContext } from '@remix-run/cloudflare';
 import { RemixServer } from '@remix-run/react';
-import { isbot } from 'isbot';
 import { renderToReadableStream } from 'react-dom/server';
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
@@ -80,17 +79,22 @@ export default async function handleRequest(
     },
   });
 
+  // Ensure proper content type with charset and force standards mode
+  responseHeaders.set('Content-Type', 'text/html; charset=UTF-8');
+  responseHeaders.set('X-UA-Compatible', 'IE=edge');
+  responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+
+  // Create response with encoding declaration in HTML
   const body = new ReadableStream({
     start(controller) {
       const head = renderHeadToString({ request, remixContext, Head });
-
-      controller.enqueue(
-        new Uint8Array(
-          new TextEncoder().encode(
-            `<!DOCTYPE html><html lang="en" data-theme="${themeStore.value}"><head>${head}</head><body><div id="root" class="w-full h-full">`,
-          ),
-        ),
+      const encoder = new TextEncoder();
+      const initialHtml = encoder.encode(
+        `<!DOCTYPE html>\n<html lang="en" data-theme="${themeStore.value}"><head><meta charset="utf-8" />${head}</head><body><div id="root" class="w-full h-full">`,
       );
+
+      controller.enqueue(initialHtml);
 
       const reader = readable.getReader();
 
@@ -99,7 +103,8 @@ export default async function handleRequest(
           .read()
           .then(({ done, value }) => {
             if (done) {
-              controller.enqueue(new Uint8Array(new TextEncoder().encode('</div></body></html>')));
+              const endHtml = encoder.encode('</div></body></html>');
+              controller.enqueue(endHtml);
               controller.close();
 
               return;
@@ -115,20 +120,10 @@ export default async function handleRequest(
       }
       read();
     },
-
     cancel() {
       readable.cancel();
     },
   });
-
-  if (isbot(request.headers.get('user-agent') || '')) {
-    await readable.allReady;
-  }
-
-  responseHeaders.set('Content-Type', 'text/html');
-
-  responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
-  responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
 
   return new Response(body, {
     headers: responseHeaders,
