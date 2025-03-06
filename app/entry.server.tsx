@@ -1,77 +1,20 @@
 import type { AppLoadContext } from '@remix-run/cloudflare';
 import { RemixServer } from '@remix-run/react';
+import { isbot } from 'isbot';
 import { renderToReadableStream } from 'react-dom/server';
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from '~/lib/stores/theme';
-
-interface Env {
-  SESSION_SECRET?: string;
-}
-
-/**
- * Helper function to generate a random string using Web Crypto API
- * This works in Cloudflare Workers environment
- */
-async function generateSecureRandom(length = 32) {
-  // Create array of random values
-  const array = new Uint8Array(length);
-
-  // Fill with random values using Web Crypto API
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    crypto.getRandomValues(array);
-  } else {
-    // Fallback for extremely old browsers (should never happen in Cloudflare)
-    for (let i = 0; i < length; i++) {
-      array[i] = Math.floor(Math.random() * 256);
-    }
-  }
-
-  // Convert to hex string
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
 
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   remixContext: any,
-  loadContext: AppLoadContext,
+  _loadContext: AppLoadContext,
 ) {
-  const env = loadContext.env as Env;
-
-  // Get SESSION_SECRET from the environment or context
-  let sessionSecret = env?.SESSION_SECRET || process.env.SESSION_SECRET;
-
-  // Fallback mechanism: Generate a random SESSION_SECRET if not found
-  if (!sessionSecret) {
-    console.warn(
-      'WARNING: SESSION_SECRET not found in environment! Using a randomly generated value for this session only.',
-    );
-    console.warn('Sessions will not persist across application restarts!');
-
-    try {
-      // Generate a random session secret using Web Crypto API
-      sessionSecret = await generateSecureRandom(32);
-
-      // Try to set it in the environment if possible
-      if (typeof process !== 'undefined' && process.env) {
-        process.env.SESSION_SECRET = sessionSecret;
-      }
-
-      console.log('Generated temporary SESSION_SECRET for this session');
-    } catch (error) {
-      console.error('Error generating fallback SESSION_SECRET:', error);
-
-      // Last resort fallback
-      sessionSecret = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-      console.log('Using simple random string as SESSION_SECRET fallback');
-    }
-  } else {
-    console.log('SESSION_SECRET status: Set ✓');
-  }
-
-  const readable = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {
+  // Create the React component stream
+  const stream = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {
     signal: request.signal,
     onError(error: unknown) {
       console.error(error);
@@ -79,52 +22,40 @@ export default async function handleRequest(
     },
   });
 
-  responseHeaders.set('Content-Type', 'text/html; charset=UTF-8');
-  responseHeaders.set('X-UA-Compatible', 'IE=edge');
+  // Wait for the stream to be ready for bots
+  if (isbot(request.headers.get('user-agent') || '')) {
+    await stream.allReady;
+  }
+
+  // Set the proper headers
+  responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
   responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
   responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
 
-  const body = new ReadableStream({
+  // Create a transformer stream to properly inject the DOCTYPE and HTML structure
+  const transformStream = new TransformStream({
     start(controller) {
+      // Render the head content
       const head = renderHeadToString({ request, remixContext, Head });
-      const encoder = new TextEncoder();
-
-      // Ensure DOCTYPE is the very first thing written
-      controller.enqueue(encoder.encode('<!DOCTYPE html>'));
-
-      const html = `<html lang="en" data-theme="${themeStore.value}"><head><meta charset="utf-8">${head}</head><body><div id="root" class="w-full h-full">`;
-      controller.enqueue(encoder.encode(html));
-
-      const reader = readable.getReader();
-
-      function read() {
-        reader
-          .read()
-          .then(({ done, value }) => {
-            if (done) {
-              const endHtml = '</div></body></html>';
-              controller.enqueue(encoder.encode(endHtml));
-              controller.close();
-
-              return;
-            }
-
-            controller.enqueue(value);
-            read();
-          })
-          .catch((error) => {
-            controller.error(error);
-            readable.cancel();
-          });
-      }
-      read();
+      
+      // Make sure the DOCTYPE is the very first thing in the document
+      controller.enqueue(new TextEncoder().encode('<!DOCTYPE html>\n'));
+      controller.enqueue(new TextEncoder().encode(`<html lang="en" data-theme="${themeStore.value}">\n`));
+      controller.enqueue(new TextEncoder().encode(`<head>${head}</head>\n`));
+      controller.enqueue(new TextEncoder().encode('<body><div id="root" class="w-full h-full">'));
     },
-    cancel() {
-      readable.cancel();
+    async transform(chunk, controller) {
+      controller.enqueue(chunk);
     },
+    flush(controller) {
+      controller.enqueue(new TextEncoder().encode('</div></body></html>'));
+    }
   });
 
-  return new Response(body, {
+  // Pipe the React stream through our transformer
+  const responseStream = stream.pipeThrough(transformStream);
+
+  return new Response(responseStream, {
     headers: responseHeaders,
     status: responseStatusCode,
   });
