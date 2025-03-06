@@ -1,69 +1,284 @@
 #!/bin/bash
 set -e
 
-echo "=== INICIANDO POSTDEPLOY ==="
+###############################################################################
+# 0. DEFINIÇÕES E VARIÁVEIS GLOBAIS
+###############################################################################
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+LOG_FILE="/tmp/postdeploy_${TIMESTAMP}.log"
+BACKUP_FILE="/tmp/db_backup_${TIMESTAMP}.sql"
 
-# Função que aguarda a disponibilidade de um container utilizando um filtro de label
+# Diretórios
+LOCAL_MIGRATIONS_DIR="migrations"
+TMP_DIR="/tmp/db_migrations"
+
+# Tabela para verificação de migrações
+CHECK_TABLE="chats"
+
+# Nome do bucket no MinIO
+MINIO_BUCKET="bolt-app-files"
+
+# Função para logging
+log() {
+  echo "[$(date +"%Y-%m-%d %H:%M:%S")] $1" | tee -a "$LOG_FILE"
+}
+
+# Função para tratamento de erros
+handle_error() {
+  log "ERRO: $1"
+  if [ "$2" == "fatal" ]; then
+    log "Erro fatal. Abortando script de post-deploy."
+    exit 1
+  fi
+}
+
+log "=== INICIANDO SCRIPT DE POST-DEPLOY ==="
+log "Registrando em: $LOG_FILE"
+
+###############################################################################
+# 1. FUNÇÃO: aguardar até encontrar um container cujo nome inclua um padrão
+###############################################################################
 wait_for_container() {
-  local filter="$1"
-  local timeout=$2
+  local pattern="$1"
+  local timeout="${2:-30}"
   local container_id=""
-  echo "Aguardando container com label ${filter}..."
-  while [ $timeout -gt 0 ]; do
-    container_id=$(docker ps --filter "label=${filter}" --format "{{.ID}}" | head -n 1)
+  
+  for ((i=1; i<=$timeout; i++)); do
+    container_id=$(docker ps --filter "name=$pattern" --format "{{.ID}}" | head -n 1)
     if [ -n "$container_id" ]; then
-      echo "Container encontrado: $container_id"
+      log "Container '$pattern' encontrado com ID: $container_id"
       echo "$container_id"
       return 0
     fi
+    log "Aguardando container '$pattern' (tentativa $i/$timeout)..."
     sleep 2
-    timeout=$((timeout-2))
   done
-  echo "Container com label '${filter}' não encontrado após aguardar."
+  
+  echo ""
   return 1
 }
 
-# 1. Configurar o Wrangler Secret no container do serviço 'app'
-app_container=$(wait_for_container "com.docker.compose.service=app" 60)
-if [ -z "$app_container" ]; then
-  echo "Container para o serviço 'app' não encontrado!"
-  exit 1
-fi
-
-echo "=== Configurando Wrangler Secret para SESSION_SECRET no container 'app' ==="
-docker exec -T "$app_container" sh -c "echo '$SESSION_SECRET' | wrangler secret put SESSION_SECRET"
-
-# 2. Configurar o bucket no Minio no container do serviço 'supabase-minio'
-minio_container=$(wait_for_container "com.docker.compose.service=supabase-minio" 60)
+###############################################################################
+# 2. LOCALIZAR CONTAINER DO MINIO E CONFIGURAR BUCKET
+###############################################################################
+log "Localizando container do MinIO..."
+minio_container=$(wait_for_container "supabase-minio" 60)
 if [ -z "$minio_container" ]; then
-  echo "Container para o serviço 'supabase-minio' não encontrado!"
-  exit 1
+  handle_error "Container do MinIO não encontrado (filtro: 'supabase-minio')." "fatal"
 fi
 
-echo "=== Configurando bucket no Minio no container 'supabase-minio' ==="
-# Dentro do container supabase-minio, o endpoint local é http://localhost:9000
-docker exec -T "$minio_container" sh -c "mc alias set supabase-minio http://localhost:9000 ${SERVICE_USER_MINIO} ${SERVICE_PASSWORD_MINIO}"
-docker exec -T "$minio_container" sh -c "mc mb --ignore-existing supabase-minio/bolt-app-files"
+log "=== Container MinIO encontrado: $minio_container ==="
+log "=== Configurando bucket no MinIO ==="
 
-# 3. Executar as migrações do banco de dados no container do serviço 'supabase-db'
-db_container=$(wait_for_container "com.docker.compose.service=supabase-db" 60)
-if [ -z "$db_container" ]; then
-  echo "Container para o serviço 'supabase-db' não encontrado!"
-  exit 1
+# Essas variáveis devem estar definidas no ambiente do post-deploy
+if [ -z "$SERVICE_USER_MINIO" ] || [ -z "$SERVICE_PASSWORD_MINIO" ]; then
+  handle_error "Variáveis SERVICE_USER_MINIO ou SERVICE_PASSWORD_MINIO não definidas." "fatal"
 fi
 
-echo "=== Executando migrações do banco de dados no container 'supabase-db' ==="
-if [ -f migrations.sql ]; then
-  echo "Executando migrations.sql..."
-  docker exec -T "$db_container" sh -c "psql \"$DATABASE_URL\" -f migrations.sql"
-elif [ -d migrations ]; then
-  echo "Executando migrações na pasta 'migrations'..."
-  for file in $(ls migrations/*.sql | sort); do
-    echo "Executando $file..."
-    docker exec -T "$db_container" sh -c "psql \"$DATABASE_URL\" -f \"$file\""
-  done
+# Configura o cliente MinIO e cria o bucket
+minio_config_result=$(docker exec -T "$minio_container" sh -c "
+  mc alias set supabase-minio http://localhost:9000 \"$SERVICE_USER_MINIO\" \"$SERVICE_PASSWORD_MINIO\" &&
+  mc mb --ignore-existing supabase-minio/$MINIO_BUCKET
+")
+
+if [ $? -ne 0 ]; then
+  handle_error "Falha ao configurar bucket no MinIO: $minio_config_result"
 else
-  echo "Nenhum arquivo de migração encontrado."
+  log "Bucket '$MINIO_BUCKET' criado/verificado com sucesso!"
 fi
 
-echo "=== Post-deploy concluído! ==="
+# Configurar permissões no bucket para permitir apenas acesso do bolt-app
+log "Configurando permissões restritas no bucket do MinIO..."
+
+# Cria uma política de acesso personalizada
+POLICY_FILE="/tmp/bucket_policy.json"
+docker exec -T "$minio_container" sh -c "cat > $POLICY_FILE << 'EOF'
+{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    {
+      \"Effect\": \"Allow\",
+      \"Principal\": {
+        \"AWS\": [\"*\"]
+      },
+      \"Action\": [
+        \"s3:GetObject\",
+        \"s3:PutObject\",
+        \"s3:DeleteObject\",
+        \"s3:ListBucket\"
+      ],
+      \"Resource\": [
+        \"arn:aws:s3:::${MINIO_BUCKET}/*\",
+        \"arn:aws:s3:::${MINIO_BUCKET}\"
+      ],
+      \"Condition\": {
+        \"StringEquals\": {
+          \"aws:UserAgent\": \"bolt-app-client\"
+        }
+      }
+    }
+  ]
+}
+EOF"
+
+# Aplica a política ao bucket
+docker exec -T "$minio_container" sh -c "mc anonymous set none supabase-minio/$MINIO_BUCKET"
+docker exec -T "$minio_container" sh -c "mc policy set $POLICY_FILE supabase-minio/$MINIO_BUCKET"
+
+log "=== Bucket configurado com permissões adequadas ==="
+
+###############################################################################
+# 3. LOCALIZAR CONTAINER DO DB (SUPABASE/POSTGRES)
+###############################################################################
+log "Localizando container do banco de dados..."
+db_container=$(wait_for_container "supabase-db" 60)
+if [ -z "$db_container" ]; then
+  handle_error "Container do DB não encontrado (filtro: 'supabase-db')." "fatal"
+fi
+
+log "=== Container DB encontrado: $db_container ==="
+
+###############################################################################
+# 4. PARSEAR A DATABASE_URL PARA EXTRAIR USUÁRIO, SENHA, HOST, PORTA, NOME DO DB
+###############################################################################
+if [ -z "$DATABASE_URL" ]; then
+  handle_error "Variável DATABASE_URL não está definida." "fatal"
+fi
+
+# Exemplo: postgresql://postgres:secret@my-postgres:5432/postgres
+# Remove o prefixo "postgresql://" ou "postgres://"
+STR="$(echo "$DATABASE_URL" | sed 's#^\(postgres\|postgresql\)://##')"
+
+# Separa USER:PASS de HOST:PORT/DB
+USERPASS="$(echo "$STR" | cut -d'@' -f1)"        # postgres:secret
+HOSTPORTDB="$(echo "$STR" | cut -d'@' -f2)"      # my-postgres:5432/postgres
+
+DB_USER="$(echo "$USERPASS" | cut -d':' -f1)"    # postgres
+DB_PASSWORD="$(echo "$USERPASS" | cut -d':' -f2)" 
+HOSTPORT="$(echo "$HOSTPORTDB" | cut -d'/' -f1)" # my-postgres:5432
+DB_NAME="$(echo "$HOSTPORTDB" | cut -d'/' -f2)"  # postgres
+DB_HOST="$(echo "$HOSTPORT" | cut -d':' -f1)"    # my-postgres
+DB_PORT="$(echo "$HOSTPORT" | cut -d':' -f2)"    # 5432
+
+log "=== Dados extraídos da DATABASE_URL ==="
+log "DB_USER=$DB_USER"
+log "DB_PASSWORD=[oculto]"
+log "DB_HOST=$DB_HOST"
+log "DB_PORT=$DB_PORT"
+log "DB_NAME=$DB_NAME"
+
+###############################################################################
+# 5. CRIAR BACKUP DO BANCO ANTES DE APLICAR MIGRAÇÕES
+###############################################################################
+log "Criando backup do banco de dados antes de aplicar migrações..."
+docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+  sh -c "pg_dump -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f $BACKUP_FILE"
+
+if [ $? -eq 0 ]; then
+  log "Backup criado com sucesso em: $BACKUP_FILE"
+else
+  log "AVISO: Não foi possível criar backup. Continuando mesmo assim..."
+fi
+
+###############################################################################
+# 6. COPIAR MIGRAÇÕES PARA O CONTAINER DO DB
+###############################################################################
+log "Preparando diretório temporário para migrações..."
+# Remove e recria o diretório temporário no container do DB
+docker exec -T "$db_container" sh -c "rm -rf $TMP_DIR && mkdir -p $TMP_DIR"
+
+# Copia os arquivos de migração locais (arquivos .sql) para dentro do container
+if [ -d "$LOCAL_MIGRATIONS_DIR" ]; then
+  log "=== Copiando arquivos .sql de '$LOCAL_MIGRATIONS_DIR' para o container ==="
+  docker cp "$LOCAL_MIGRATIONS_DIR/." "$db_container:$TMP_DIR"
+  
+  # Listar arquivos copiados para validação
+  migration_files=$(docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' | sort")
+  if [ -z "$migration_files" ]; then
+    log "AVISO: Nenhum arquivo .sql encontrado para migração."
+  else
+    log "Arquivos de migração encontrados:"
+    docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' | sort" | while read -r file; do
+      log "  - $(basename "$file")"
+    done
+  fi
+else
+  log "AVISO: Pasta '$LOCAL_MIGRATIONS_DIR' não existe ou não é um diretório. Pulando etapa de migrações."
+fi
+
+###############################################################################
+# 7. EXECUTAR CADA ARQUIVO .SQL DENTRO DO CONTAINER DO DB
+###############################################################################
+log "=== Aplicando migrações (.sql), se existirem ==="
+migration_success=true
+
+docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' -type f | sort" | while read -r sql_file; do
+  filename=$(basename "$sql_file")
+  log "Aplicando $filename..."
+  
+  # Executa o script de migração
+  migration_output=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+    sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f \"$TMP_DIR/$filename\" 2>&1")
+  
+  migration_status=$?
+  
+  if [ $migration_status -eq 0 ]; then
+    log "✅ Migração '$filename' aplicada com sucesso."
+  else
+    log "❌ ERRO ao aplicar migração '$filename': $migration_output"
+    migration_success=false
+  fi
+done
+
+if [ "$migration_success" = false ]; then
+  log "AVISO: Houve erros durante a aplicação das migrações. Verifique os logs acima."
+else
+  log "=== Execução das migrações concluída com sucesso. ==="
+fi
+
+###############################################################################
+# 8. VERIFICAR SE MIGRAÇÕES FORAM CRIADAS
+#    -> Exemplo: checar se existe uma tabela específica.
+#    -> Caso não exista, emitir APENAS um AVISO (sem falhar o deploy).
+###############################################################################
+log "=== Verificando se a tabela '$CHECK_TABLE' existe ==="
+
+# Usamos 'to_regclass' para checar a existência
+output=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+  sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT to_regclass('public.$CHECK_TABLE');\"")
+
+# Removendo possíveis espaços em branco
+output="$(echo "$output" | xargs)"
+
+if [ "$output" = "public.$CHECK_TABLE" ] || [ "$output" = "$CHECK_TABLE" ]; then
+  log "✅ Sucesso: a tabela '$CHECK_TABLE' foi encontrada. Migrations aparentemente aplicadas."
+else
+  log "⚠️ AVISO: a tabela '$CHECK_TABLE' não foi encontrada."
+  log "   Verifique se as migrations foram realmente aplicadas ou rode manualmente."
+  
+  # Tentativa de rollback?
+  read -p "Deseja tentar restaurar o backup? (s/N): " should_restore
+  if [[ "$should_restore" =~ ^[Ss]$ ]]; then
+    log "Tentando restaurar backup do banco de dados..."
+    docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+      sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f $BACKUP_FILE"
+      
+    if [ $? -eq 0 ]; then
+      log "Restauração concluída com sucesso."
+    else
+      log "ERRO: Falha ao restaurar o backup."
+    fi
+  fi
+fi
+
+log "=== INFORMAÇÕES PARA TROUBLESHOOTING ==="
+log "Para conectar ao banco de dados manualmente, use:"
+log "docker exec -it $db_container psql -U $DB_USER -d $DB_NAME"
+log ""
+log "Para listar todas as tabelas públicas:"
+log "\\dt"
+log ""
+log "Para ver o conteúdo da tabela $CHECK_TABLE (se existir):"
+log "SELECT * FROM $CHECK_TABLE LIMIT 10;"
+
+log "=== POSTDEPLOY FINALIZADO! ==="
