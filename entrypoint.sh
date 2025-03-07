@@ -91,9 +91,9 @@ console.log("Injected environment variables via injected-env.js");
 EOF
 
 # Run the environment variable injection script again at runtime
-if [ -f "/app/inject-env-vars.sh" ]; then
+if [ -f "/inject-env-vars.sh" ]; then
   echo "Running environment variable injection script at runtime"
-  /app/inject-env-vars.sh
+  ./inject-env-vars.sh
 else
   echo "WARNING: inject-env-vars.sh not found, skipping runtime injection"
 fi
