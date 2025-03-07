@@ -59,10 +59,10 @@ RUN chmod +x postdeploy.sh bindings.sh entrypoint.sh coolify-setup.sh update-sup
     mv inject-env-vars.tmp inject-env-vars.sh
 
 # Run setup script AFTER build and after fixing permissions
-RUN ./coolify-setup.sh
+RUN bash ./coolify-setup.sh
 
 # Run the environment variable injection script
-RUN ./inject-env-vars.sh
+RUN bash ./inject-env-vars.sh
 
 # Expose application port
 EXPOSE 5173
