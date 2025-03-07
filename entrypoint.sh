@@ -45,6 +45,15 @@ if [ -z "${SUPABASE_ANON_KEY}" ]; then
   exit 1
 fi
 
+# Run the direct Supabase credentials injection script
+if [ -f "./update-supabase-creds.sh" ]; then
+  echo "Running direct Supabase credentials injection script..."
+  chmod +x ./update-supabase-creds.sh
+  ./update-supabase-creds.sh
+else
+  echo "WARNING: update-supabase-creds.sh not found. Supabase credentials will not be directly injected."
+fi
+
 # Create .env.local with all environment variables
 echo "Creating .env.local with current environment variables"
 echo "SESSION_SECRET=${SESSION_SECRET}" > .env.local
@@ -101,28 +110,21 @@ if [ -f "./bindings.sh" ]; then
   BINDINGS=$(./bindings.sh)
   echo "Generated bindings from bindings.sh"
   
-  # Start with bindings from bindings.sh and direct bindings
+  # Check if bindings already contain Supabase variables
+  if [[ "$BINDINGS" != *"--binding SUPABASE_URL"* ]]; then
+    echo "Adding Supabase bindings to bindings.sh output"
+    BINDINGS="$BINDINGS $DIRECT_BINDINGS"
+  else
+    echo "Using bindings from bindings.sh (already includes Supabase bindings)"
+  fi
+  
+  # Start with bindings from bindings.sh and directly set env vars
   echo "Starting application with combined bindings"
-  
-  # Special debug mode for environment variables
-  echo "DEBUG: Setting NODE_OPTIONS to enable environment variable debugging"
-  export NODE_OPTIONS="--trace-warnings --unhandled-rejections=strict"
-  
-  # Add a debugging script for Cloudflare Workers
-  echo "console.log('Cloudflare Worker starting with env:', JSON.stringify({SUPABASE_URL: !!process.env.SUPABASE_URL, SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY}));" > cloudflare-debug.js
-  
-  # Start with both env and --binding approaches
   exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
-       wrangler pages dev ./build/client ${DIRECT_BINDINGS} ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+       wrangler pages dev ./build/client ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 else
   # Start with direct bindings
   echo "Starting with direct bindings"
-  
-  # Special debug mode for environment variables
-  echo "DEBUG: Setting NODE_OPTIONS to enable environment variable debugging"
-  export NODE_OPTIONS="--trace-warnings --unhandled-rejections=strict"
-  
-  # Start with both env and --binding approaches
   exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
        wrangler pages dev ./build/client ${DIRECT_BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 fi
