@@ -1,23 +1,6 @@
 // app/entry.server.tsx
-// Direct environment variable definition for Cloudflare Workers
-if (typeof globalThis !== 'undefined') {
-  // Ensure process.env exists
-  if (typeof process === 'undefined') {
-    (globalThis as any).process = { env: {} };
-  } else if (!process.env) {
-    process.env = {};
-  }
-  
-  // Copy from globalThis.env (Cloudflare Workers pattern) to process.env
-  if (typeof globalThis.env !== 'undefined') {
-    Object.keys(globalThis.env).forEach(key => {
-      if (!process.env[key]) {
-        process.env[key] = globalThis.env[key];
-      }
-    });
-    console.log('Cloudflare Worker env variables bridged to process.env');
-  }
-}
+// Importa o bridge para garantir que as variáveis de ambiente sejam transferidas corretamente
+import '~/utils/env-bridge.server';
 
 import type { AppLoadContext } from '@remix-run/cloudflare';
 import { RemixServer } from '@remix-run/react';
@@ -34,7 +17,7 @@ export default async function handleRequest(
   remixContext: any,
   _loadContext: AppLoadContext,
 ) {
-  // Log environment variables status (without revealing values)
+  // Log para verificar as variáveis de ambiente sem expor seus valores
   console.log('Entry server environment check:');
   console.log('- SUPABASE_URL in process.env:', !!process.env.SUPABASE_URL);
   console.log('- SUPABASE_ANON_KEY in process.env:', !!process.env.SUPABASE_ANON_KEY);
@@ -44,42 +27,46 @@ export default async function handleRequest(
     console.log('- SUPABASE_ANON_KEY in globalThis.env:', !!globalThis.env.SUPABASE_ANON_KEY);
   }
 
-  // Create the React component stream
-  const stream = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {
-    signal: request.signal,
-    onError(error: unknown) {
-      console.error(error);
-      responseStatusCode = 500;
-    },
-  });
-  // Wait for the stream to be ready for bots
+  // Cria o stream do componente React
+  const stream = await renderToReadableStream(
+    <RemixServer context={remixContext} url={request.url} />,
+    {
+      signal: request.signal,
+      onError(error: unknown) {
+        console.error(error);
+        responseStatusCode = 500;
+      },
+    }
+  );
+  // Aguarda o stream ficar pronto para bots
   if (isbot(request.headers.get('user-agent') || '')) {
     await stream.allReady;
   }
-  // Set the proper headers
+  // Define os headers apropriados
   responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
   responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
   responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-  // Create a transformer stream to properly inject the DOCTYPE and HTML structure
+  // Cria um transform stream para injetar a estrutura HTML e DOCTYPE
   const transformStream = new TransformStream({
     start(controller) {
-      // Render the head content
       const head = renderHeadToString({ request, remixContext, Head });
-      
-      // Make sure the DOCTYPE is the very first thing in the document
       controller.enqueue(new TextEncoder().encode('<!DOCTYPE html>\n'));
-      controller.enqueue(new TextEncoder().encode(`<html lang="en" data-theme="${themeStore.value}">\n`));
+      controller.enqueue(
+        new TextEncoder().encode(`<html lang="en" data-theme="${themeStore.value}">\n`)
+      );
       controller.enqueue(new TextEncoder().encode(`<head>${head}</head>\n`));
-      controller.enqueue(new TextEncoder().encode('<body><div id="root" class="w-full h-full">'));
+      controller.enqueue(
+        new TextEncoder().encode('<body><div id="root" class="w-full h-full">')
+      );
     },
     async transform(chunk, controller) {
       controller.enqueue(chunk);
     },
     flush(controller) {
       controller.enqueue(new TextEncoder().encode('</div></body></html>'));
-    }
+    },
   });
-  // Pipe the React stream through our transformer
+  // Encaminha o stream React pelo transformer
   const responseStream = stream.pipeThrough(transformStream);
   return new Response(responseStream, {
     headers: responseHeaders,
