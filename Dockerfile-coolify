@@ -34,7 +34,7 @@ WORKDIR /app
 COPY . .
 
 # Make scripts executable and fix line endings
-RUN chmod +x postdeploy.sh bindings.sh entrypoint.sh coolify-setup.sh update-supabase-creds.sh && \
+RUN chmod +x postdeploy.sh bindings.sh entrypoint.sh update-supabase-creds.sh && \
     # Fix bindings.sh format
     tr -d '\r' < bindings.sh > bindings.tmp && \
     mv bindings.tmp bindings.sh && \
@@ -46,7 +46,8 @@ RUN chmod +x postdeploy.sh bindings.sh entrypoint.sh coolify-setup.sh update-sup
     mv update-supabase-creds.tmp update-supabase-creds.sh && \
     # Fix coolify-setup.sh format
     tr -d '\r' < coolify-setup.sh > coolify-setup.tmp && \
-    mv coolify-setup.tmp coolify-setup.sh
+    mv coolify-setup.tmp coolify-setup.sh && \
+    chmod 755 coolify-setup.sh
 
 # Pre-configure Wrangler to disable metrics
 RUN mkdir -p /root/.config/.wrangler && \
