@@ -69,9 +69,29 @@ echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env
 echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .env
 echo "DATABASE_URL=${DATABASE_URL}" >> .env
 
+# Create a JS file to ensure environment variables are accessible in the browser context
+echo "Creating injected-env.js to ensure environment variables are available"
+cat > ./build/client/injected-env.js << EOF
+// Environment variables injected by entrypoint.sh
+// This ensures they're available in the browser context
+globalThis.__ENV__ = {
+  SUPABASE_URL: "${SUPABASE_URL}",
+  SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
+};
+console.log("Injected environment variables via injected-env.js");
+EOF
+
+# Run the environment variable injection script again at runtime
+if [ -f "/app/inject-env-vars.sh" ]; then
+  echo "Running environment variable injection script at runtime"
+  /app/inject-env-vars.sh
+else
+  echo "WARNING: inject-env-vars.sh not found, skipping runtime injection"
+fi
+
 echo "Configuration complete. Starting application..."
 
-# Prepare explicit bindings for Wrangler
+# Prepare explicit bindings for Wrangler with quotes to handle special characters
 DIRECT_BINDINGS="--binding SESSION_SECRET='${SESSION_SECRET}' --binding SUPABASE_URL='${SUPABASE_URL}' --binding SUPABASE_ANON_KEY='${SUPABASE_ANON_KEY}' --binding SUPABASE_SERVICE_KEY='${SUPABASE_SERVICE_KEY}'"
 
 # If bindings.sh exists, use it to generate bindings for Wrangler
@@ -83,11 +103,26 @@ if [ -f "./bindings.sh" ]; then
   
   # Start with bindings from bindings.sh and direct bindings
   echo "Starting application with combined bindings"
+  
+  # Special debug mode for environment variables
+  echo "DEBUG: Setting NODE_OPTIONS to enable environment variable debugging"
+  export NODE_OPTIONS="--trace-warnings --unhandled-rejections=strict"
+  
+  # Add a debugging script for Cloudflare Workers
+  echo "console.log('Cloudflare Worker starting with env:', JSON.stringify({SUPABASE_URL: !!process.env.SUPABASE_URL, SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY}));" > cloudflare-debug.js
+  
+  # Start with both env and --binding approaches
   exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
        wrangler pages dev ./build/client ${DIRECT_BINDINGS} ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 else
   # Start with direct bindings
   echo "Starting with direct bindings"
+  
+  # Special debug mode for environment variables
+  echo "DEBUG: Setting NODE_OPTIONS to enable environment variable debugging"
+  export NODE_OPTIONS="--trace-warnings --unhandled-rejections=strict"
+  
+  # Start with both env and --binding approaches
   exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
        wrangler pages dev ./build/client ${DIRECT_BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 fi
