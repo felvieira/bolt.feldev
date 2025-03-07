@@ -2,6 +2,7 @@ interface Env {
   SESSION_SECRET: Settings;
   SUPABASE_URL: Settings;
   SUPABASE_ANON_KEY: Settings;
+  SUPABASE_SERVICE_KEY: Settings;
   DATABASE_URL: Settings;
   NODE_ENV: Settings;
   RUNNING_IN_DOCKER: Settings;
