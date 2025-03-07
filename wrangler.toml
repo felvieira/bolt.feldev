@@ -6,15 +6,17 @@ compatibility_date = "2024-07-01"
 pages_build_output_dir = "./build/client"
 send_metrics = false
 
+# Define vars without the ${env.} syntax to allow environment variables to be used
 [vars]
-# These can be static or references to Docker env
-SUPABASE_SERVICE_KEY = "${env.SUPABASE_SERVICE_KEY}"
-SUPABASE_URL = "${env.SUPABASE_URL}"
-SUPABASE_ANON_KEY = "${env.SUPABASE_ANON_KEY}"
-SESSION_SECRET = "${env.SESSION_SECRET}"
+# Leave these empty to use the environment variables at runtime
+SUPABASE_SERVICE_KEY = ""
+SUPABASE_URL = ""
+SUPABASE_ANON_KEY = ""
+SESSION_SECRET = ""
 
+# Same for production environment
 [env.production.vars]
-SUPABASE_SERVICE_KEY = "${env.SUPABASE_SERVICE_KEY}"
-SUPABASE_URL = "${env.SUPABASE_URL}"
-SUPABASE_ANON_KEY = "${env.SUPABASE_ANON_KEY}"
-SESSION_SECRET = "${env.SESSION_SECRET}"
+SUPABASE_SERVICE_KEY = ""
+SUPABASE_URL = ""
+SUPABASE_ANON_KEY = ""
+SESSION_SECRET = ""
