@@ -1,19 +1,16 @@
 FROM node:20.18.0-bookworm AS base
-
 WORKDIR /app
-
-# Use bash for all RUN commands
 SHELL ["/bin/bash", "-c"]
 
-# Install PostgreSQL client and MinIO Client
+# Instala ferramentas necessárias (PostgreSQL client, MinIO client, curl)
 RUN apt-get update && \
     apt-get install -y postgresql-client mc curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files to utilize cache
+# Copia os arquivos de dependência para aproveitar cache
 COPY package.json pnpm-lock.yaml ./
 
-# Update npm, install Corepack, configure pnpm, and update Wrangler
+# Atualiza npm, instala Corepack, configura pnpm e Wrangler
 RUN npm install -g npm@latest && \
     npm install -g corepack@latest && \
     corepack enable pnpm && \
@@ -22,55 +19,35 @@ RUN npm install -g npm@latest && \
     npm uninstall -g wrangler && \
     npm install -g wrangler@3.112.0 --force
 
-# Install project dependencies
+# Instala as dependências do projeto
 RUN pnpm install
 
-# Build stage
+# --- Início do estágio de Build ---
 FROM base AS build
-
 WORKDIR /app
-
-# Copy the rest of the project
 COPY . .
 
-# Pre-configure Wrangler to disable metrics
+# Pre-configura Wrangler para desabilitar métricas
 RUN mkdir -p /root/.config/.wrangler && \
     echo '{"enabled":false}' > /root/.config/.wrangler/metrics.json
 
-# Build the application
+# Realiza o build da aplicação
 RUN pnpm run build
 
-# Make scripts executable and fix line endings AFTER the build
+# Ajusta permissões e corrige finais de linha (LF vs CRLF) para os scripts
 RUN chmod +x postdeploy.sh bindings.sh entrypoint.sh coolify-setup.sh update-supabase-creds.sh inject-env-vars.sh && \
-    # Fix bindings.sh format
-    tr -d '\r' < bindings.sh > bindings.tmp && \
-    mv bindings.tmp bindings.sh && \
-    # Fix entrypoint.sh format
-    tr -d '\r' < entrypoint.sh > entrypoint.tmp && \
-    mv entrypoint.tmp entrypoint.sh && \
-    # Fix update-supabase-creds.sh format
-    tr -d '\r' < update-supabase-creds.sh > update-supabase-creds.tmp && \
-    mv update-supabase-creds.tmp update-supabase-creds.sh && \
-    # Fix coolify-setup.sh format
-    tr -d '\r' < coolify-setup.sh > coolify-setup.tmp && \
-    mv coolify-setup.tmp coolify-setup.sh && \
-    # Fix inject-env-vars.sh format
-    tr -d '\r' < inject-env-vars.sh > inject-env-vars.tmp && \
-    mv inject-env-vars.tmp inject-env-vars.sh
+    for script in bindings.sh entrypoint.sh update-supabase-creds.sh coolify-setup.sh inject-env-vars.sh; do \
+        tr -d '\r' < $script > ${script}.tmp && mv ${script}.tmp $script; \
+    done
 
-# Run setup script AFTER build and after fixing permissions
-RUN bash ./coolify-setup.sh
+# Executa os scripts de setup e injeção DESTE estágio (para persistir as alterações no build)
+RUN bash ./coolify-setup.sh && \
+    bash ./inject-env-vars.sh
 
-# Run the environment variable injection script
-RUN bash ./inject-env-vars.sh
-
-# Expose application port
-EXPOSE 5173
-
-# Production stage
+# --- Início do estágio de Production ---
 FROM build AS production
 
-# Define environment variables
+# Define argumentos de build para segredos e variáveis de ambiente
 ARG SESSION_SECRET
 ARG SUPABASE_URL
 ARG SUPABASE_SERVICE_KEY
@@ -78,7 +55,7 @@ ARG SUPABASE_ANON_KEY
 ARG NODE_ENV
 ARG RUNNING_IN_DOCKER=true
 
-# Set environment variables in the production image
+# Seta as variáveis de ambiente na imagem final
 ENV NODE_ENV=${NODE_ENV:-production} \
     RUNNING_IN_DOCKER=${RUNNING_IN_DOCKER} \
     SESSION_SECRET=${SESSION_SECRET} \
@@ -86,50 +63,48 @@ ENV NODE_ENV=${NODE_ENV:-production} \
     SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY} \
     SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 
-# Create a comprehensive .env.local file with all possible environment variables
-RUN echo "# Environment variables for bolt.diy" > .env.local && \
-    echo "SESSION_SECRET=${SESSION_SECRET}" >> .env.local && \
-    echo "SUPABASE_URL=${SUPABASE_URL}" >> .env.local && \
-    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env.local && \
-    echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .env.local && \
-    echo "DATABASE_URL=${DATABASE_URL}" >> .env.local && \
-    echo "NODE_ENV=${NODE_ENV:-production}" >> .env.local && \
-    echo "RUNNING_IN_DOCKER=true" >> .env.local && \
-    echo "DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX}" >> .env.local && \
-    echo "GROQ_API_KEY=${GROQ_API_KEY}" >> .env.local && \
-    echo "HuggingFace_API_KEY=${HuggingFace_API_KEY}" >> .env.local && \
-    echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> .env.local && \
-    echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" >> .env.local && \
-    echo "OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}" >> .env.local && \
-    echo "GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}" >> .env.local && \
-    echo "OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL}" >> .env.local && \
-    echo "OPENAI_LIKE_API_BASE_URL=${OPENAI_LIKE_API_BASE_URL}" >> .env.local && \
-    echo "OPENAI_LIKE_API_KEY=${OPENAI_LIKE_API_KEY}" >> .env.local && \
-    echo "TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL}" >> .env.local && \
-    echo "TOGETHER_API_KEY=${TOGETHER_API_KEY}" >> .env.local && \
-    echo "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}" >> .env.local && \
-    echo "HYPERBOLIC_API_KEY=${HYPERBOLIC_API_KEY}" >> .env.local && \
-    echo "HYPERBOLIC_API_BASE_URL=${HYPERBOLIC_API_BASE_URL}" >> .env.local && \
-    echo "MISTRAL_API_KEY=${MISTRAL_API_KEY}" >> .env.local && \
-    echo "COHERE_API_KEY=${COHERE_API_KEY}" >> .env.local && \
-    echo "LMSTUDIO_API_BASE_URL=${LMSTUDIO_API_BASE_URL}" >> .env.local && \
-    echo "XAI_API_KEY=${XAI_API_KEY}" >> .env.local && \
-    echo "PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}" >> .env.local && \
-    echo "AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}" >> .env.local && \
-    echo "VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}" >> .env.local
+# Consolidada criação dos arquivos de ambiente (usados pela aplicação, dev e Wrangler)
+RUN echo "### Criando arquivos de ambiente consolidados ###" && \
+    { \
+      echo "# .env.local - para o runtime da aplicação"; \
+      echo "SESSION_SECRET=${SESSION_SECRET}"; \
+      echo "SUPABASE_URL=${SUPABASE_URL}"; \
+      echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"; \
+      echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}"; \
+      echo "DATABASE_URL=${DATABASE_URL}"; \
+      echo "NODE_ENV=${NODE_ENV:-production}"; \
+      echo "RUNNING_IN_DOCKER=true"; \
+      echo "DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX}"; \
+      echo "GROQ_API_KEY=${GROQ_API_KEY}"; \
+      echo "HuggingFace_API_KEY=${HuggingFace_API_KEY}"; \
+      echo "OPENAI_API_KEY=${OPENAI_API_KEY}"; \
+      echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"; \
+      echo "OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}"; \
+      echo "GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}"; \
+      echo "OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL}"; \
+      echo "OPENAI_LIKE_API_BASE_URL=${OPENAI_LIKE_API_BASE_URL}"; \
+      echo "OPENAI_LIKE_API_KEY=${OPENAI_LIKE_API_KEY}"; \
+      echo "TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL}"; \
+      echo "TOGETHER_API_KEY=${TOGETHER_API_KEY}"; \
+      echo "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}"; \
+      echo "HYPERBOLIC_API_KEY=${HYPERBOLIC_API_KEY}"; \
+      echo "HYPERBOLIC_API_BASE_URL=${HYPERBOLIC_API_BASE_URL}"; \
+      echo "MISTRAL_API_KEY=${MISTRAL_API_KEY}"; \
+      echo "COHERE_API_KEY=${COHERE_API_KEY}"; \
+      echo "LMSTUDIO_API_BASE_URL=${LMSTUDIO_API_BASE_URL}"; \
+      echo "XAI_API_KEY=${XAI_API_KEY}"; \
+      echo "PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}"; \
+      echo "AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}"; \
+      echo "VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}"; \
+    } > .env.local && \
+    cp .env.local .dev.vars && \
+    cp .env.local .env
 
-# Create .dev.vars file for Wrangler Pages
-RUN echo "Creating .dev.vars file for Wrangler Pages" && \
-    echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars && \
-    echo "SUPABASE_URL=${SUPABASE_URL}" >> .dev.vars && \
-    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .dev.vars && \
-    echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .dev.vars && \
-    echo "DATABASE_URL=${DATABASE_URL}" >> .dev.vars && \
-    echo "Created .dev.vars with SESSION_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY and DATABASE_URL for local development"
+# Cria o diretório para sessão com permissões apropriadas
+RUN mkdir -p /app/session-data && chmod 777 /app/session-data
 
-# Create session-data directory with proper permissions
-RUN mkdir -p /app/session-data && \
-    chmod 777 /app/session-data
+# Expõe a porta da aplicação
+EXPOSE 5173
 
-# Use the entrypoint script to ensure the secret is set before startup
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Inicia o entrypoint
+CMD ["bash", "/app/entrypoint.sh"]
