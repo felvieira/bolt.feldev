@@ -18,15 +18,7 @@ CLIENT_DIR="./build/client"
 
 echo "Injecting Supabase credentials directly into JavaScript files..."
 
-# Create a JavaScript file with the hardcoded credentials
-cat > "$SERVER_DIR/supabase-credentials.js" << EOF
-// Hardcoded Supabase credentials (injected by update-supabase-creds.sh)
-export const SUPABASE_URL = "$SUPABASE_URL";
-export const SUPABASE_ANON_KEY = "$SUPABASE_ANON_KEY";
-export const SUPABASE_SERVICE_KEY = "$SUPABASE_SERVICE_KEY";
-EOF
-
-# Create a script tag to include in HTML
+# Create a JavaScript file with the hardcoded credentials for client-side
 cat > "$CLIENT_DIR/supabase-credentials.js" << EOF
 // Hardcoded Supabase credentials for browser
 window.SUPABASE_URL = "$SUPABASE_URL";
@@ -34,15 +26,23 @@ window.SUPABASE_ANON_KEY = "$SUPABASE_ANON_KEY";
 console.log("Supabase credentials injected in window object");
 EOF
 
-# Add a script tag to include credentials in HTML
-find "$CLIENT_DIR" -name "*.html" -exec sed -i '/<head>/a <script src="/supabase-credentials.js"></script>' {} \;
+# Add script to HTML files
+for HTML_FILE in $(find "$CLIENT_DIR" -name "*.html"); do
+  echo "Adding credential script to $HTML_FILE"
+  if grep -q "<head>" "$HTML_FILE"; then
+    sed -i '/<head>/a <script src="/supabase-credentials.js"></script>' "$HTML_FILE"
+  else
+    sed -i '/<html/a <script src="/supabase-credentials.js"></script>' "$HTML_FILE"
+  fi
+done
 
-# Create a patched version of server/index.js with hardcoded credentials at the top
+# Patch server/index.js
 if [ -f "$SERVER_DIR/index.js" ]; then
   echo "Patching server/index.js with hardcoded credentials..."
   
   # Create a temporary file with hardcoded credentials at the top
-  cat > "$SERVER_DIR/temp-index.js" << EOF
+  TMP_FILE=$(mktemp)
+  cat > "$TMP_FILE" << EOF
 // Hardcoded Supabase credentials (injected by update-supabase-creds.sh)
 globalThis.HARDCODED_URL = "$SUPABASE_URL";
 globalThis.HARDCODED_KEY = "$SUPABASE_ANON_KEY";
@@ -58,14 +58,17 @@ process.env.SUPABASE_SERVICE_KEY = "$SUPABASE_SERVICE_KEY";
 EOF
   
   # Append the original index.js content
-  cat "$SERVER_DIR/index.js" >> "$SERVER_DIR/temp-index.js"
+  cat "$SERVER_DIR/index.js" >> "$TMP_FILE"
   
   # Replace the original file
-  mv "$SERVER_DIR/temp-index.js" "$SERVER_DIR/index.js"
+  mv "$TMP_FILE" "$SERVER_DIR/index.js"
   
   echo "Successfully patched $SERVER_DIR/index.js"
-else
-  echo "Warning: $SERVER_DIR/index.js not found"
 fi
+
+# Replace hardcoded values in all JS files
+echo "Replacing hardcoded placeholder values in all JS files..."
+find "$SERVER_DIR" -name "*.js" -exec sed -i "s|https://replace-with-actual-supabase-url.supabase.co|$SUPABASE_URL|g" {} \;
+find "$SERVER_DIR" -name "*.js" -exec sed -i "s|replace-with-actual-supabase-key|$SUPABASE_ANON_KEY|g" {} \;
 
 echo "Supabase credentials have been directly injected into the built JavaScript."
