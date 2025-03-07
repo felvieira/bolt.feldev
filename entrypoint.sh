@@ -3,10 +3,12 @@ set -e
 
 echo "Starting entrypoint script for bolt.diy"
 
-# Add this near the beginning of entrypoint.sh
+# Check if necessary env variables are present
 echo "DEBUG: Environment variables in container:"
 echo "SUPABASE_URL present: ${SUPABASE_URL:+yes}"
 echo "SUPABASE_ANON_KEY present: ${SUPABASE_ANON_KEY:+yes}"
+echo "SUPABASE_SERVICE_KEY present: ${SUPABASE_SERVICE_KEY:+yes}"
+echo "SESSION_SECRET present: ${SESSION_SECRET:+yes}"
 
 # Check for and use persisted session secret
 PERSISTED_SECRET_PATH="/app/session-data/session-secret"
