@@ -34,6 +34,17 @@ else
   echo "SESSION_SECRET is set (value hidden for security)"
 fi
 
+# Validate critical environment variables
+if [ -z "${SUPABASE_URL}" ]; then
+  echo "ERROR: SUPABASE_URL is not set. This is required for production."
+  exit 1
+fi
+
+if [ -z "${SUPABASE_ANON_KEY}" ]; then
+  echo "ERROR: SUPABASE_ANON_KEY is not set. This is required for production."
+  exit 1
+fi
+
 # Create .env.local with all environment variables
 echo "Creating .env.local with current environment variables"
 echo "SESSION_SECRET=${SESSION_SECRET}" > .env.local
@@ -42,7 +53,7 @@ echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env.local
 echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .env.local
 echo "DATABASE_URL=${DATABASE_URL}" >> .env.local
 
-# Create .dev.vars with all environment variables
+# Create .dev.vars with all environment variables for Wrangler
 echo "Creating .dev.vars with current environment variables"
 echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars
 echo "SUPABASE_URL=${SUPABASE_URL}" >> .dev.vars
@@ -50,10 +61,18 @@ echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .dev.vars
 echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .dev.vars
 echo "DATABASE_URL=${DATABASE_URL}" >> .dev.vars
 
+# Create a .env file that will be read by Node.js and Wrangler
+echo "Creating .env file with current environment variables"
+echo "SESSION_SECRET=${SESSION_SECRET}" > .env
+echo "SUPABASE_URL=${SUPABASE_URL}" >> .env
+echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env
+echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .env
+echo "DATABASE_URL=${DATABASE_URL}" >> .env
+
 echo "Configuration complete. Starting application..."
 
-# Prepare default Supabase bindings
-SUPABASE_BINDINGS="--binding SUPABASE_URL=${SUPABASE_URL} --binding SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} --binding SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}"
+# Prepare explicit bindings for Wrangler
+DIRECT_BINDINGS="--binding SESSION_SECRET='${SESSION_SECRET}' --binding SUPABASE_URL='${SUPABASE_URL}' --binding SUPABASE_ANON_KEY='${SUPABASE_ANON_KEY}' --binding SUPABASE_SERVICE_KEY='${SUPABASE_SERVICE_KEY}'"
 
 # If bindings.sh exists, use it to generate bindings for Wrangler
 if [ -f "./bindings.sh" ]; then
@@ -62,24 +81,13 @@ if [ -f "./bindings.sh" ]; then
   BINDINGS=$(./bindings.sh)
   echo "Generated bindings from bindings.sh"
   
-  # Check if bindings already contain Supabase variables
-  if [[ "$BINDINGS" != *"--binding SUPABASE_URL"* ]]; then
-    echo "Adding Supabase bindings to bindings.sh output"
-    BINDINGS="$BINDINGS $SUPABASE_BINDINGS"
-  else
-    echo "Using bindings from bindings.sh (already includes Supabase bindings)"
-  fi
-  
-  # Check if bindings already contain SESSION_SECRET
-  if [[ "$BINDINGS" != *"--binding SESSION_SECRET"* ]]; then
-    BINDINGS="$BINDINGS --binding SESSION_SECRET=${SESSION_SECRET}"
-  fi
-  
-  # Start with bindings from bindings.sh
-  echo "Starting application with bindings from bindings.sh"
-  exec wrangler pages dev ./build/client ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+  # Start with bindings from bindings.sh and direct bindings
+  echo "Starting application with combined bindings"
+  exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
+       wrangler pages dev ./build/client ${DIRECT_BINDINGS} ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 else
-  # Start with explicit bindings
-  echo "Starting with explicit Supabase bindings"
-  exec wrangler pages dev ./build/client ${SUPABASE_BINDINGS} --binding SESSION_SECRET=${SESSION_SECRET} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+  # Start with direct bindings
+  echo "Starting with direct bindings"
+  exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
+       wrangler pages dev ./build/client ${DIRECT_BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 fi
