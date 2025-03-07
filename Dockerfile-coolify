@@ -7,7 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 # Install PostgreSQL client and MinIO Client
 RUN apt-get update && \
-    apt-get install -y postgresql-client mc && \
+    apt-get install -y postgresql-client mc curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files to utilize cache
@@ -67,6 +67,36 @@ RUN echo '#!/bin/bash' > /app/inject-env-vars.sh && \
 
 # Run the injection script after build
 RUN /app/inject-env-vars.sh
+
+# Create the script for direct injection of Supabase credentials
+RUN echo '#!/bin/bash' > /app/update-supabase-creds.sh && \
+    echo 'set -e' >> /app/update-supabase-creds.sh && \
+    echo '' >> /app/update-supabase-creds.sh && \
+    echo '# Get the Supabase credentials from the environment' >> /app/update-supabase-creds.sh && \
+    echo 'SUPABASE_URL="${SUPABASE_URL}"' >> /app/update-supabase-creds.sh && \
+    echo 'SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}"' >> /app/update-supabase-creds.sh && \
+    echo 'SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}"' >> /app/update-supabase-creds.sh && \
+    echo '' >> /app/update-supabase-creds.sh && \
+    echo '# Ensure they'"'"'re provided' >> /app/update-supabase-creds.sh && \
+    echo 'if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then' >> /app/update-supabase-creds.sh && \
+    echo '  echo "ERROR: Supabase credentials not provided. Please set SUPABASE_URL and SUPABASE_ANON_KEY."' >> /app/update-supabase-creds.sh && \
+    echo '  exit 1' >> /app/update-supabase-creds.sh && \
+    echo 'fi' >> /app/update-supabase-creds.sh && \
+    echo '' >> /app/update-supabase-creds.sh && \
+    echo '# Find the supabase.server.ts file in the build' >> /app/update-supabase-creds.sh && \
+    echo 'echo "Directly patching supabase client in built JavaScript..."' >> /app/update-supabase-creds.sh && \
+    echo '' >> /app/update-supabase-creds.sh && \
+    echo '# Get list of files in build directory' >> /app/update-supabase-creds.sh && \
+    echo 'SERVER_DIR="./build/server"' >> /app/update-supabase-creds.sh && \
+    echo 'CLIENT_DIR="./build/client"' >> /app/update-supabase-creds.sh && \
+    echo '' >> /app/update-supabase-creds.sh && \
+    echo '# Directly inject Supabase credentials into all JavaScript files' >> /app/update-supabase-creds.sh && \
+    echo 'find "$SERVER_DIR" -name "*.js" -exec sed -i "s|import{createClient}from'"'"'@supabase/supabase-js'"'"'|import{createClient}from'"'"'@supabase/supabase-js'"'"';const HARDCODED_URL='"'"'$SUPABASE_URL'"'"';const HARDCODED_KEY='"'"'$SUPABASE_ANON_KEY'"'"'|g" {} \;' >> /app/update-supabase-creds.sh && \
+    echo 'find "$SERVER_DIR" -name "*.js" -exec sed -i "s|const supabaseUrl=process.env.SUPABASE_URL|const supabaseUrl=HARDCODED_URL||process.env.SUPABASE_URL|g" {} \;' >> /app/update-supabase-creds.sh && \
+    echo 'find "$SERVER_DIR" -name "*.js" -exec sed -i "s|const supabaseAnonKey=process.env.SUPABASE_ANON_KEY|const supabaseAnonKey=HARDCODED_KEY||process.env.SUPABASE_ANON_KEY|g" {} \;' >> /app/update-supabase-creds.sh && \
+    echo '' >> /app/update-supabase-creds.sh && \
+    echo 'echo "Supabase credentials have been directly injected into the built JavaScript."' >> /app/update-supabase-creds.sh && \
+    chmod +x /app/update-supabase-creds.sh
 
 # Expose application port
 EXPOSE 5173
