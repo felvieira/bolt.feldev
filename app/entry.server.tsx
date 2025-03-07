@@ -1,4 +1,24 @@
 // app/entry.server.tsx
+// Direct environment variable definition for Cloudflare Workers
+if (typeof globalThis !== 'undefined') {
+  // Ensure process.env exists
+  if (typeof process === 'undefined') {
+    (globalThis as any).process = { env: {} };
+  } else if (!process.env) {
+    process.env = {};
+  }
+  
+  // Copy from globalThis.env (Cloudflare Workers pattern) to process.env
+  if (typeof globalThis.env !== 'undefined') {
+    Object.keys(globalThis.env).forEach(key => {
+      if (!process.env[key]) {
+        process.env[key] = globalThis.env[key];
+      }
+    });
+    console.log('Cloudflare Worker env variables bridged to process.env');
+  }
+}
+
 import type { AppLoadContext } from '@remix-run/cloudflare';
 import { RemixServer } from '@remix-run/react';
 import { isbot } from 'isbot';
@@ -14,6 +34,16 @@ export default async function handleRequest(
   remixContext: any,
   _loadContext: AppLoadContext,
 ) {
+  // Log environment variables status (without revealing values)
+  console.log('Entry server environment check:');
+  console.log('- SUPABASE_URL in process.env:', !!process.env.SUPABASE_URL);
+  console.log('- SUPABASE_ANON_KEY in process.env:', !!process.env.SUPABASE_ANON_KEY);
+  
+  if (typeof globalThis.env !== 'undefined') {
+    console.log('- SUPABASE_URL in globalThis.env:', !!globalThis.env.SUPABASE_URL);
+    console.log('- SUPABASE_ANON_KEY in globalThis.env:', !!globalThis.env.SUPABASE_ANON_KEY);
+  }
+
   // Create the React component stream
   const stream = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {
     signal: request.signal,
@@ -22,17 +52,14 @@ export default async function handleRequest(
       responseStatusCode = 500;
     },
   });
-
   // Wait for the stream to be ready for bots
   if (isbot(request.headers.get('user-agent') || '')) {
     await stream.allReady;
   }
-
   // Set the proper headers
   responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
   responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
   responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-
   // Create a transformer stream to properly inject the DOCTYPE and HTML structure
   const transformStream = new TransformStream({
     start(controller) {
@@ -52,10 +79,8 @@ export default async function handleRequest(
       controller.enqueue(new TextEncoder().encode('</div></body></html>'));
     }
   });
-
   // Pipe the React stream through our transformer
   const responseStream = stream.pipeThrough(transformStream);
-
   return new Response(responseStream, {
     headers: responseHeaders,
     status: responseStatusCode,
