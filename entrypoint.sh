@@ -52,23 +52,34 @@ echo "DATABASE_URL=${DATABASE_URL}" >> .dev.vars
 
 echo "Configuration complete. Starting application..."
 
+# Prepare default Supabase bindings
+SUPABASE_BINDINGS="--binding SUPABASE_URL=${SUPABASE_URL} --binding SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} --binding SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}"
+
 # If bindings.sh exists, use it to generate bindings for Wrangler
 if [ -f "./bindings.sh" ]; then
   echo "Generating bindings using bindings.sh"
   chmod +x ./bindings.sh
   BINDINGS=$(./bindings.sh)
-  echo "Generated bindings: ${BINDINGS}"
-fi
-
-# Prepare all necessary bindings
-SUPABASE_BINDINGS="--binding SUPABASE_URL=${SUPABASE_URL} --binding SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} --binding SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}"
-
-# Start the application with the appropriate bindings
-echo "Starting application with wrangler"
-if [ -n "${BINDINGS}" ]; then
-  echo "Using bindings from bindings.sh with added Supabase bindings"
-  exec wrangler pages dev ./build/client ${BINDINGS} ${SUPABASE_BINDINGS} --binding SESSION_SECRET=${SESSION_SECRET} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+  echo "Generated bindings from bindings.sh"
+  
+  # Check if bindings already contain Supabase variables
+  if [[ "$BINDINGS" != *"--binding SUPABASE_URL"* ]]; then
+    echo "Adding Supabase bindings to bindings.sh output"
+    BINDINGS="$BINDINGS $SUPABASE_BINDINGS"
+  else
+    echo "Using bindings from bindings.sh (already includes Supabase bindings)"
+  fi
+  
+  # Check if bindings already contain SESSION_SECRET
+  if [[ "$BINDINGS" != *"--binding SESSION_SECRET"* ]]; then
+    BINDINGS="$BINDINGS --binding SESSION_SECRET=${SESSION_SECRET}"
+  fi
+  
+  # Start with bindings from bindings.sh
+  echo "Starting application with bindings from bindings.sh"
+  exec wrangler pages dev ./build/client ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 else
+  # Start with explicit bindings
   echo "Starting with explicit Supabase bindings"
   exec wrangler pages dev ./build/client ${SUPABASE_BINDINGS} --binding SESSION_SECRET=${SESSION_SECRET} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 fi
