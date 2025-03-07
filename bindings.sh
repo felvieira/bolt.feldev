@@ -1,36 +1,48 @@
 #!/bin/bash
 set -euo pipefail
 
+# Variável para evitar execução duplicada
+if [ "${BINDINGS_GENERATED:-false}" = "true" ]; then
+  echo "Bindings already generated. Skipping."
+  exit 0
+fi
+
 bindings=""
 
-# Function to extract variable names from worker-configuration.d.ts
+# Função para extrair nomes de variáveis do worker-configuration.d.ts
 extract_env_vars() {
   if [ -f "worker-configuration.d.ts" ]; then
     grep -o '[A-Z_]\+:' worker-configuration.d.ts | sed 's/://'
   else
-    # Fallback to a predefined list of common variables if file doesn't exist
     echo "SESSION_SECRET SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY DATABASE_URL"
   fi
 }
 
-# Function to safely add a binding with proper quoting
+# Função para remover espaços em branco (trim)
+trim() {
+  echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+# Função para adicionar binding de forma segura
 add_binding() {
-  local name="$1"
-  local value="$2"
+  local name
+  local value
+  name=$(trim "$1")
+  value=$(trim "$2")
   
-  # Skip empty values
+  # Ignora valores vazios
   if [ -z "$value" ]; then
     return
   fi
   
-  # Escape any quotes in the value and wrap in quotes
+  # Escapa aspas duplas no valor
   value=$(echo "$value" | sed 's/"/\\"/g')
   bindings+="--binding ${name}=\"${value}\" "
 }
 
 echo "Generating bindings..."
 
-# Critical variables to check and log (without revealing values)
+# Lista de variáveis críticas
 critical_vars=("SUPABASE_URL" "SUPABASE_ANON_KEY" "SUPABASE_SERVICE_KEY" "SESSION_SECRET")
 for var in "${critical_vars[@]}"; do
   if [ -n "${!var-}" ]; then
@@ -40,38 +52,35 @@ for var in "${critical_vars[@]}"; do
   fi
 done
 
-# If .env.local exists, read variables from it
-if [ -f ".env.local" ]; then
-  echo "Reading variables from .env.local"
-  
+# Função para ler variáveis de um arquivo .env.local
+read_env_file() {
   while IFS= read -r line || [ -n "$line" ]; do
-    # Skip comments and empty lines
+    # Ignora comentários e linhas vazias
     if [[ ! "$line" =~ ^[[:space:]]*# ]] && [[ -n "$line" ]]; then
-      # Use regex to split at first equals sign, preserving the rest
       if [[ "$line" =~ ^([^=]+)=(.*)$ ]]; then
-        name="${BASH_REMATCH[1]}"
-        value="${BASH_REMATCH[2]}"
-        
-        # Remove surrounding quotes if present
+        local name
+        local value
+        name=$(trim "${BASH_REMATCH[1]}")
+        value=$(trim "${BASH_REMATCH[2]}")
+        # Remove aspas circundantes se presentes
         value=$(echo "$value" | sed 's/^"\(.*\)"$/\1/' | sed "s/^'\(.*\)'$/\1/")
-        
         add_binding "$name" "$value"
       fi
     fi
   done < .env.local
-  
+}
+
+if [ -f ".env.local" ]; then
+  echo "Reading variables from .env.local"
+  read_env_file
 else
-  # If .env.local doesn't exist, use environment variables
   echo "No .env.local found, using environment variables"
-  
-  # Use variables from worker-configuration.d.ts or fallback list
   for var in $(extract_env_vars); do
     if [ -n "${!var-}" ]; then
       add_binding "$var" "${!var}"
     fi
   done
   
-  # Ensure critical Supabase variables are always included
   for var in "${critical_vars[@]}"; do
     if [ -n "${!var-}" ] && [[ ! "$bindings" =~ "--binding $var=" ]]; then
       add_binding "$var" "${!var}"
@@ -79,8 +88,11 @@ else
   done
 fi
 
-# Trim trailing whitespace
+# Remove espaços em branco no final
 bindings=$(echo "$bindings" | sed 's/[[:space:]]*$//')
 
-echo "Generated bindings for Wrangler"
+# Marca que os bindings foram gerados para evitar repetição
+export BINDINGS_GENERATED=true
+
+echo "Generated bindings for Wrangler:"
 echo "$bindings"
