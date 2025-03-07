@@ -62,12 +62,12 @@ ARG SUPABASE_ANON_KEY
 ARG NODE_ENV
 ARG RUNNING_IN_DOCKER=true
 
-# Set environment variables in the production image
+# Set environment variables in the production image - FIXED LINE BREAKS
 ENV NODE_ENV=${NODE_ENV:-production} \
     RUNNING_IN_DOCKER=${RUNNING_IN_DOCKER} \
-    SESSION_SECRET=${SESSION_SECRET}
-    SUPABASE_URL=${SUPABASE_URL}
-    SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    SESSION_SECRET=${SESSION_SECRET} \
+    SUPABASE_URL=${SUPABASE_URL} \
+    SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY} \
     SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 
 # Create a comprehensive .env.local file with all possible environment variables
@@ -105,10 +105,10 @@ RUN echo "# Environment variables for bolt.diy" > .env.local && \
 # Create .dev.vars file for Wrangler Pages
 RUN echo "Creating .dev.vars file for Wrangler Pages" && \
     echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars && \
-    echo "SUPABASE_URL=${SUPABASE_URL}" >> .env.local && \
-    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env.local && \
-    echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .env.local && \
-    echo "DATABASE_URL=${DATABASE_URL}" >> .env.local && \
+    echo "SUPABASE_URL=${SUPABASE_URL}" >> .dev.vars && \
+    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .dev.vars && \
+    echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .dev.vars && \
+    echo "DATABASE_URL=${DATABASE_URL}" >> .dev.vars && \
     echo "Created .dev.vars with SESSION_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY and DATABASE_URL for local development"
 
 # Create session-data directory with proper permissions
