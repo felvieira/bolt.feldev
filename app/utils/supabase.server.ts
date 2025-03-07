@@ -1,3 +1,4 @@
+// supabase.server.ts
 import { createClient } from '@supabase/supabase-js';
 
 // For Cloudflare Workers compatibility, directly try to access from globalThis first
