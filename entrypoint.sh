@@ -91,7 +91,7 @@ console.log("Injected environment variables via injected-env.js");
 EOF
 
 # Run the environment variable injection script again at runtime
-if [ -f "/inject-env-vars.sh" ]; then
+if [ -f "./inject-env-vars.sh" ]; then
   echo "Running environment variable injection script at runtime"
   ./inject-env-vars.sh
 else
@@ -165,10 +165,10 @@ if [ -f "./bindings.sh" ]; then
   # Start with bindings from bindings.sh and directly set env vars
   echo "Starting application with combined bindings"
   exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
-       wrangler pages dev ./build/client ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+       wrangler pages dev ./build/client --script ./build/client/_worker.js ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 else
   # Start with direct bindings
   echo "Starting with direct bindings"
   exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
-       wrangler pages dev ./build/client ${DIRECT_BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+       wrangler pages dev ./build/client --script ./build/client/_worker.js ${DIRECT_BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 fi
