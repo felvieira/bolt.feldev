@@ -4,3 +4,9 @@ compatibility_flags = ["nodejs_compat"]
 compatibility_date = "2024-07-01"
 pages_build_output_dir = "./build/client"
 send_metrics = false
+
+[vars]
+# These can be static or references to Docker env
+SUPABASE_URL = "${env.SUPABASE_URL}"
+SUPABASE_ANON_KEY = "${env.SUPABASE_ANON_KEY}"
+SESSION_SECRET = "${env.SESSION_SECRET}"
