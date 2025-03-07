@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-
 echo "Starting entrypoint script for bolt.diy"
 
 # Check if necessary env variables are present
@@ -12,7 +11,6 @@ echo "SESSION_SECRET present: ${SESSION_SECRET:+yes}"
 
 # Check for and use persisted session secret
 PERSISTED_SECRET_PATH="/app/session-data/session-secret"
-
 if [ -z "${SESSION_SECRET}" ] && [ -f "${PERSISTED_SECRET_PATH}" ]; then
   echo "Found persisted SESSION_SECRET, using it instead of environment variable"
   export SESSION_SECRET=$(cat "${PERSISTED_SECRET_PATH}")
@@ -36,10 +34,21 @@ else
   echo "SESSION_SECRET is set (value hidden for security)"
 fi
 
-# Ensure .env.local and .dev.vars are created with current SESSION_SECRET
-echo "Ensuring configuration files have current SESSION_SECRET"
+# Create .env.local with all environment variables
+echo "Creating .env.local with current environment variables"
 echo "SESSION_SECRET=${SESSION_SECRET}" > .env.local
+echo "SUPABASE_URL=${SUPABASE_URL}" >> .env.local
+echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env.local
+echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .env.local
+echo "DATABASE_URL=${DATABASE_URL}" >> .env.local
+
+# Create .dev.vars with all environment variables
+echo "Creating .dev.vars with current environment variables"
 echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars
+echo "SUPABASE_URL=${SUPABASE_URL}" >> .dev.vars
+echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .dev.vars
+echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .dev.vars
+echo "DATABASE_URL=${DATABASE_URL}" >> .dev.vars
 
 echo "Configuration complete. Starting application..."
 
@@ -51,12 +60,15 @@ if [ -f "./bindings.sh" ]; then
   echo "Generated bindings: ${BINDINGS}"
 fi
 
+# Prepare all necessary bindings
+SUPABASE_BINDINGS="--binding SUPABASE_URL=${SUPABASE_URL} --binding SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} --binding SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}"
+
 # Start the application with the appropriate bindings
 echo "Starting application with wrangler"
 if [ -n "${BINDINGS}" ]; then
-  echo "Using bindings from bindings.sh"
-  exec wrangler pages dev ./build/client ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+  echo "Using bindings from bindings.sh with added Supabase bindings"
+  exec wrangler pages dev ./build/client ${BINDINGS} ${SUPABASE_BINDINGS} --binding SESSION_SECRET=${SESSION_SECRET} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 else
-  echo "Starting without explicit bindings"
-  exec wrangler pages dev ./build/client --binding SESSION_SECRET=${SESSION_SECRET} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+  echo "Starting with explicit Supabase bindings"
+  exec wrangler pages dev ./build/client ${SUPABASE_BINDINGS} --binding SESSION_SECRET=${SESSION_SECRET} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
 fi
