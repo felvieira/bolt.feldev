@@ -5,7 +5,7 @@ WORKDIR /app
 # Use bash for all RUN commands
 SHELL ["/bin/bash", "-c"]
 
-# Instalar psql (cliente do PostgreSQL) e mc (MinIO Client)
+# Install PostgreSQL client and MinIO Client
 RUN apt-get update && \
     apt-get install -y postgresql-client mc && \
     rm -rf /var/lib/apt/lists/*
@@ -38,6 +38,9 @@ RUN chmod +x postdeploy.sh bindings.sh entrypoint.sh coolify-setup.sh && \
     # Fix bindings.sh format
     tr -d '\r' < bindings.sh > bindings.tmp && \
     mv bindings.tmp bindings.sh && \
+    # Fix entrypoint.sh format
+    tr -d '\r' < entrypoint.sh > entrypoint.tmp && \
+    mv entrypoint.tmp entrypoint.sh && \
     # Run setup script during build
     ./coolify-setup.sh
 
@@ -47,6 +50,23 @@ RUN mkdir -p /root/.config/.wrangler && \
 
 # Build the application
 RUN pnpm run build
+
+# Create the environment variable injection script
+RUN echo '#!/bin/bash' > /app/inject-env-vars.sh && \
+    echo 'set -e' >> /app/inject-env-vars.sh && \
+    echo 'SERVER_INDEX="./build/server/index.js"' >> /app/inject-env-vars.sh && \
+    echo 'if [ -f "$SERVER_INDEX" ]; then' >> /app/inject-env-vars.sh && \
+    echo '  echo "Injecting environment variables into server build"' >> /app/inject-env-vars.sh && \
+    echo '  # Add environment variable setup to beginning of file' >> /app/inject-env-vars.sh && \
+    echo '  sed -i "1s/^/if(typeof globalThis!==\"undefined\"){if(typeof process===\"undefined\")globalThis.process={env:{}};else if(!process.env)process.env={};if(typeof globalThis.env!==\"undefined\"){Object.keys(globalThis.env).forEach(key=>{process.env[key]=globalThis.env[key];});}}\\n/" "$SERVER_INDEX"' >> /app/inject-env-vars.sh && \
+    echo '  echo "Successfully injected environment bridge into $SERVER_INDEX"' >> /app/inject-env-vars.sh && \
+    echo 'else' >> /app/inject-env-vars.sh && \
+    echo '  echo "Warning: $SERVER_INDEX not found"' >> /app/inject-env-vars.sh && \
+    echo 'fi' >> /app/inject-env-vars.sh && \
+    chmod +x /app/inject-env-vars.sh
+
+# Run the injection script after build
+RUN /app/inject-env-vars.sh
 
 # Expose application port
 EXPOSE 5173
@@ -62,7 +82,7 @@ ARG SUPABASE_ANON_KEY
 ARG NODE_ENV
 ARG RUNNING_IN_DOCKER=true
 
-# Set environment variables in the production image - FIXED LINE BREAKS
+# Set environment variables in the production image
 ENV NODE_ENV=${NODE_ENV:-production} \
     RUNNING_IN_DOCKER=${RUNNING_IN_DOCKER} \
     SESSION_SECRET=${SESSION_SECRET} \
