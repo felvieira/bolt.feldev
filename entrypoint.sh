@@ -2,11 +2,11 @@
 set -e
 echo "Starting entrypoint script for bolt.diy"
 
-# --- Função: Criação Consolidada de Arquivos de Ambiente ---
+# --- Função: Criação Consolidada dos Arquivos de Ambiente ---
 create_env_files() {
   echo "Criando arquivos de ambiente consolidados..."
   cat > .env.local << 'EOF'
-# .env.local - utilizado pelo runtime da aplicação
+# .env.local - Utilizado pelo runtime da aplicação
 SESSION_SECRET='${SESSION_SECRET}'
 SUPABASE_URL='${SUPABASE_URL}'
 SUPABASE_ANON_KEY='${SUPABASE_ANON_KEY}'
@@ -37,25 +37,24 @@ PERPLEXITY_API_KEY='${PERPLEXITY_API_KEY}'
 AWS_BEDROCK_CONFIG='${AWS_BEDROCK_CONFIG}'
 VITE_LOG_LEVEL='${VITE_LOG_LEVEL:-debug}'
 EOF
-  # Duplica para os outros arquivos necessários
+  # Duplicar para os outros arquivos necessários
   cp .env.local .dev.vars
   cp .env.local .env
 }
 
 # --- Função: Sanitização de Valores para Injeção no JS ---
 sanitize() {
-  # Escapa aspas simples para evitar quebras no código JavaScript
-  echo "$1" | sed "s/'/\\\'/g"
+  # Remove espaços extras e escapa aspas simples
+  echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed "s/'/\\\'/g"
 }
 
 # --- Função: Criação do Arquivo injected-env.js ---
 create_injected_js() {
-  local sanitized_supabase_url
-  local sanitized_supabase_anon_key
+  local sanitized_supabase_url sanitized_supabase_anon_key
   sanitized_supabase_url=$(sanitize "${SUPABASE_URL}")
   sanitized_supabase_anon_key=$(sanitize "${SUPABASE_ANON_KEY}")
   cat > ./build/client/injected-env.js << EOF
-// Arquivo injected-env.js - Injeção de variáveis para o contexto do browser
+// injected-env.js - Injeção de variáveis para o contexto do browser
 globalThis.__ENV__ = {
   SUPABASE_URL: '${sanitized_supabase_url}',
   SUPABASE_ANON_KEY: '${sanitized_supabase_anon_key}'
@@ -66,8 +65,7 @@ EOF
 
 # --- Função: Criação do Arquivo _worker.js para Cloudflare Workers ---
 create_worker_js() {
-  local sanitized_supabase_url
-  local sanitized_supabase_anon_key
+  local sanitized_supabase_url sanitized_supabase_anon_key
   sanitized_supabase_url=$(sanitize "${SUPABASE_URL}")
   sanitized_supabase_anon_key=$(sanitize "${SUPABASE_ANON_KEY}")
   cat > ./build/client/_worker.js << EOF
@@ -154,20 +152,20 @@ else
   echo "WARNING: update-supabase-creds.sh não encontrado. Pulando injeção das credenciais do Supabase."
 fi
 
-# --- Criação dos Arquivos de Ambiente (se ainda não existirem) ---
+# --- Criação dos Arquivos de Ambiente (somente se ainda não existirem) ---
 if [ ! -f ".env.local" ]; then
   create_env_files
 else
   echo ".env.local já existe, pulando criação dos arquivos de ambiente."
 fi
 
-# --- Criação dos Arquivos JavaScript de Injeção ---
+# --- Criação dos Arquivos JavaScript para Injeção ---
 create_injected_js
 create_worker_js
 
 # --- Execução Condicional do inject-env-vars.sh no Runtime ---
 if [ -f "./inject-env-vars.sh" ]; then
-  if [ "${RUNTIME_INJECTED}" != "true" ]; then
+  if [ "${RUNTIME_INJECTED:-false}" != "true" ]; then
     echo "Executando inject-env-vars.sh no runtime..."
     chmod +x ./inject-env-vars.sh
     ./inject-env-vars.sh
@@ -179,8 +177,6 @@ else
   echo "WARNING: inject-env-vars.sh não encontrado, pulando injeção de runtime."
 fi
 
-echo "Configuração completa. Iniciando aplicação..."
-
 # --- Preparação das Bindings para o Wrangler ---
 DIRECT_BINDINGS="--binding SESSION_SECRET='${SESSION_SECRET}' --binding SUPABASE_URL='${SUPABASE_URL}' --binding SUPABASE_ANON_KEY='${SUPABASE_ANON_KEY}' --binding SUPABASE_SERVICE_KEY='${SUPABASE_SERVICE_KEY}'"
 
@@ -188,7 +184,7 @@ if [ -f "./bindings.sh" ]; then
   echo "Gerando bindings usando bindings.sh..."
   chmod +x ./bindings.sh
   BINDINGS=$(./bindings.sh)
-  if [[ "$BINDINGS" != *"--binding SUPABASE_URL"* ]]; then
+  if [[ "$BINDINGS" != *"--binding SUPABASE_URL="* ]]; then
     echo "Adicionando bindings do Supabase ao output de bindings.sh."
     BINDINGS="$BINDINGS $DIRECT_BINDINGS"
   fi
