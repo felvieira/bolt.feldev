@@ -1,8 +1,16 @@
 // supabase.server.ts
 import { createClient } from '@supabase/supabase-js';
 
-// For Cloudflare Workers compatibility, directly try to access from globalThis first
+// For Cloudflare Workers compatibility, directly try to access from all possible sources
 const getEnvVar = (name: string): string | undefined => {
+  // Try hardcoded constants (injected by our script)
+  if (typeof HARDCODED_URL !== 'undefined' && name === 'SUPABASE_URL') {
+    return HARDCODED_URL;
+  }
+  if (typeof HARDCODED_KEY !== 'undefined' && name === 'SUPABASE_ANON_KEY') {
+    return HARDCODED_KEY;
+  }
+  
   // Try Cloudflare Worker env
   if (typeof globalThis !== 'undefined' && globalThis.env && globalThis.env[name]) {
     return globalThis.env[name];
@@ -16,6 +24,13 @@ const getEnvVar = (name: string): string | undefined => {
   // Try direct globalThis properties
   if (typeof globalThis !== 'undefined' && (globalThis as any)[name]) {
     return (globalThis as any)[name];
+  }
+  
+  // Try browser-specific __ENV__ global
+  if (typeof globalThis !== 'undefined' && 
+      (globalThis as any).__ENV__ && 
+      (globalThis as any).__ENV__[name]) {
+    return (globalThis as any).__ENV__[name];
   }
   
   return undefined;
