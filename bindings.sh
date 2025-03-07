@@ -21,7 +21,7 @@ if [ -f ".env.local" ]; then
     fi
   done < .env.local
 else
-  # Caso .env.local não exista, usa as variáveis definidas no .d.ts
+  # Caso .env.local não exista, usa as variáveis definidas no worker-configuration.d.ts
   env_vars=($(extract_env_vars))
   for var in "${env_vars[@]}"; do
     # Se a variável estiver definida no ambiente, gera o binding
