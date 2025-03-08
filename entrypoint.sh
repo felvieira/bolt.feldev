@@ -50,14 +50,16 @@ sanitize() {
 
 # --- Função: Criação do Arquivo injected-env.js ---
 create_injected_js() {
-  local sanitized_supabase_url sanitized_supabase_anon_key
+  local sanitized_supabase_url sanitized_supabase_anon_key sanitized_supabase_service_key
   sanitized_supabase_url=$(sanitize "${SUPABASE_URL}")
   sanitized_supabase_anon_key=$(sanitize "${SUPABASE_ANON_KEY}")
+  
   cat > ./build/client/injected-env.js << EOF
 // injected-env.js - Injeção de variáveis para o contexto do browser
 globalThis.__ENV__ = {
   SUPABASE_URL: '${sanitized_supabase_url}',
   SUPABASE_ANON_KEY: '${sanitized_supabase_anon_key}'
+  SUPABASE_SERVICE_KEY: '${sanitized_supabase_service_key}'
 };
 console.log("Injected environment variables via injected-env.js");
 EOF
@@ -68,6 +70,7 @@ create_worker_js() {
   local sanitized_supabase_url sanitized_supabase_anon_key
   sanitized_supabase_url=$(sanitize "${SUPABASE_URL}")
   sanitized_supabase_anon_key=$(sanitize "${SUPABASE_ANON_KEY}")
+  sanitized_supabase_service_key=$(sanitize "${SUPABASE_SERVICE_KEY}")
   cat > ./build/client/_worker.js << EOF
 // _worker.js - Gerado pelo entrypoint.sh para Cloudflare Workers
 export default {
@@ -75,8 +78,10 @@ export default {
     // Define as variáveis globalmente para o Worker
     globalThis.SUPABASE_URL = env.SUPABASE_URL;
     globalThis.SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
+    globalThis.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
     globalThis.HARDCODED_URL = env.SUPABASE_URL;
-    globalThis.HARDCODED_KEY = env.SUPABASE_ANON_KEY;
+    globalThis.HARDCODED_ANON_KEY = env.SUPABASE_ANON_KEY;
+    globalThis.HARDCODED_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
     
     // Assegura que process.env exista
     if (typeof process === 'undefined') {
@@ -92,6 +97,7 @@ export default {
     console.log('Worker environment setup complete');
     console.log('- SUPABASE_URL available:', !!env.SUPABASE_URL);
     console.log('- SUPABASE_ANON_KEY available:', !!env.SUPABASE_ANON_KEY);
+    console.log('- SUPABASE_SERVICE_KEY available:', !!env.SUPABASE_SERVICE_KEY);
     
     try {
       const { default: server } = await import('./server/index.js');
