@@ -2,58 +2,71 @@
 set -e
 
 echo "===== Bolt.diy Coolify Setup Script ====="
-
-# Validate Coolify Environment
 echo "Validating Coolify environment..."
 
-# Generate a secure SESSION_SECRET if not provided
-if [ -z "${SESSION_SECRET}" ]; then
-  echo "SESSION_SECRET not provided, generating a secure random value"
-  export SESSION_SECRET=$(openssl rand -base64 32)
-  echo "Generated SESSION_SECRET (value hidden for security)"
-  
-  # Make the SESSION_SECRET available to Coolify
-  if [ -f ".coolify/.env" ]; then
-    echo "Adding SESSION_SECRET to Coolify environment"
-    grep -q "SESSION_SECRET=" .coolify/.env && sed -i "s/SESSION_SECRET=.*/SESSION_SECRET=${SESSION_SECRET}/" .coolify/.env || echo "SESSION_SECRET=${SESSION_SECRET}" >> .coolify/.env
-  fi
-else
-  echo "Using provided SESSION_SECRET"
+#########################################
+# Persistência ou Geração de SESSION_SECRET
+#########################################
+PERSISTED_SECRET_PATH="/app/session-data/session-secret"
+if [ -z "${SESSION_SECRET}" ] && [ -f "${PERSISTED_SECRET_PATH}" ]; then
+  echo "SESSION_SECRET persistido encontrado, utilizando-o."
+  export SESSION_SECRET=$(cat "${PERSISTED_SECRET_PATH}")
 fi
 
-# Create necessary directories
+if [ -z "${SESSION_SECRET}" ]; then
+  echo "WARNING: SESSION_SECRET não definido!"
+  # Gera SESSION_SECRET de forma segura (valor oculto)
+  export SESSION_SECRET=$(openssl rand -base64 32)
+  echo "SESSION_SECRET gerado (valor oculto)."
+else
+  echo "SESSION_SECRET já está definido (valor oculto)."
+fi
+
+#########################################
+# Função: Patch do arquivo de ambiente
+#########################################
+patch_file() {
+  local file=$1
+  local var="SESSION_SECRET"
+  local value="${SESSION_SECRET}"
+  
+  if [ -f "$file" ]; then
+    if grep -q "^$var=" "$file"; then
+      sed -i "s|^$var=.*|$var=$value|" "$file"
+      echo "$file atualizado com SESSION_SECRET (valor oculto)."
+    else
+      echo "$var=$value" >> "$file"
+      echo "$file atualizado com SESSION_SECRET (valor oculto)."
+    fi
+  else
+    echo "# Environment file" > "$file"
+    echo "$var=$value" >> "$file"
+    echo "$file criado com SESSION_SECRET (valor oculto)."
+  fi
+}
+
+#########################################
+# Patch dos arquivos de ambiente
+#########################################
+echo "Atualizando arquivos de ambiente..."
+patch_file ".env.local"
+
+# Cria o diretório bolt-env e copia o .env.local para ele (para volume, etc.)
 mkdir -p ./bolt-env
-
-# Ensure SESSION_SECRET is available in multiple places
-
-# 1. Create .env.local file
-echo "Creating .env.local file"
-cat > .env.local << EOF
-SESSION_SECRET=${SESSION_SECRET}
-# Other environment variables are set via Coolify
-EOF
-
-# Make a copy for the volume mount
 cp .env.local ./bolt-env/.env.local
 
-# 2. Create .dev.vars file for Wrangler Pages
-echo "Creating .dev.vars file for Wrangler Pages"
-echo "SESSION_SECRET=${SESSION_SECRET}" > .dev.vars
-echo "Created .dev.vars file with SESSION_SECRET for local development"
+patch_file ".dev.vars"
 
-# 3. Export to environment to ensure it's available for the build process
-echo "Ensuring SESSION_SECRET is available in the environment"
+# Exporta SESSION_SECRET para o ambiente atual
 export SESSION_SECRET=${SESSION_SECRET}
 
-# 4. Make shell scripts executable
-echo "Making shell scripts executable"
-chmod +x ./entrypoint.sh ./bindings.sh ./postdeploy.sh 2>/dev/null || true
-
-# Verify the setup
+#########################################
+# Verificação do Setup
+#########################################
 echo "Setup verification:"
-echo "- .env.local file created: $([ -f .env.local ] && echo 'Yes' || echo 'No')"
-echo "- .dev.vars file created: $([ -f .dev.vars ] && echo 'Yes' || echo 'No')"
-echo "- bolt-env directory created: $([ -d ./bolt-env ] && echo 'Yes' || echo 'No')"
-echo "- SESSION_SECRET in environment: $([ -n \"${SESSION_SECRET}\" ] && echo 'Yes' || echo 'No')"
+echo "- .env.local exists: $([ -f .env.local ] && echo 'Yes' || echo 'No')"
+echo "- .dev.vars exists: $([ -f .dev.vars ] && echo 'Yes' || echo 'No')"
+echo "- bolt-env directory exists: $([ -d ./bolt-env ] && echo 'Yes' || echo 'No')"
+echo "- SESSION_SECRET is set: $([ -n \"${SESSION_SECRET}\" ] && echo 'Yes' || echo 'No')"
 
 echo "===== Setup Complete ====="
