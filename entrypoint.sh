@@ -9,43 +9,35 @@ echo "SUPABASE_SERVICE_KEY presente: ${SUPABASE_SERVICE_KEY:+yes}"
 echo "SESSION_SECRET presente: ${SESSION_SECRET:+yes}"
 
 #########################################
-# 1. Persistência ou Geração de SESSION_SECRET
+# 1. Garantir SESSION_SECRET (delegado a coolify-setup.sh)
 #########################################
-PERSISTED_SECRET_PATH="/app/session-data/session-secret"
-if [ -z "${SESSION_SECRET}" ] && [ -f "${PERSISTED_SECRET_PATH}" ]; then
-  echo "Encontrado SESSION_SECRET persistido, utilizando-o."
-  export SESSION_SECRET=$(cat "${PERSISTED_SECRET_PATH}")
-fi
-
 if [ -z "${SESSION_SECRET}" ]; then
-  echo "WARNING: SESSION_SECRET não está definido!"
+  echo "SESSION_SECRET não definido. Executando coolify-setup.sh para gerar/injetar SESSION_SECRET."
   if [ -f "./coolify-setup.sh" ]; then
-    echo "Executando coolify-setup.sh para gerar SESSION_SECRET"
     chmod +x ./coolify-setup.sh
     ./coolify-setup.sh
   else
-    export SESSION_SECRET=$(openssl rand -base64 32)
-    echo "SESSION_SECRET temporário gerado."
+    echo "ERROR: coolify-setup.sh não encontrado."
+    exit 1
   fi
 else
-  echo "SESSION_SECRET randomizado foi definido."
+  echo "SESSION_SECRET definido (valor oculto)."
 fi
 
 #########################################
 # 2. Verificação e Injeção das Variáveis do Supabase
 #########################################
 if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ] || [ -z "${SUPABASE_SERVICE_KEY}" ]; then
-  echo "WARNING: Uma ou mais variáveis críticas do Supabase estão ausentes."
+  echo "WARNING: Variáveis críticas do Supabase ausentes. Executando update-supabase-creds.sh para injetar as credenciais."
   if [ -f "./update-supabase-creds.sh" ]; then
-    echo "Executando update-supabase-creds.sh para injetar as credenciais do Supabase..."
     chmod +x ./update-supabase-creds.sh
     ./update-supabase-creds.sh
   else
-    echo "ERROR: update-supabase-creds.sh não encontrado. Não foi possível injetar as credenciais do Supabase."
+    echo "ERROR: update-supabase-creds.sh não encontrado."
     exit 1
   fi
 else
-  echo "Variáveis do Supabase estão definidas."
+  echo "Variáveis do Supabase definidas."
 fi
 
 #########################################
@@ -70,11 +62,10 @@ patch_env_files() {
     fi
   done
 
-  # Duplica o arquivo para os demais ambientes
+  # Duplicar o arquivo para os demais ambientes
   cp "$ENV_FILE" .dev.vars
   cp "$ENV_FILE" .env
 }
-
 patch_env_files
 
 #########################################
