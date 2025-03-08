@@ -2,11 +2,6 @@ FROM node:20.18.0-bookworm AS base
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 
-# Instala ferramentas necessárias (PostgreSQL client, MinIO client, curl)
-RUN apt-get update && \
-    apt-get install -y postgresql-client mc curl && \
-    rm -rf /var/lib/apt/lists/*
-
 # Copia os arquivos de dependência para aproveitar cache
 COPY package.json pnpm-lock.yaml ./
 
