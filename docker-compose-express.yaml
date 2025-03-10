@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
     networks:
       - shared
-    profiles: ["production", "default"]  # Set as default profile
+    profiles: ["default", "production"]  # Set as default profile
 
   # Development environment with hot reloading
   app-dev:
