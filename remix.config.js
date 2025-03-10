@@ -8,8 +8,8 @@ module.exports = {
   assetsBuildDirectory: "public/build",
   serverBuildPath: "build/server/index.js",
   publicPath: "/build/",
-  // Atualizamos o alvo para Cloudflare Workers para garantir que as variáveis sejam injetadas
-  serverBuildTarget: "cloudflare-workers",
+  // Changed from cloudflare-workers to node
+  serverBuildTarget: "node",
   future: {
     v2_dev: true,
     v2_errorBoundary: true,
@@ -18,8 +18,8 @@ module.exports = {
     v2_normalizeFormMethod: true,
     v2_routeConvention: true,
   },
-  // Adicionamos o 'server-env.js' para ser bundleado no processo de build
-  serverDependenciesToBundle: ["marked", "prismjs", "server-env.js"],
+  // Simplified bundled dependencies
+  serverDependenciesToBundle: ["marked", "prismjs"],
   watchPaths: ["./public"],
   serverMinify: true,
   serverModuleFormat: "esm",
@@ -27,6 +27,6 @@ module.exports = {
   postcss: true,
   sourcemap: false,
   devServerPort: 8002,
-  // Define um entry point customizado para garantir que o 'server-env.js' seja importado antes do restante da aplicação
-  server: "./server-entry.js"
+  // Use the standard entry server instead of a custom one
+  server: "./app/entry.server.js"
 };
