@@ -1,21 +1,26 @@
-import { json, type LoaderFunctionArgs } from '@remix-run/cloudflare';
+import { Request, Response } from 'express';
 import { useLoaderData } from '@remix-run/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createApiHandler } from '~/utils/api-utils.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 const PREVIEW_CHANNEL = 'preview-updates';
 
-export async function loader({ params }: LoaderFunctionArgs) {
-  const previewId = params.id;
+export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  const previewId = request.params.id;
 
   if (!previewId) {
-    throw new Response('Preview ID is required', { status: 400 });
+    response.status(400).json({ error: 'Preview ID is required' });
+    return response;
   }
 
-  return json({ previewId });
-}
+  response.status(200).json({ previewId });
+  return response;
+});
 
 export default function WebContainerPreview() {
-  const { previewId } = useLoaderData<typeof loader>();
+  // Note: The client-side component can remain mostly unchanged as it uses React hooks
+  const { previewId } = useLoaderData<{ previewId: string }>();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const broadcastChannelRef = useRef<BroadcastChannel>();
   const [previewUrl, setPreviewUrl] = useState('');
