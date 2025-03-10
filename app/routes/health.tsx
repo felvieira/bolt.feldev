@@ -1,25 +1,18 @@
-import type { AppLoadContext } from '@remix-run/cloudflare';
-import { json, type LoaderFunctionArgs } from '@remix-run/cloudflare';
+import { Request, Response } from 'express';
+import { createApiHandler } from '~/utils/api-utils.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+import { getEnvVar } from '~/utils/express-context-adapter.server';
 
-interface Env {
-  SESSION_SECRET?: string;
-  NODE_ENV?: string;
-  RUNNING_IN_DOCKER?: string;
+export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  // Check if SESSION_SECRET is set using the context adapter
+  const sessionSecret = getEnvVar(context, 'SESSION_SECRET') || process.env.SESSION_SECRET;
+  const hasSessionSecret = Boolean(sessionSecret);
 
-  // Add other environment variables as needed
-}
+  // Check runtime environment using the context adapter
+  const nodeEnv = getEnvVar(context, 'NODE_ENV') || process.env.NODE_ENV || 'unknown';
+  const isDocker = getEnvVar(context, 'RUNNING_IN_DOCKER') === 'true' || process.env.RUNNING_IN_DOCKER === 'true';
 
-export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const env = (context as AppLoadContext).env as Env;
-
-  // Check if SESSION_SECRET is set
-  const hasSessionSecret = Boolean(env?.SESSION_SECRET || process.env.SESSION_SECRET);
-
-  // Check runtime environment
-  const nodeEnv = env?.NODE_ENV || process.env.NODE_ENV || 'unknown';
-  const isDocker = env?.RUNNING_IN_DOCKER === 'true' || process.env.RUNNING_IN_DOCKER === 'true';
-
-  return json({
+  response.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || 'unknown',
@@ -27,11 +20,11 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
       sessionSecret: hasSessionSecret ? 'set' : 'missing',
       nodeEnv,
       isDocker,
-
-      // Add other environment checks as needed, but don't expose actual secrets
     },
   });
-};
+  
+  return response;
+});
 
 export default function Health() {
   return (
