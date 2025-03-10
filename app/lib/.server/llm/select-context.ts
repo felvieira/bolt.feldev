@@ -6,6 +6,8 @@ import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from '~/utils/constant
 import { createFilesContext, extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
 import { createScopedLogger } from '~/utils/logger';
 import { LLMManager } from '~/lib/modules/llm/manager';
+import { getEnvVar } from '~/utils/express-context-adapter.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 // Common patterns to ignore, similar to .gitignore
 
@@ -14,7 +16,7 @@ const logger = createScopedLogger('select-context');
 
 export async function selectContext(props: {
   messages: Message[];
-  env?: Env;
+  env?: Record<string, string | undefined>;
   apiKeys?: Record<string, string>;
   files: FileMap;
   providerSettings?: Record<string, IProviderSetting>;
@@ -219,8 +221,6 @@ export async function selectContext(props: {
   }
 
   return filteredFiles;
-
-  // generateText({
 }
 
 export function getFilePaths(files: FileMap) {
