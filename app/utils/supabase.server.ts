@@ -1,22 +1,16 @@
-// supabase.server.ts
+// app/utils/supabase.server.js
 import { createClient } from '@supabase/supabase-js';
 
-// Hardcoded credentials - will be replaced at build/runtime
-const HARDCODED_SUPABASE_URL = 'https://replace-with-actual-supabase-url.supabase.co';
-const HARDCODED_SUPABASE_KEY = 'replace-with-actual-supabase-key';
-
-// Log environment status
-console.log('Supabase Client Initialization:');
-console.log('- Using hardcoded credentials that will be replaced at runtime');
-
-// Create and export the Supabase client directly with hardcoded values
-// These values will be replaced by the update-supabase-creds.sh script
-export const supabase = createClient(
-  HARDCODED_SUPABASE_URL,
-  HARDCODED_SUPABASE_KEY
-);
-
-// Export the factory function for tests or other scenarios
-export function getSupabaseClient() {
-  return createClient(HARDCODED_SUPABASE_URL, HARDCODED_SUPABASE_KEY);
-}
+// Function to get Supabase credentials, prioritizing environment variables
+function getSupabaseCredentials() {
+  // Get URL from environment
+  const supabaseUrl = process.env.SUPABASE_URL || 
+                     (typeof globalThis !== 'undefined' && globalThis.env?.SUPABASE_URL) ||
+                     'https://replace-with-actual-supabase-url.supabase.co';
+  
+  // Get anon key from environment
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 
+                         (typeof globalThis !== 'undefined' && globalThis.env?.SUPABASE_ANON_KEY) ||
+                         'replace-with-actual-supabase-key';
+  
+  return { supabaseUrl, supabaseAnonKey
