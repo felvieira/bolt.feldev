@@ -1,8 +1,11 @@
-import { json } from '@remix-run/cloudflare';
+import { json } from '@remix-run/node';
+import { type Request, type Response } from 'express';
 import { LLMManager } from '~/lib/modules/llm/manager';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { ProviderInfo } from '~/types/model';
 import { getApiKeysFromCookie, getProviderSettingsFromCookie } from '~/lib/api/cookies';
+import { createApiHandler, getCookiesFromRequest, handleApiError } from '~/utils/api-utils.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 interface ModelsResponse {
   modelList: ModelInfo[];
@@ -38,53 +41,48 @@ function getProviderInfo(llmManager: LLMManager) {
   return { providers: cachedProviders, defaultProvider: cachedDefaultProvider };
 }
 
-export async function loader({
-  request,
-  params,
-  context,
-}: {
-  request: Request;
-  params: { provider?: string };
-  context: {
-    cloudflare?: {
-      env: Record<string, string>;
-    };
-  };
-}): Promise<Response> {
-  const llmManager = LLMManager.getInstance(context.cloudflare?.env);
+export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  try {
+    const provider = request.params.provider;
+    const llmManager = LLMManager.getInstance(context.env);
 
-  // Get client side maintained API keys and provider settings from cookies
-  const cookieHeader = request.headers.get('Cookie');
-  const apiKeys = getApiKeysFromCookie(cookieHeader);
-  const providerSettings = getProviderSettingsFromCookie(cookieHeader);
+    // Get client side maintained API keys and provider settings from cookies
+    const cookies = getCookiesFromRequest(request);
+    const apiKeys = getApiKeysFromCookie(cookies);
+    const providerSettings = getProviderSettingsFromCookie(cookies);
 
-  const { providers, defaultProvider } = getProviderInfo(llmManager);
+    const { providers, defaultProvider } = getProviderInfo(llmManager);
 
-  let modelList: ModelInfo[] = [];
-
-  if (params.provider) {
-    // Only update models for the specific provider
-    const provider = llmManager.getProvider(params.provider);
+    let modelList: ModelInfo[] = [];
 
     if (provider) {
-      modelList = await llmManager.getModelListFromProvider(provider, {
+      // Only update models for the specific provider
+      const providerInstance = llmManager.getProvider(provider);
+
+      if (providerInstance) {
+        modelList = await llmManager.getModelListFromProvider(providerInstance, {
+          apiKeys,
+          providerSettings,
+          serverEnv: context.env,
+        });
+      }
+    } else {
+      // Update all models
+      modelList = await llmManager.updateModelList({
         apiKeys,
         providerSettings,
-        serverEnv: context.cloudflare?.env,
+        serverEnv: context.env,
       });
     }
-  } else {
-    // Update all models
-    modelList = await llmManager.updateModelList({
-      apiKeys,
-      providerSettings,
-      serverEnv: context.cloudflare?.env,
-    });
-  }
 
-  return json<ModelsResponse>({
-    modelList,
-    providers,
-    defaultProvider,
-  });
-}
+    response.status(200).json({
+      modelList,
+      providers,
+      defaultProvider,
+    });
+    
+    return response;
+  } catch (error) {
+    return handleApiError(error);
+  }
+});
