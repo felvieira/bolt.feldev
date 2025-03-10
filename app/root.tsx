@@ -1,6 +1,6 @@
 // app/root.tsx
 import { useStore } from '@nanostores/react';
-import type { LinksFunction } from '@remix-run/cloudflare';
+import type { LinksFunction } from '@remix-run/node';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
@@ -14,7 +14,7 @@ import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
 
-import { json, type LoaderFunction } from '@remix-run/cloudflare';
+import { json, type LoaderFunction } from '@remix-run/node';
 import { requireAuth } from '~/utils/auth.server';
 
 export const links: LinksFunction = () => [
@@ -56,8 +56,14 @@ const inlineThemeCode = stripIndents`
   }
 `;
 
+// Works with both Express and Remix loaders
 export const loader: LoaderFunction = async ({ request }) => {
-  const pathname = new URL(request.url).pathname;
+  // Handle both Express Request objects and Remix Request objects
+  const url = request instanceof Request 
+    ? request.url 
+    : `http://${request.headers.host || 'localhost'}${request.url}`;
+  
+  const pathname = new URL(url).pathname;
 
   // Skip auth check for login page
   if (pathname === '/login') {
@@ -104,8 +110,8 @@ export default function App() {
   useEffect(() => {
     logStore.logSystem('Application initialized', {
       theme,
-      platform: navigator.platform,
-      userAgent: navigator.userAgent,
+      platform: typeof navigator !== 'undefined' ? navigator.platform : 'server',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
       timestamp: new Date().toISOString(),
     });
   }, []);
