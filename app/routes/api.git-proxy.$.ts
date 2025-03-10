@@ -1,36 +1,48 @@
-import { json } from '@remix-run/cloudflare';
-import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/cloudflare';
+import { json } from '@remix-run/node';
+import { type Request, type Response } from 'express';
+import { createApiHandler, handleApiError } from '~/utils/api-utils.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 // Handle all HTTP methods
-export async function action({ request, params }: ActionFunctionArgs) {
-  return handleProxyRequest(request, params['*']);
-}
+export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  const path = request.params['*'];
+  return handleProxyRequest(request, response, path);
+});
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
-  return handleProxyRequest(request, params['*']);
-}
+export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  const path = request.params['*'];
+  return handleProxyRequest(request, response, path);
+});
 
-async function handleProxyRequest(request: Request, path: string | undefined) {
+async function handleProxyRequest(request: Request, response: Response, path: string | undefined) {
   try {
     if (!path) {
       return json({ error: 'Invalid proxy URL format' }, { status: 400 });
     }
 
-    const url = new URL(request.url);
+    const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
 
     // Reconstruct the target URL
     const targetURL = `https://${path}${url.search}`;
 
     // Forward the request to the target URL
-    const response = await fetch(targetURL, {
+    const fetchResponse = await fetch(targetURL, {
       method: request.method,
       headers: {
-        ...Object.fromEntries(request.headers),
+        ...Object.fromEntries(
+          Object.entries(request.headers)
+            .filter(([key]) => key !== 'host' && key !== 'connection')
+        ),
 
         // Override host header with the target host
         host: new URL(targetURL).host,
       },
-      body: ['GET', 'HEAD'].includes(request.method) ? null : await request.arrayBuffer(),
+      body: ['GET', 'HEAD'].includes(request.method) ? undefined : 
+            request.body ? 
+              typeof request.body === 'string' ? 
+                request.body : 
+                JSON.stringify(request.body) : 
+              undefined,
     });
 
     // Create response with CORS headers
@@ -42,24 +54,34 @@ async function handleProxyRequest(request: Request, path: string | undefined) {
 
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: corsHeaders,
-        status: 204,
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.setHeader(key, value);
       });
+      response.status(204).end();
+      return response;
     }
 
-    // Forward the response with CORS headers
-    const responseHeaders = new Headers(response.headers);
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      responseHeaders.set(key, value);
+    // Forward the response headers
+    const headers = Array.from(fetchResponse.headers.entries());
+    headers.forEach(([key, value]) => {
+      response.setHeader(key, value);
     });
 
-    return new Response(response.body, {
-      status: response.status,
-      headers: responseHeaders,
+    // Add CORS headers
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.setHeader(key, value);
     });
+
+    // Set status code
+    response.status(fetchResponse.status);
+
+    // Stream the response body
+    const data = await fetchResponse.arrayBuffer();
+    response.end(Buffer.from(data));
+    
+    return response;
   } catch (error) {
     console.error('Git proxy error:', error);
-    return json({ error: 'Proxy error' }, { status: 500 });
+    return handleApiError(error, 500);
   }
 }
