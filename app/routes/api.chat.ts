@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs, json } from '@remix-run/node';
+import { type Request, type Response } from 'express';
 import { createDataStream, generateId } from 'ai';
 import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS, type FileMap } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/common/prompts/prompts';
@@ -11,27 +11,29 @@ import type { ContextAnnotation, ProgressAnnotation } from '~/types/context';
 import { WORK_DIR } from '~/utils/constants';
 import { createSummary } from '~/lib/.server/llm/create-summary';
 import { extractPropertiesFromMessage } from '~/lib/.server/llm/utils';
-import { getCookiesFromRequest, handleApiError } from '~/utils/api-utils.server';
+import { getCookiesFromRequest, handleApiError, createApiHandler } from '~/utils/api-utils.server';
 import { getEnvVar } from '~/utils/express-context-adapter.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
-export async function action(args: ActionFunctionArgs) {
+export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
   try {
-    return await chatAction(args);
+    return await chatAction(context, request, response);
   } catch (error) {
     return handleApiError(error);
   }
-}
+});
 
 const logger = createScopedLogger('api.chat');
 
-async function chatAction({ context, request }: ActionFunctionArgs) {
+async function chatAction(context: ExpressAppContext, request: Request, response: Response) {
   try {
-    const { messages, files, promptId, contextOptimization } = await request.json<{
+    const requestBody = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+    const { messages, files, promptId, contextOptimization } = requestBody as {
       messages: Messages;
       files: any;
       promptId?: string;
       contextOptimization: boolean;
-    }>();
+    };
 
     const cookies = getCookiesFromRequest(request);
     const apiKeys = JSON.parse(cookies.apiKeys || '{}');
@@ -79,12 +81,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             // Create a summary of the chat
             console.log(`Messages count: ${messages.length}`);
 
-            // Use consistent env access with the adapter
-            const env = context.env || context.cloudflare?.env;
-
             summary = await createSummary({
               messages: [...messages],
-              env,
+              env: context.env,
               apiKeys,
               providerSettings,
               promptId,
@@ -126,7 +125,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             console.log(`Messages count: ${messages.length}`);
             filteredFiles = await selectContext({
               messages: [...messages],
-              env,
+              env: context.env,
               apiKeys,
               files,
               providerSettings,
@@ -221,7 +220,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
               const result = await streamText({
                 messages,
-                env,
+                env: context.env,
                 options,
                 apiKeys,
                 files,
@@ -258,11 +257,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             message: 'Generating Response',
           } satisfies ProgressAnnotation);
 
-          const env = context.env || context.cloudflare?.env;
-
           const result = await streamText({
             messages,
-            env,
+            env: context.env,
             options,
             apiKeys,
             files,
@@ -325,29 +322,40 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         }),
       );
 
-      return new Response(dataStream, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/event-stream; charset=utf-8',
-          Connection: 'keep-alive',
-          'Cache-Control': 'no-cache',
-          'Text-Encoding': 'chunked',
-        },
-      });
+      // For Express, set headers directly on the response object
+      response.status(200);
+      response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      response.setHeader('Connection', 'keep-alive');
+      response.setHeader('Cache-Control', 'no-cache');
+      response.setHeader('Text-Encoding', 'chunked');
+
+      // Pipe the dataStream to the response
+      const readable = dataStream.getReader();
+      
+      const streamToResponse = async () => {
+        while (true) {
+          const { done, value } = await readable.read();
+          if (done) break;
+          response.write(value);
+        }
+        response.end();
+      };
+      
+      streamToResponse();
+      
+      return response;
     } catch (error: any) {
       logger.error(error);
 
       if (error.message?.includes('API key')) {
-        throw new Response('Invalid or missing API key', {
-          status: 401,
-          statusText: 'Unauthorized',
-        });
+        response.status(401);
+        response.json({ error: 'Invalid or missing API key' });
+        return response;
       }
 
-      throw new Response(null, {
-        status: 500,
-        statusText: 'Internal Server Error',
-      });
+      response.status(500);
+      response.json({ error: 'Internal Server Error' });
+      return response;
     }
   } catch (error) {
     return handleApiError(error);
