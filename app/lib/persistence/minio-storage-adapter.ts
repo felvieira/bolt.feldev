@@ -1,50 +1,65 @@
 // app/lib/persistence/minio-storage-adapter.ts
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { getEnvVar } from '~/utils/express-context-adapter.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 /**
- * Adaptador para armazenamento de arquivos no MinIO (compatível com S3)
+ * Adapter for file storage in MinIO (S3-compatible)
  * 
- * Este adaptador gerencia o armazenamento de arquivos de código e outros ativos do projeto
- * seguindo a estrutura: {userId}/{conversationId}/{projectPath}/{fileName}
+ * This adapter manages storage of code files and other project assets
+ * following the structure: {userId}/{conversationId}/{projectPath}/{fileName}
  */
 export class MinioStorageAdapter {
   private s3Client: S3Client;
   private bucketName: string;
 
-  constructor() {
-    // Inicializa o cliente S3 para o MinIO
+  constructor(context?: ExpressAppContext) {
+    // Get configuration from environment variables using Express context adapter
+    const storageUrl = context ? 
+      getEnvVar(context, 'SUPABASE_STORAGE_URL') : 
+      process.env.SUPABASE_STORAGE_URL || "https://supabase.cantodorei.com.br/storage/v1";
+    
+    const serviceUser = context ? 
+      getEnvVar(context, 'SERVICE_USER_MINIO') : 
+      process.env.SERVICE_USER_MINIO || "cdrminio";
+    
+    const servicePassword = context ? 
+      getEnvVar(context, 'SERVICE_PASSWORD_MINIO') : 
+      process.env.SERVICE_PASSWORD_MINIO || "";
+
+    // Initialize the S3 client for MinIO
     this.s3Client = new S3Client({
       region: "auto",
-      endpoint: process.env.SUPABASE_STORAGE_URL || "https://supabase.cantodorei.com.br/storage/v1",
+      endpoint: storageUrl,
       credentials: {
-        accessKeyId: process.env.SERVICE_USER_MINIO || "cdrminio",
-        secretAccessKey: process.env.SERVICE_PASSWORD_MINIO || "",
+        accessKeyId: serviceUser,
+        secretAccessKey: servicePassword,
       },
-      forcePathStyle: true, // Necessário para MinIO
-      customUserAgent: "bolt-app-client" // Para atender à política de segurança
+      forcePathStyle: true, // Required for MinIO
+      customUserAgent: "bolt-app-client" // For security policy
     });
 
     this.bucketName = "bolt-app-files";
   }
 
   /**
-   * Constrói um caminho de arquivo no formato {userId}/{conversationId}/{filePath}
+   * Constructs a file path in the format {userId}/{conversationId}/{filePath}
    */
   private buildFilePath(userId: string, conversationId: string, filePath: string): string {
-    // Normaliza o filePath removendo barras iniciais
+    // Normalize the filePath removing initial slashes
     const normalizedFilePath = filePath.replace(/^\/+/, '');
     return `${userId}/${conversationId}/${normalizedFilePath}`;
   }
 
   /**
-   * Salva um arquivo no MinIO
+   * Saves a file to MinIO
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param filePath Caminho do arquivo dentro do projeto
-   * @param content Conteúdo do arquivo (texto ou buffer)
-   * @param contentType Tipo MIME do conteúdo
-   * @returns Promise que resolve com o caminho completo do arquivo
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param filePath Path within the project
+   * @param content File content (text or buffer)
+   * @param contentType MIME type of the content
+   * @returns Promise resolving to the complete file path
    */
   async saveFile(
     userId: string, 
@@ -67,19 +82,19 @@ export class MinioStorageAdapter {
       await this.s3Client.send(command);
       return fileKey;
     } catch (error) {
-      console.error("Erro ao salvar arquivo no MinIO:", error);
-      throw new Error(`Falha ao salvar arquivo: ${filePath}. Erro: ${error}`);
+      console.error("Error saving file to MinIO:", error);
+      throw new Error(`Failed to save file: ${filePath}. Error: ${error}`);
     }
   }
 
   /**
-   * Carrega um arquivo do MinIO
+   * Loads a file from MinIO
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param filePath Caminho do arquivo dentro do projeto
-   * @param asText Se verdadeiro, retorna o conteúdo como string
-   * @returns Promise que resolve com o conteúdo do arquivo (Buffer ou string)
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param filePath Path within the project
+   * @param asText Whether to return content as text (true) or buffer (false)
+   * @returns Promise resolving to file content
    */
   async loadFile(
     userId: string, 
@@ -97,10 +112,10 @@ export class MinioStorageAdapter {
       
       const response = await this.s3Client.send(command);
       if (!response.Body) {
-        throw new Error("Corpo do arquivo vazio");
+        throw new Error("Empty file body");
       }
       
-      // Converte o stream para buffer
+      // Convert stream to buffer
       const chunks: Uint8Array[] = [];
       for await (const chunk of response.Body as any) {
         chunks.push(chunk);
@@ -108,21 +123,21 @@ export class MinioStorageAdapter {
       
       const fileBuffer = Buffer.concat(chunks);
       
-      // Retorna como texto ou buffer conforme solicitado
+      // Return as text or buffer as requested
       return asText ? fileBuffer.toString('utf-8') : fileBuffer;
     } catch (error) {
-      console.error("Erro ao carregar arquivo do MinIO:", error);
-      throw new Error(`Falha ao carregar arquivo: ${filePath}. Erro: ${error}`);
+      console.error("Error loading file from MinIO:", error);
+      throw new Error(`Failed to load file: ${filePath}. Error: ${error}`);
     }
   }
 
   /**
-   * Exclui um arquivo do MinIO
+   * Deletes a file from MinIO
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param filePath Caminho do arquivo dentro do projeto
-   * @returns Promise que resolve quando o arquivo é excluído
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param filePath Path within the project
+   * @returns Promise that resolves when deletion is complete
    */
   async deleteFile(userId: string, conversationId: string, filePath: string): Promise<void> {
     const fileKey = this.buildFilePath(userId, conversationId, filePath);
@@ -135,18 +150,18 @@ export class MinioStorageAdapter {
       
       await this.s3Client.send(command);
     } catch (error) {
-      console.error("Erro ao excluir arquivo do MinIO:", error);
-      throw new Error(`Falha ao excluir arquivo: ${filePath}. Erro: ${error}`);
+      console.error("Error deleting file from MinIO:", error);
+      throw new Error(`Failed to delete file: ${filePath}. Error: ${error}`);
     }
   }
 
   /**
-   * Verifica se um arquivo existe no MinIO
+   * Checks if a file exists in MinIO
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param filePath Caminho do arquivo dentro do projeto
-   * @returns Promise que resolve com true se o arquivo existir
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param filePath Path within the project
+   * @returns Promise resolving to true if file exists
    */
   async fileExists(userId: string, conversationId: string, filePath: string): Promise<boolean> {
     const fileKey = this.buildFilePath(userId, conversationId, filePath);
@@ -165,13 +180,13 @@ export class MinioStorageAdapter {
   }
 
   /**
-   * Renomeia um arquivo no MinIO (cópia seguida de exclusão)
+   * Renames a file in MinIO (copy followed by delete)
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param oldPath Caminho atual do arquivo
-   * @param newPath Novo caminho do arquivo
-   * @returns Promise que resolve quando o arquivo é renomeado
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param oldPath Current file path
+   * @param newPath New file path
+   * @returns Promise that resolves when renaming is complete
    */
   async renameFile(
     userId: string, 
@@ -180,20 +195,20 @@ export class MinioStorageAdapter {
     newPath: string
   ): Promise<void> {
     try {
-      // Carregamos o arquivo original
+      // Load the original file
       const fileContent = await this.loadFile(userId, conversationId, oldPath, false);
       
-      // Salvamos com o novo nome
+      // Save with the new name
       await this.saveFile(userId, conversationId, newPath, fileContent as Buffer);
       
-      // Excluímos o arquivo original
+      // Delete the original file
       await this.deleteFile(userId, conversationId, oldPath);
     } catch (error) {
-      console.error("Erro ao renomear arquivo no MinIO:", error);
-      throw new Error(`Falha ao renomear arquivo de ${oldPath} para ${newPath}. Erro: ${error}`);
+      console.error("Error renaming file in MinIO:", error);
+      throw new Error(`Failed to rename file from ${oldPath} to ${newPath}. Error: ${error}`);
     }
   }
 }
 
-// Exporta uma instância singleton do adaptador
+// Export a singleton instance of the adapter
 export const minioStorageAdapter = new MinioStorageAdapter();
