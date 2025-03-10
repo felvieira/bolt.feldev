@@ -11,7 +11,6 @@ import 'dotenv/config';
 import cookieParser from 'cookie-parser';
 
 // Ensure environment variables are available
-import './app/utils/cloudflare-worker-patch.js';
 import { createExpressContext } from './app/utils/express-context-adapter.server.js';
 
 // Initialize __dirname (needed in ESM)
