@@ -1,4 +1,4 @@
-// app/entry.server.js
+// app/entry.server.tsx
 // Import environment bridge 
 import './utils/env-bridge.server.js';
 
@@ -24,6 +24,12 @@ export default async function handleRequest(
   if (typeof globalThis.env !== 'undefined') {
     console.log('- SUPABASE_URL in globalThis.env:', !!globalThis.env.SUPABASE_URL);
     console.log('- SUPABASE_ANON_KEY in globalThis.env:', !!globalThis.env.SUPABASE_ANON_KEY);
+  }
+
+  // Add Express context logging
+  if (loadContext?.env) {
+    console.log('- SUPABASE_URL in loadContext.env:', !!loadContext.env.SUPABASE_URL);
+    console.log('- SUPABASE_ANON_KEY in loadContext.env:', !!loadContext.env.SUPABASE_ANON_KEY);
   }
 
   // Create React stream
