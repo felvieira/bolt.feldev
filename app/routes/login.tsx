@@ -1,21 +1,27 @@
 // app/routes/login.tsx
-import type { ActionFunction } from '@remix-run/cloudflare';
-import { json, redirect } from '@remix-run/cloudflare';
+import { Request, Response } from 'express';
 import { Form, useActionData } from '@remix-run/react';
 import { getSupabaseClient } from '~/utils/supabase.server';
 import { getSession, commitSession } from '~/session.server';
 import { Header } from '~/components/header/Header';
 import { useState } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
+import { createApiHandler } from '~/utils/api-utils.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
-export const action: ActionFunction = async ({ request }) => {
-  const formData = await request.formData();
-  const email = formData.get('email');
-  const password = formData.get('password');
-  const isSignUp = formData.get('isSignUp') === 'true';
+export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  // Express typically uses middleware like express.urlencoded() to parse form data
+  // If that middleware is active, the data will be in request.body
+  // Otherwise, we need to handle form parsing ourselves
+  const formData = request.body || {};
+  
+  const email = formData.email;
+  const password = formData.password;
+  const isSignUp = formData.isSignUp === 'true';
 
   if (typeof email !== 'string' || typeof password !== 'string') {
-    return json({ error: 'Email and password are required.' }, { status: 400 });
+    response.status(400).json({ error: 'Email and password are required.' });
+    return response;
   }
 
   try {
@@ -33,9 +39,10 @@ export const action: ActionFunction = async ({ request }) => {
         throw signUpError;
       }
 
-      return json({
+      response.status(200).json({
         message: 'Please check your email to confirm your account.',
       });
+      return response;
     } else {
       // Handle sign in
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -47,25 +54,25 @@ export const action: ActionFunction = async ({ request }) => {
         throw error;
       }
 
-      const session = await getSession(request.headers.get('Cookie'));
+      // Get session from request cookies
+      const cookieHeader = request.headers.cookie || '';
+      const session = await getSession(cookieHeader);
       session.set('access_token', data.session.access_token);
 
-      return redirect('/', {
-        headers: {
-          'Set-Cookie': await commitSession(session),
-        },
-      });
+      // Set cookie and redirect
+      const cookie = await commitSession(session);
+      response.setHeader('Set-Cookie', cookie);
+      response.redirect(302, '/');
+      return response;
     }
   } catch (error) {
     const authError = error as AuthError;
-    return json(
-      {
-        error: authError.message || 'Authentication failed',
-      },
-      { status: 400 },
-    );
+    response.status(400).json({
+      error: authError.message || 'Authentication failed',
+    });
+    return response;
   }
-};
+});
 
 export default function Login() {
   const actionData = useActionData<{ error?: string; message?: string }>();
