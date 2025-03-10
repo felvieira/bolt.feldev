@@ -3,7 +3,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile-coolify
+      dockerfile: Dockerfile-express
       args:
         # Pass SESSION_SECRET as a build argument
         - SESSION_SECRET=${SESSION_SECRET}
