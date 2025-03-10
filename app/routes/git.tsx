@@ -1,18 +1,22 @@
-import type { LoaderFunctionArgs } from '@remix-run/cloudflare';
-import { json, type MetaFunction } from '@remix-run/cloudflare';
+import { Request, Response } from 'express';
 import { ClientOnly } from 'remix-utils/client-only';
 import { BaseChat } from '~/components/chat/BaseChat';
 import { GitUrlImport } from '~/components/git/GitUrlImport.client';
 import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
+import { createApiHandler } from '~/utils/api-utils.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
-export const meta: MetaFunction = () => {
+// Metadata function can remain the same as it's used by the client-side Remix
+export const meta = () => {
   return [{ title: 'Bolt' }, { name: 'description', content: 'Talk with Bolt, an AI assistant from StackBlitz' }];
 };
 
-export async function loader(args: LoaderFunctionArgs) {
-  return json({ url: args.params.url });
-}
+export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  const url = request.params.url;
+  response.status(200).json({ url });
+  return response;
+});
 
 export default function Index() {
   return (
