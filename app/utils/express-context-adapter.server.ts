@@ -2,68 +2,58 @@
 import type { Request, Response } from 'express';
 
 /**
- * Creates a context object compatible with the existing codebase
- * that was originally designed for Cloudflare Pages.
- * 
- * This adapter allows for a smoother transition by maintaining
- * the expected structure while actually using Express.
+ * Express application context with environment variables and request/response objects
  */
-export function createExpressContext(req: Request, res: Response) {
+export interface ExpressAppContext {
+  env: Record<string, string | undefined>;
+  req?: Request;
+  res?: Response;
+}
+
+/**
+ * Creates an Express context object that's compatible with Remix loader functions
+ * This maintains compatibility between Remix/Cloudflare and Express environments
+ * 
+ * @param req Express request object
+ * @param res Express response object
+ * @returns Context object with environment variables and request/response objects
+ */
+export function createExpressContext(req?: Request, res?: Response): ExpressAppContext {
+  // Get environment variables from process.env
+  const env = { ...process.env };
+  
+  // Add request and response objects if available
   return {
-    // Main context object
-    env: process.env,
+    env,
     req,
     res,
-    
-    // Legacy structure for cloudflare context
-    cloudflare: {
-      env: process.env
-    }
   };
 }
 
 /**
- * Helper function to get environment variables consistently
- * Works with both the legacy Cloudflare context and the Express context
+ * Gets an environment variable from the context
+ * Falls back to process.env and globalThis.env if not found in context
+ * 
+ * @param context Express context object or undefined
+ * @param key Environment variable name
+ * @returns Environment variable value or undefined
  */
-export function getEnvVar(context: any, key: string): string | undefined {
-  // Try context.env first (new Express pattern)
+export function getEnvVar(context: ExpressAppContext | undefined, key: string): string | undefined {
+  // Try to get from context
   if (context?.env && context.env[key] !== undefined) {
     return context.env[key];
   }
   
-  // Try context.cloudflare.env (legacy Cloudflare pattern)
-  if (context?.cloudflare?.env && context.cloudflare.env[key] !== undefined) {
-    return context.cloudflare.env[key];
+  // Fall back to process.env
+  if (typeof process !== 'undefined' && process.env && process.env[key] !== undefined) {
+    return process.env[key];
   }
   
-  // Fall back to process.env
-  return process.env[key];
-}
-
-/**
- * Type definition for the Express app context
- * This helps provide type safety while transitioning
- */
-export interface ExpressAppContext {
-  env: Record<string, string | undefined>;
-  req: Request;
-  res: Response;
-  cloudflare?: {
-    env: Record<string, string | undefined>;
-  };
-}
-
-/**
- * Helper to get API keys consistently from the context
- */
-export function getApiKey(context: any, key: string): string | undefined {
-  return getEnvVar(context, key);
-}
-
-/**
- * Helper to check if an environment variable is set
- */
-export function hasEnvVar(context: any, key: string): boolean {
-  return !!getEnvVar(context, key);
+  // Fall back to globalThis.env
+  if (typeof globalThis !== 'undefined' && globalThis.env && (globalThis.env as any)[key] !== undefined) {
+    return (globalThis.env as any)[key];
+  }
+  
+  // Not found
+  return undefined;
 }
