@@ -16,20 +16,20 @@ export default async function handleRequest(
   remixContext,
   loadContext
 ) {
-  // Log environment variables status without exposing values
-  console.log('Entry server environment check:');
-  console.log('- SUPABASE_URL in process.env:', !!process.env.SUPABASE_URL);
-  console.log('- SUPABASE_ANON_KEY in process.env:', !!process.env.SUPABASE_ANON_KEY);
-  
-  if (typeof globalThis.env !== 'undefined') {
-    console.log('- SUPABASE_URL in globalThis.env:', !!globalThis.env.SUPABASE_URL);
-    console.log('- SUPABASE_ANON_KEY in globalThis.env:', !!globalThis.env.SUPABASE_ANON_KEY);
-  }
-
-  // Add Express context logging
-  if (loadContext?.env) {
-    console.log('- SUPABASE_URL in loadContext.env:', !!loadContext.env.SUPABASE_URL);
-    console.log('- SUPABASE_ANON_KEY in loadContext.env:', !!loadContext.env.SUPABASE_ANON_KEY);
+  // Ensure we have access to Express context
+  if (loadContext) {
+    // Log environment variables status without exposing values
+    console.log('Entry server environment check:');
+    
+    if (loadContext.env) {
+      console.log('- SUPABASE_URL in loadContext.env:', !!loadContext.env.SUPABASE_URL);
+      console.log('- SUPABASE_ANON_KEY in loadContext.env:', !!loadContext.env.SUPABASE_ANON_KEY);
+    }
+    
+    // Make environment variables available globally
+    if (typeof globalThis !== 'undefined' && !globalThis.env && loadContext.env) {
+      globalThis.env = loadContext.env;
+    }
   }
 
   // Create React stream
