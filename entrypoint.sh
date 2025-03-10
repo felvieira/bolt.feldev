@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-echo "Starting entrypoint script for bolt.diy"
+echo "Starting Express entrypoint script for bolt.diy"
 
 echo "Verificando variáveis de ambiente no container:"
 echo "SUPABASE_URL presente: ${SUPABASE_URL:+yes}"
@@ -55,37 +55,31 @@ patch_env_files() {
   
   for var in $VARS_LIST; do
     value=$(printenv $var)
-    if grep -q "^$var=" "$ENV_FILE"; then
-      sed -i "s|^$var=.*|$var=$value|" "$ENV_FILE"
-    else
-      echo "$var=$value" >> "$ENV_FILE"
+    if [ -n "$value" ]; then
+      if grep -q "^$var=" "$ENV_FILE"; then
+        sed -i "s|^$var=.*|$var=$value|" "$ENV_FILE"
+      else
+        echo "$var=$value" >> "$ENV_FILE"
+      fi
     fi
   done
 
-  # Duplicar o arquivo para os demais ambientes
-  cp "$ENV_FILE" .dev.vars
+  # Duplicar o arquivo para dotenv
   cp "$ENV_FILE" .env
 }
 patch_env_files
 
-#########################################
-# 4. Gerar Bindings para o Wrangler
-#########################################
-if [ -f "./bindings.sh" ]; then
-  echo "Gerando bindings usando bindings.sh..."
-  chmod +x ./bindings.sh
-  BINDINGS=$(./bindings.sh)
-else
-  echo "bindings.sh não encontrado, usando fallback de bindings."
-  BINDINGS="--binding SESSION_SECRET='${SESSION_SECRET}' --binding SUPABASE_URL='${SUPABASE_URL}' --binding SUPABASE_ANON_KEY='${SUPABASE_ANON_KEY}' --binding SUPABASE_SERVICE_KEY='${SUPABASE_SERVICE_KEY}'"
+echo "Arquivos de ambiente atualizados."
+
+# Executar o script de injeção de variáveis de ambiente
+if [ -f "./inject-env-vars.sh" ]; then
+  echo "Executando script de injeção de variáveis de ambiente..."
+  chmod +x ./inject-env-vars.sh
+  ./inject-env-vars.sh
 fi
 
-echo "Bindings gerados: $BINDINGS"
-
 #########################################
-# 5. Inicia a Aplicação com Wrangler
+# 4. Iniciar o servidor Express
 #########################################
-echo "Iniciando aplicação com wrangler..."
-exec env SUPABASE_URL="${SUPABASE_URL}" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
-       SUPABASE_SERVICE_KEY="${SUPABASE_SERVICE_KEY}" SESSION_SECRET="${SESSION_SECRET}" \
-       wrangler pages dev ./build/client ${BINDINGS} --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session
+echo "Iniciando servidor Express..."
+exec node server.js
