@@ -8,9 +8,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import 'dotenv/config';
+import cookieParser from 'cookie-parser';
 
 // Ensure environment variables are available
 import './app/utils/cloudflare-worker-patch.js';
+import { createExpressContext } from './app/utils/express-context-adapter.server.js';
 
 // Initialize __dirname (needed in ESM)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +36,9 @@ if (!sessionSecret) {
     }
   }
 }
+
+// Cookie parser middleware
+app.use(cookieParser());
 
 // Session middleware
 app.use(
@@ -65,7 +70,7 @@ app.use(compression({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS headers for Cloudflare Pages compatibility
+// CORS headers for compatibility with browser APIs
 app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
@@ -98,7 +103,12 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     version: process.env.npm_package_version || 'unknown',
     environment: process.env.NODE_ENV || 'development',
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    supabase: {
+      url: process.env.SUPABASE_URL ? 'set ✓' : 'not set ✗',
+      anonKey: process.env.SUPABASE_ANON_KEY ? 'set ✓' : 'not set ✗',
+      serviceKey: process.env.SUPABASE_SERVICE_KEY ? 'set ✓' : 'not set ✗'
+    }
   });
 });
 
@@ -109,11 +119,8 @@ app.all(
     build,
     mode: process.env.NODE_ENV,
     getLoadContext(req, res) {
-      return {
-        env: process.env,
-        req,
-        res
-      };
+      // Use our context adapter to maintain compatibility
+      return createExpressContext(req, res);
     },
   })
 );
