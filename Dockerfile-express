@@ -3,7 +3,7 @@ WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 
 # Copia os arquivos de dependência para aproveitar cache
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # Atualiza npm, instala Corepack, configura pnpm
 RUN npm install -g npm@latest && \
