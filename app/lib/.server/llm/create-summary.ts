@@ -4,12 +4,14 @@ import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from '~/utils/constant
 import { extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
 import { createScopedLogger } from '~/utils/logger';
 import { LLMManager } from '~/lib/modules/llm/manager';
+import { getEnvVar } from '~/utils/express-context-adapter.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 const logger = createScopedLogger('create-summary');
 
 export async function createSummary(props: {
   messages: Message[];
-  env?: Env;
+  env?: Record<string, string | undefined>;
   apiKeys?: Record<string, string>;
   providerSettings?: Record<string, IProviderSetting>;
   promptId?: string;
