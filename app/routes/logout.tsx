@@ -1,17 +1,20 @@
 // app/routes/logout.tsx
-import type { LoaderFunctionArgs } from '@remix-run/cloudflare';
-import { redirect } from '@remix-run/cloudflare';
+import { Request, Response } from 'express';
 import { getSession, destroySession } from '~/session.server';
+import { createApiHandler } from '~/utils/api-utils.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const session = await getSession(request.headers.get('Cookie'));
-
-  return redirect('/login', {
-    headers: {
-      'Set-Cookie': await destroySession(session),
-    },
-  });
-};
+export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+  const cookieHeader = request.headers.cookie || '';
+  const session = await getSession(cookieHeader);
+  
+  // Set destroyed session cookie and redirect
+  const cookie = await destroySession(session);
+  response.setHeader('Set-Cookie', cookie);
+  response.redirect(302, '/login');
+  
+  return response;
+});
 
 export default function Logout() {
   return <p>Logging out...</p>;
