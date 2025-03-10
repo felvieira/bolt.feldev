@@ -1,23 +1,22 @@
-// app/entry.server.tsx
-// Importa o bridge para garantir que as variáveis de ambiente sejam transferidas corretamente
-import '~/utils/env-bridge.server';
+// app/entry.server.js
+// Import environment bridge 
+import './utils/env-bridge.server.js';
 
-import type { AppLoadContext } from '@remix-run/cloudflare';
 import { RemixServer } from '@remix-run/react';
 import { isbot } from 'isbot';
 import { renderToReadableStream } from 'react-dom/server';
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
-import { themeStore } from '~/lib/stores/theme';
+import { themeStore } from './lib/stores/theme';
 
 export default async function handleRequest(
-  request: Request,
-  responseStatusCode: number,
-  responseHeaders: Headers,
-  remixContext: any,
-  _loadContext: AppLoadContext,
+  request,
+  responseStatusCode,
+  responseHeaders,
+  remixContext,
+  loadContext
 ) {
-  // Log para verificar as variáveis de ambiente sem expor seus valores
+  // Log environment variables status without exposing values
   console.log('Entry server environment check:');
   console.log('- SUPABASE_URL in process.env:', !!process.env.SUPABASE_URL);
   console.log('- SUPABASE_ANON_KEY in process.env:', !!process.env.SUPABASE_ANON_KEY);
@@ -27,26 +26,29 @@ export default async function handleRequest(
     console.log('- SUPABASE_ANON_KEY in globalThis.env:', !!globalThis.env.SUPABASE_ANON_KEY);
   }
 
-  // Cria o stream do componente React
+  // Create React stream
   const stream = await renderToReadableStream(
     <RemixServer context={remixContext} url={request.url} />,
     {
       signal: request.signal,
-      onError(error: unknown) {
+      onError(error) {
         console.error(error);
         responseStatusCode = 500;
       },
     }
   );
-  // Aguarda o stream ficar pronto para bots
+  
+  // Wait for stream to be ready for bots
   if (isbot(request.headers.get('user-agent') || '')) {
     await stream.allReady;
   }
-  // Define os headers apropriados
+  
+  // Set appropriate headers
   responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
   responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
   responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-  // Cria um transform stream para injetar a estrutura HTML e DOCTYPE
+  
+  // Create transform stream to inject HTML structure and DOCTYPE
   const transformStream = new TransformStream({
     start(controller) {
       const head = renderHeadToString({ request, remixContext, Head });
@@ -66,8 +68,10 @@ export default async function handleRequest(
       controller.enqueue(new TextEncoder().encode('</div></body></html>'));
     },
   });
-  // Encaminha o stream React pelo transformer
+  
+  // Pipe React stream through transformer
   const responseStream = stream.pipeThrough(transformStream);
+  
   return new Response(responseStream, {
     headers: responseHeaders,
     status: responseStatusCode,
