@@ -5,14 +5,12 @@ SHELL ["/bin/bash", "-c"]
 # Copia os arquivos de dependência para aproveitar cache
 COPY package.json pnpm-lock.yaml ./
 
-# Atualiza npm, instala Corepack, configura pnpm e Wrangler
+# Atualiza npm, instala Corepack, configura pnpm
 RUN npm install -g npm@latest && \
     npm install -g corepack@latest && \
     corepack enable pnpm && \
     corepack use pnpm@latest-10 && \
-    npm cache clean --force && \
-    npm uninstall -g wrangler && \
-    npm install -g wrangler@3.112.0 --force
+    npm cache clean --force
 
 # Instala as dependências do projeto
 RUN pnpm install
@@ -22,16 +20,12 @@ FROM base AS build
 WORKDIR /app
 COPY . .
 
-# Pre-configura Wrangler para desabilitar métricas
-RUN mkdir -p /root/.config/.wrangler && \
-    echo '{"enabled":false}' > /root/.config/.wrangler/metrics.json
-
 # Realiza o build da aplicação
 RUN pnpm run build
 
 # Ajusta permissões e corrige finais de linha (LF vs CRLF) para os scripts
-RUN chmod +x postdeploy.sh bindings.sh entrypoint.sh coolify-setup.sh update-supabase-creds.sh inject-env-vars.sh && \
-    for script in bindings.sh entrypoint.sh update-supabase-creds.sh coolify-setup.sh inject-env-vars.sh; do \
+RUN chmod +x postdeploy.sh coolify-setup.sh express-entrypoint.sh update-supabase-creds.sh inject-env-vars.sh && \
+    for script in express-entrypoint.sh update-supabase-creds.sh coolify-setup.sh inject-env-vars.sh; do \
         tr -d '\r' < $script > ${script}.tmp && mv ${script}.tmp $script; \
     done
 
@@ -88,7 +82,6 @@ RUN echo "### Criando arquivos de ambiente básicos ###" && \
       echo "AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}"; \
       echo "VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}"; \
     } > .env.local && \
-    cp .env.local .dev.vars && \
     cp .env.local .env
 
 # Cria o diretório para sessão com permissões apropriadas
@@ -98,4 +91,4 @@ RUN mkdir -p /app/session-data && chmod 777 /app/session-data
 EXPOSE 5173
 
 # Inicia o entrypoint
-CMD ["bash", "/app/entrypoint.sh"]
+CMD ["bash", "/app/express-entrypoint.sh"]
