@@ -1,5 +1,7 @@
 // app/session.server.ts
-import { createCookieSessionStorage } from '@remix-run/cloudflare';
+import { createCookieSessionStorage } from '@remix-run/node';
+import { getEnvVar } from './utils/express-context-adapter.server';
+import type { ExpressAppContext } from './utils/express-context-adapter.server';
 
 /*
  * Helper function to generate a simple random string without crypto
@@ -32,3 +34,15 @@ export const sessionStorage = createCookieSessionStorage({
 export const getSession = (cookie: string | null) => sessionStorage.getSession(cookie);
 export const commitSession = (session: any) => sessionStorage.commitSession(session);
 export const destroySession = (session: any) => sessionStorage.destroySession(session);
+
+// Helper method to get session from Express request
+export const getSessionFromRequest = async (req: Express.Request) => {
+  // For Express requests that already have req.session
+  if (req.session) {
+    return req.session;
+  }
+  
+  // Fall back to cookie-based session for Remix compatibility
+  const cookie = req.headers.cookie || '';
+  return await getSession(cookie);
+};
