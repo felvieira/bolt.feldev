@@ -1,16 +1,26 @@
-import type { LoaderFunction } from '@remix-run/cloudflare';
+import type { LoaderFunction } from '@remix-run/node';
+import { json } from '@remix-run/node';
 import { providerBaseUrlEnvKeys } from '~/utils/constants';
+import { getEnvVar } from '~/utils/express-context-adapter.server';
+import { handleApiError } from '~/utils/api-utils.server';
 
 export const loader: LoaderFunction = async ({ context, request }) => {
-  const url = new URL(request.url);
-  const provider = url.searchParams.get('provider');
+  try {
+    const url = new URL(request.url);
+    const provider = url.searchParams.get('provider');
 
-  if (!provider || !providerBaseUrlEnvKeys[provider].apiTokenKey) {
-    return Response.json({ isSet: false });
+    if (!provider || !providerBaseUrlEnvKeys[provider]?.apiTokenKey) {
+      return json({ isSet: false });
+    }
+
+    const envVarName = providerBaseUrlEnvKeys[provider].apiTokenKey;
+    
+    // Use the context adapter to check environment variables consistently
+    const envValue = getEnvVar(context, envVarName);
+    const isSet = !!envValue;
+
+    return json({ isSet });
+  } catch (error) {
+    return handleApiError(error, 400);
   }
-
-  const envVarName = providerBaseUrlEnvKeys[provider].apiTokenKey;
-  const isSet = !!(process.env[envVarName] || (context?.cloudflare?.env as Record<string, any>)?.[envVarName]);
-
-  return Response.json({ isSet });
 };
