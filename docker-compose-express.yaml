@@ -1,17 +1,16 @@
 version: "3.8"
 services:
+  # Main production service (set as default)
   app:
     build:
       context: .
       dockerfile: Dockerfile-express
       args:
-        # Pass SESSION_SECRET as a build argument
         - SESSION_SECRET=${SESSION_SECRET}
     ports:
       - "5173:5173"
     environment:
       - NODE_ENV=production
-      - COMPOSE_BAKE=true
       - PORT=5173
       - GROQ_API_KEY=${GROQ_API_KEY}
       - HuggingFace_API_KEY=${HuggingFace_API_KEY}
@@ -26,21 +25,80 @@ services:
       - AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      # Pass SESSION_SECRET as an environment variable as well
+      - RUNNING_IN_DOCKER=true
       - SESSION_SECRET=${SESSION_SECRET}
     volumes:
-      # Volume to persist session data
       - session-data:/app/session-data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
       start_period: 40s
     restart: unless-stopped
+    networks:
+      - shared
+    profiles: ["production", "default"]  # Set as default profile
+
+  # Development environment with hot reloading
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile-express
+      target: build  # Use the build stage for development
+    environment:
+      - NODE_ENV=development
+      - VITE_HMR_PROTOCOL=ws
+      - VITE_HMR_HOST=localhost
+      - VITE_HMR_PORT=5173
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - PORT=5173
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - HuggingFace_API_KEY=${HuggingFace_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
+      - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
+      - TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL}
+      - AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}
+      - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
+      - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
+      - RUNNING_IN_DOCKER=true
+      - SESSION_SECRET=${SESSION_SECRET}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - type: bind
+        source: .
+        target: /app
+        consistency: cached
+      - /app/node_modules
+      - session-data:/app/session-data
+    ports:
+      - "5173:5173"
+    command: pnpm run dev --host 0.0.0.0
+    profiles: ["development"]
+    networks:
+      - shared
+
+  # Pre-built image option
+  app-prebuild:
+    image: ghcr.io/stackblitz-labs/bolt.diy:latest 
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+      - PORT=5173
+      - OLLAMA_API_BASE_URL=http://127.0.0.1:11434
+      - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
+      - RUNNING_IN_DOCKER=true
+      - SESSION_SECRET=${SESSION_SECRET}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: pnpm run dockerstart
+    volumes:
+      - session-data:/app/session-data
+    profiles: ["prebuilt"]
     networks:
       - shared
 
