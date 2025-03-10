@@ -2,12 +2,14 @@
 import { SupabasePersistenceAdapter } from './supabase-persistence-adapter';
 import { minioStorageAdapter } from './minio-storage-adapter';
 import type { FilePersistence } from './persistence-adapter';
+import { getEnvVar } from '~/utils/express-context-adapter.server';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 /**
- * Adaptador melhorado do Supabase que integra armazenamento de arquivos no MinIO
+ * Enhanced Supabase adapter that integrates file storage with MinIO
  * 
- * Este adaptador estende o SupabasePersistenceAdapter padrão, mas redireciona
- * as operações de arquivo para o MinIO, mantendo os metadados no PostgreSQL.
+ * This adapter extends the standard SupabasePersistenceAdapter, but redirects
+ * file operations to MinIO, while keeping metadata in PostgreSQL.
  */
 export class EnhancedSupabasePersistenceAdapter extends SupabasePersistenceAdapter {
   constructor() {
@@ -15,14 +17,14 @@ export class EnhancedSupabasePersistenceAdapter extends SupabasePersistenceAdapt
   }
 
   /**
-   * Salva um arquivo, armazenando o conteúdo no MinIO e metadados no PostgreSQL
+   * Saves a file, storing content in MinIO and metadata in PostgreSQL
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param filePath Caminho do arquivo
-   * @param content Conteúdo do arquivo
-   * @param metadata Metadados do arquivo
-   * @returns Promise que resolve quando o arquivo é salvo
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param filePath File path
+   * @param content File content
+   * @param metadata File metadata
+   * @returns Promise that resolves when the file is saved
    */
   async saveFile(
     userId: string,
@@ -32,59 +34,59 @@ export class EnhancedSupabasePersistenceAdapter extends SupabasePersistenceAdapt
     metadata: any = {}
   ): Promise<void> {
     try {
-      // 1. Salvar o conteúdo no MinIO
+      // 1. Save content to MinIO
       const contentType = this.determineContentType(filePath);
       await minioStorageAdapter.saveFile(userId, conversationId, filePath, content, contentType);
 
-      // 2. Salvar apenas metadados no PostgreSQL
-      // Modificando o método original para não armazenar o conteúdo, apenas uma referência
+      // 2. Save only metadata in PostgreSQL
+      // Modifying the original method to store only a reference, not content
       const fileMetadata = {
         ...metadata,
         path: filePath,
-        // Salvamos apenas a referência ao arquivo, não seu conteúdo
-        storageLocation: 'minio', // Indica onde o arquivo está armazenado
-        minioPath: `${userId}/${conversationId}/${filePath}`, // Caminho no MinIO
+        // Save only the reference to the file, not its content
+        storageLocation: 'minio', // Indicates where the file is stored
+        minioPath: `${userId}/${conversationId}/${filePath}`, // Path in MinIO
         lastModified: new Date().toISOString()
       };
 
-      // Chamar o método original para salvar os metadados no PostgreSQL
-      // Mas substituir o conteúdo por uma referência ao MinIO
+      // Call the parent method to save metadata in PostgreSQL
+      // But replace content with a reference to MinIO
       await super.saveFile(userId, conversationId, filePath, "CONTENT_IN_MINIO", fileMetadata);
     } catch (error) {
-      console.error("Erro ao salvar arquivo com MinIO:", error);
-      throw new Error(`Falha ao salvar arquivo ${filePath}: ${error}`);
+      console.error("Error saving file with MinIO:", error);
+      throw new Error(`Failed to save file ${filePath}: ${error}`);
     }
   }
 
   /**
-   * Carrega um arquivo, obtendo seu conteúdo do MinIO
+   * Loads a file, getting content from MinIO
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param filePath Caminho do arquivo
-   * @returns Promise que resolve com o conteúdo do arquivo
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param filePath File path
+   * @returns Promise that resolves with file content
    */
   async loadFile(userId: string, conversationId: string, filePath: string): Promise<string> {
     try {
-      // Primeiro, verificar se o arquivo existe no MinIO
+      // First, check if file exists in MinIO
       const exists = await minioStorageAdapter.fileExists(userId, conversationId, filePath);
       
       if (exists) {
-        // Se existir no MinIO, carregamos de lá
+        // If it exists in MinIO, load from there
         const content = await minioStorageAdapter.loadFile(userId, conversationId, filePath);
         return content as string;
       } else {
-        // Se não existir no MinIO, tentamos carregar do Supabase
-        // Isso é útil para migração ou fallback
+        // If not in MinIO, try to load from Supabase
+        // Useful for migration or fallback
         try {
           const content = await super.loadFile(userId, conversationId, filePath);
           
-          // Se o conteúdo foi carregado do Supabase com sucesso, migramos para o MinIO
+          // If content was loaded from Supabase successfully, migrate to MinIO
           if (content && content !== "CONTENT_IN_MINIO") {
             const contentType = this.determineContentType(filePath);
             await minioStorageAdapter.saveFile(userId, conversationId, filePath, content, contentType);
             
-            // Atualizar metadados no Supabase para indicar que está no MinIO
+            // Update metadata in Supabase to indicate it's in MinIO
             const fileMetadata = {
               path: filePath,
               storageLocation: 'minio',
@@ -97,45 +99,45 @@ export class EnhancedSupabasePersistenceAdapter extends SupabasePersistenceAdapt
           
           return content;
         } catch (supabaseError) {
-          throw new Error(`Arquivo não encontrado no MinIO nem no Supabase: ${filePath}`);
+          throw new Error(`File not found in MinIO or Supabase: ${filePath}`);
         }
       }
     } catch (error) {
-      console.error("Erro ao carregar arquivo com MinIO:", error);
-      throw new Error(`Falha ao carregar arquivo ${filePath}: ${error}`);
+      console.error("Error loading file with MinIO:", error);
+      throw new Error(`Failed to load file ${filePath}: ${error}`);
     }
   }
 
   /**
-   * Exclui um arquivo, removendo-o do MinIO e seus metadados do PostgreSQL
+   * Deletes a file, removing it from MinIO and its metadata from PostgreSQL
    * 
-   * @param userId ID do usuário
-   * @param conversationId ID da conversa/projeto
-   * @param filePath Caminho do arquivo
-   * @returns Promise que resolve quando o arquivo é excluído
+   * @param userId User ID
+   * @param conversationId Conversation/project ID
+   * @param filePath File path
+   * @returns Promise that resolves when the file is deleted
    */
   async deleteFile(userId: string, conversationId: string, filePath: string): Promise<void> {
     try {
-      // 1. Excluir do MinIO
+      // 1. Delete from MinIO
       try {
         await minioStorageAdapter.deleteFile(userId, conversationId, filePath);
       } catch (minioError) {
-        console.warn("Erro ao excluir do MinIO, pode já ter sido excluído:", minioError);
+        console.warn("Error deleting from MinIO, may already be deleted:", minioError);
       }
       
-      // 2. Excluir metadados do PostgreSQL
+      // 2. Delete metadata from PostgreSQL
       await super.deleteFile(userId, conversationId, filePath);
     } catch (error) {
-      console.error("Erro ao excluir arquivo com MinIO:", error);
-      throw new Error(`Falha ao excluir arquivo ${filePath}: ${error}`);
+      console.error("Error deleting file with MinIO:", error);
+      throw new Error(`Failed to delete file ${filePath}: ${error}`);
     }
   }
 
   /**
-   * Determina o tipo MIME com base na extensão do arquivo
+   * Determines MIME type based on file extension
    * 
-   * @param filePath Caminho do arquivo
-   * @returns Tipo MIME do arquivo
+   * @param filePath File path
+   * @returns MIME type
    */
   private determineContentType(filePath: string): string {
     const extension = filePath.split('.').pop()?.toLowerCase() || '';
@@ -162,5 +164,5 @@ export class EnhancedSupabasePersistenceAdapter extends SupabasePersistenceAdapt
   }
 }
 
-// Exporta uma instância singleton do adaptador melhorado
+// Export a singleton instance of the enhanced adapter
 export const enhancedSupabasePersistenceAdapter = new EnhancedSupabasePersistenceAdapter();
