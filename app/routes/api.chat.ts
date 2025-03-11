@@ -2,30 +2,43 @@ import { type Request, type Response } from 'express';
 import { createDataStream, generateId } from 'ai';
 import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS, type FileMap } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/common/prompts/prompts';
-import { streamText, type Messages, type StreamingOptions } from '~/lib/.server/llm/stream-text';
-import SwitchableStream from '~/lib/.server/llm/switchable-stream';
+import type { Messages, StreamingOptions } from '~/lib/.server/llm/stream-text';
 import type { IProviderSetting } from '~/types/model';
 import { createScopedLogger } from '~/utils/logger';
-import { getFilePaths, selectContext } from '~/lib/.server/llm/select-context';
 import type { ContextAnnotation, ProgressAnnotation } from '~/types/context';
 import { WORK_DIR } from '~/utils/constants';
-import { createSummary } from '~/lib/.server/llm/create-summary';
-import { extractPropertiesFromMessage } from '~/lib/.server/llm/utils';
-import { getCookiesFromRequest, handleApiError, createApiHandler } from '~/utils/api-utils.server';
-import { getEnvVar } from '~/utils/express-context-adapter.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
-export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
-  try {
-    return await chatAction(context, request, response);
-  } catch (error) {
-    return handleApiError(error);
-  }
+// Create a placeholder that we'll replace with the dynamic import
+const createApiHandlerPlaceholder = (handler) => handler;
+
+export const action = createApiHandlerPlaceholder(async (context: ExpressAppContext, request: Request, response: Response) => {
+  // Dynamically import server-only modules
+  const { handleApiError, createApiHandler } = await import('~/utils/api-utils.server');
+  // Replace our placeholder with the real handler
+  const handler = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+    try {
+      return await chatAction(context, request, response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  });
+  
+  // Call the real handler with the arguments
+  return handler(context, request, response);
 });
 
 const logger = createScopedLogger('api.chat');
 
 async function chatAction(context: ExpressAppContext, request: Request, response: Response) {
+  // Dynamically import all server modules needed in this function
+  const { getCookiesFromRequest, handleApiError } = await import('~/utils/api-utils.server');
+  const { streamText } = await import('~/lib/.server/llm/stream-text');
+  const SwitchableStream = (await import('~/lib/.server/llm/switchable-stream')).default;
+  const { getFilePaths, selectContext } = await import('~/lib/.server/llm/select-context');
+  const { createSummary } = await import('~/lib/.server/llm/create-summary');
+  const { extractPropertiesFromMessage } = await import('~/lib/.server/llm/utils');
+
   try {
     const requestBody = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
     const { messages, files, promptId, contextOptimization } = requestBody as {
