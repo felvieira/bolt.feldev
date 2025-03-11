@@ -12,13 +12,55 @@ import cookieParser from 'cookie-parser';
 // Initialize __dirname (needed in ESM)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Import the build - use dynamic import with error handling
+// Log server startup info
+console.log('Starting Express server with:');
+console.log('- Current directory:', process.cwd());
+console.log('- __dirname:', __dirname);
+console.log('- NODE_ENV:', process.env.NODE_ENV || 'development');
+console.log('- Expected build path:', path.join(__dirname, 'build/server/index.js'));
+
+// Check if build directory exists
+const buildServerDir = path.join(__dirname, 'build/server');
+const buildFilePath = path.join(buildServerDir, 'index.js');
+
+if (!fs.existsSync(buildServerDir)) {
+  console.error('ERROR: Build directory does not exist:', buildServerDir);
+  console.error('Please run "npm run build" to generate the server build');
+  process.exit(1);
+}
+
+if (!fs.existsSync(buildFilePath)) {
+  console.error('ERROR: Build output file does not exist:', buildFilePath);
+  console.error('Available files in build/server directory:');
+  
+  try {
+    const files = fs.readdirSync(buildServerDir);
+    console.error(files.join('\n'));
+  } catch (error) {
+    console.error('Could not read directory contents:', error);
+  }
+  
+  console.error('Please run "npm run build" to generate the server build');
+  process.exit(1);
+}
+
+// Import the build with better error handling
 let build;
 try {
+  console.log('Attempting to import build from:', buildFilePath);
   build = await import('./build/server/index.js');
-  console.log('Successfully imported production build');
+  console.log('Successfully imported build module');
 } catch (error) {
   console.error('Failed to import build:', error);
+  
+  // Check for common ESM/CJS issues
+  if (error.code === 'ERR_MODULE_NOT_FOUND') {
+    console.error('\nPossible solutions:');
+    console.error('1. Make sure you have run "npm run build" before starting the server');
+    console.error('2. Check remix.config.js and ensure serverModuleFormat is set correctly');
+    console.error('3. Verify that your remix.config.js serverBuildPath matches where server.js is looking');
+  }
+  
   process.exit(1);
 }
 
@@ -122,7 +164,7 @@ app.all(
   '*',
   createRequestHandler({
     build,
-    mode: 'production', // Force production mode
+    mode: process.env.NODE_ENV || 'production',
     getLoadContext(req, res) {
       // Inline implementation of context adapter
       return {
