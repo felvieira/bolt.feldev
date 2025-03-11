@@ -8,8 +8,9 @@ import { LLMManager } from '~/lib/modules/llm/manager';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import { getApiKeysFromCookie, getProviderSettingsFromCookie } from '~/lib/api/cookies';
 import { createScopedLogger } from '~/utils/logger';
-import { createApiHandler, getCookiesFromRequest, handleApiError } from '~/utils/api-utils.server';
+import { createApiHandler, getCookiesFromRequest, handleApiError, createStreamingResponse } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+import { json } from '@remix-run/node';
 
 export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
   return llmCallAction(context, request, response);
@@ -41,13 +42,11 @@ async function llmCallAction(context: ExpressAppContext, request: Request, respo
 
     // validate 'model' and 'provider' fields
     if (!model || typeof model !== 'string') {
-      response.status(400).json({ error: 'Invalid or missing model' });
-      return response;
+      return json({ error: 'Invalid or missing model' }, { status: 400 });
     }
 
     if (!providerName || typeof providerName !== 'string') {
-      response.status(400).json({ error: 'Invalid or missing provider' });
-      return response;
+      return json({ error: 'Invalid or missing provider' }, { status: 400 });
     }
 
     const cookies = getCookiesFromRequest(request);
@@ -71,35 +70,16 @@ async function llmCallAction(context: ExpressAppContext, request: Request, respo
           providerSettings,
         });
 
-        // For Express, set headers directly on the response object
-        response.status(200);
-        response.setHeader('Content-Type', 'text/plain; charset=utf-8');
-
-        // Stream the response
-        const readable = result.textStream.getReader();
-        
-        const streamToResponse = async () => {
-          while (true) {
-            const { done, value } = await readable.read();
-            if (done) break;
-            response.write(value);
-          }
-          response.end();
-        };
-        
-        streamToResponse();
-        
-        return response;
+        // Use createStreamingResponse to create a proper Response object for Remix
+        return createStreamingResponse(result.textStream, 'text/plain; charset=utf-8');
       } catch (error: unknown) {
         console.log(error);
 
         if (error instanceof Error && error.message?.includes('API key')) {
-          response.status(401).json({ error: 'Invalid or missing API key' });
-          return response;
+          return json({ error: 'Invalid or missing API key' }, { status: 401 });
         }
 
-        response.status(500).json({ error: 'Internal Server Error' });
-        return response;
+        return json({ error: 'Internal Server Error' }, { status: 500 });
       }
     } else {
       try {
@@ -107,7 +87,7 @@ async function llmCallAction(context: ExpressAppContext, request: Request, respo
         const modelDetails = models.find((m: ModelInfo) => m.name === model);
 
         if (!modelDetails) {
-          throw new Error('Model not found');
+          return json({ error: 'Model not found' }, { status: 400 });
         }
 
         const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
@@ -115,7 +95,7 @@ async function llmCallAction(context: ExpressAppContext, request: Request, respo
         const providerInfo = PROVIDER_LIST.find((p) => p.name === provider.name);
 
         if (!providerInfo) {
-          throw new Error('Provider not found');
+          return json({ error: 'Provider not found' }, { status: 400 });
         }
 
         logger.info(`Generating response Provider: ${provider.name}, Model: ${modelDetails.name}`);
@@ -139,18 +119,15 @@ async function llmCallAction(context: ExpressAppContext, request: Request, respo
         });
         logger.info(`Generated response`);
 
-        response.status(200).json(result);
-        return response;
+        return json(result);
       } catch (error: unknown) {
         console.log(error);
 
         if (error instanceof Error && error.message?.includes('API key')) {
-          response.status(401).json({ error: 'Invalid or missing API key' });
-          return response;
+          return json({ error: 'Invalid or missing API key' }, { status: 401 });
         }
 
-        response.status(500).json({ error: 'Internal Server Error' });
-        return response;
+        return json({ error: 'Internal Server Error' }, { status: 500 });
       }
     }
   } catch (error) {
