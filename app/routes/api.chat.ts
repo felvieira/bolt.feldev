@@ -8,6 +8,7 @@ import { createScopedLogger } from '~/utils/logger';
 import type { ContextAnnotation, ProgressAnnotation } from '~/types/context';
 import { WORK_DIR } from '~/utils/constants';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+import { createStreamingResponse } from '~/utils/api-utils.server';
 
 // Create a placeholder that we'll replace with the dynamic import
 const createApiHandlerPlaceholder = (handler) => handler;
@@ -32,7 +33,7 @@ const logger = createScopedLogger('api.chat');
 
 async function chatAction(context: ExpressAppContext, request: Request, response: Response) {
   // Dynamically import all server modules needed in this function
-  const { getCookiesFromRequest, handleApiError } = await import('~/utils/api-utils.server');
+  const { getCookiesFromRequest, handleApiError, createStreamingResponse } = await import('~/utils/api-utils.server');
   const { streamText } = await import('~/lib/.server/llm/stream-text');
   const SwitchableStream = (await import('~/lib/.server/llm/switchable-stream')).default;
   const { getFilePaths, selectContext } = await import('~/lib/.server/llm/select-context');
@@ -335,40 +336,26 @@ async function chatAction(context: ExpressAppContext, request: Request, response
         }),
       );
 
-      // For Express, set headers directly on the response object
-      response.status(200);
-      response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-      response.setHeader('Connection', 'keep-alive');
-      response.setHeader('Cache-Control', 'no-cache');
-      response.setHeader('Text-Encoding', 'chunked');
-
-      // Pipe the dataStream to the response
-      const readable = dataStream.getReader();
-      
-      const streamToResponse = async () => {
-        while (true) {
-          const { done, value } = await readable.read();
-          if (done) break;
-          response.write(value);
-        }
-        response.end();
-      };
-      
-      streamToResponse();
-      
-      return response;
+      // Use createStreamingResponse to create a proper Response object for Remix
+      return createStreamingResponse(dataStream, 'text/event-stream; charset=utf-8');
     } catch (error: any) {
       logger.error(error);
 
       if (error.message?.includes('API key')) {
-        response.status(401);
-        response.json({ error: 'Invalid or missing API key' });
-        return response;
+        return new Response(JSON.stringify({ error: 'Invalid or missing API key' }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
       }
 
-      response.status(500);
-      response.json({ error: 'Internal Server Error' });
-      return response;
+      return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     }
   } catch (error) {
     return handleApiError(error);
