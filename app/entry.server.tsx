@@ -4,8 +4,7 @@ import './utils/env-bridge.server.js';
 
 import { RemixServer } from '@remix-run/react';
 import { isbot } from 'isbot';
-// Import as a default instead
-import ReactDOMServer from 'react-dom/server';
+import * as ReactDOMServer from 'react-dom/server';
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from './lib/stores/theme';
@@ -33,7 +32,7 @@ export default async function handleRequest(
     }
   }
 
-  // Use renderToPipeableStream instead
+  // Use renderToPipeableStream for modern SSR
   const { pipe, abort } = ReactDOMServer.renderToPipeableStream(
     <RemixServer context={remixContext} url={request.url} />,
     {
@@ -70,6 +69,3 @@ export default async function handleRequest(
     status: responseStatusCode,
   });
 }
-```
-
-This single change should fix the import issue without changing anything else in your codebase. I'm sorry for overcomplicating things before.
