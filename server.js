@@ -9,41 +9,15 @@ import fs from 'fs';
 import 'dotenv/config';
 import cookieParser from 'cookie-parser';
 
-// Use dynamic import for the build to support both dev and production
-let build;
-async function importBuild() {
-  try {
-    // In production, the build is in ./build/server/index.js
-    if (process.env.NODE_ENV === 'production') {
-      build = await import('./build/server/index.js');
-      console.log('Loaded production build');
-    } else {
-      // In development, the build is in @remix-run/dev/server-build
-      build = await import('@remix-run/dev/server-build');
-      console.log('Loaded development build');
-    }
-  } catch (error) {
-    console.error('Failed to import build:', error);
-    process.exit(1);
-  }
-}
-
-// Import the context adapter dynamically to avoid it being included in client bundles
-let createExpressContext;
-async function importAdapter() {
-  try {
-    const adapter = await import('./app/utils/express-context-adapter.server.js');
-    createExpressContext = adapter.createExpressContext;
-    console.log('Loaded Express context adapter');
-  } catch (error) {
-    console.error('Failed to import Express context adapter:', error);
-    // Provide a fallback adapter if the import fails
-    createExpressContext = (req, res) => ({ req, res, env: process.env });
-  }
-}
-
 // Initialize __dirname (needed in ESM)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Import the build directly from the file path
+// This is a more reliable way to import in production
+const build = await import('./build/server/index.js');
+
+// For Express context adapter
+import { createExpressContext } from './app/utils/express-context-adapter.server.js';
 
 const app = express();
 
@@ -140,6 +114,19 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Remix request handler
+app.all(
+  '*',
+  createRequestHandler({
+    build,
+    mode: 'production', // Force production mode
+    getLoadContext(req, res) {
+      // Use our context adapter to maintain compatibility
+      return createExpressContext(req, res);
+    },
+  })
+);
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
@@ -149,44 +136,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start function to import modules and start the server
-async function startServer() {
-  // Import the build and adapter
-  await importBuild();
-  await importAdapter();
-  
-  // Remix request handler
-  app.all(
-    '*',
-    createRequestHandler({
-      build,
-      mode: process.env.NODE_ENV,
-      getLoadContext(req, res) {
-        // Use our context adapter to maintain compatibility
-        return createExpressContext(req, res);
-      },
-    })
-  );
-
-  // Start server
-  const port = process.env.PORT || 5173;
-  app.listen(port, () => {
-    console.log(`
+// Start server
+const port = process.env.PORT || 5173;
+app.listen(port, () => {
+  console.log(`
 ★═══════════════════════════════════════★
           B O L T . D I Y
       Express Server Running
 ★═══════════════════════════════════════★
-    `);
-    console.log(`Server listening on port ${port}`);
-    console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`SESSION_SECRET: ${sessionSecret ? 'Set ✓' : 'Not set ✗'}`);
-    console.log(`SUPABASE_URL: ${process.env.SUPABASE_URL ? 'Set ✓' : 'Not set ✗'}`);
-    console.log('★═══════════════════════════════════════★');
-  });
-}
-
-// Start the server
-startServer().catch(error => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
+  `);
+  console.log(`Server listening on port ${port}`);
+  console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`SESSION_SECRET: ${sessionSecret ? 'Set ✓' : 'Not set ✗'}`);
+  console.log(`SUPABASE_URL: ${process.env.SUPABASE_URL ? 'Set ✓' : 'Not set ✗'}`);
+  console.log('★═══════════════════════════════════════★');
 });
