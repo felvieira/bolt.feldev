@@ -3,8 +3,9 @@ import { streamText } from '~/lib/.server/llm/stream-text';
 import { stripIndents } from '~/utils/stripIndent';
 import type { ProviderInfo } from '~/types/model';
 import { getApiKeysFromCookie, getProviderSettingsFromCookie } from '~/lib/api/cookies';
-import { getCookiesFromRequest, handleApiError, createApiHandler } from '~/utils/api-utils.server';
+import { getCookiesFromRequest, handleApiError, createApiHandler, createStreamingResponse } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+import { json } from '@remix-run/node';
 
 export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
   try {
@@ -20,13 +21,11 @@ export const action = createApiHandler(async (context: ExpressAppContext, reques
 
     // validate 'model' and 'provider' fields
     if (!model || typeof model !== 'string') {
-      response.status(400).json({ error: 'Invalid or missing model' });
-      return response;
+      return json({ error: 'Invalid or missing model' }, { status: 400 });
     }
 
     if (!providerName || typeof providerName !== 'string') {
-      response.status(400).json({ error: 'Invalid or missing provider' });
-      return response;
+      return json({ error: 'Invalid or missing provider' }, { status: 400 });
     }
 
     const cookies = getCookiesFromRequest(request);
@@ -75,38 +74,16 @@ export const action = createApiHandler(async (context: ExpressAppContext, reques
         providerSettings,
       });
 
-      // For Express, set headers directly on the response object
-      response.status(200);
-      response.setHeader('Content-Type', 'text/event-stream');
-      response.setHeader('Connection', 'keep-alive');
-      response.setHeader('Cache-Control', 'no-cache');
-      response.setHeader('Text-Encoding', 'chunked');
-
-      // Pipe the stream to the response
-      const readable = result.textStream.getReader();
-      
-      const streamToResponse = async () => {
-        while (true) {
-          const { done, value } = await readable.read();
-          if (done) break;
-          response.write(value);
-        }
-        response.end();
-      };
-      
-      streamToResponse();
-      
-      return response;
+      // Use createStreamingResponse to create a proper Response object for Remix
+      return createStreamingResponse(result.textStream, 'text/event-stream');
     } catch (error: unknown) {
       console.log(error);
 
       if (error instanceof Error && error.message?.includes('API key')) {
-        response.status(401).json({ error: 'Invalid or missing API key' });
-        return response;
+        return json({ error: 'Invalid or missing API key' }, { status: 401 });
       }
 
-      response.status(500).json({ error: 'Internal Server Error' });
-      return response;
+      return json({ error: 'Internal Server Error' }, { status: 500 });
     }
   } catch (error) {
     return handleApiError(error);
