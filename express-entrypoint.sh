@@ -20,6 +20,22 @@ else
   echo "Variáveis do Supabase definidas."
 fi
 
+# Verifica se a pasta build/server existe, se não, faz o build
+if [ ! -d "/app/build/server" ] || [ ! -f "/app/build/server/index.js" ]; then
+  echo "Build directory or server file not found, running build..."
+  pnpm run build
+  
+  # Verify build was successful
+  if [ ! -f "/app/build/server/index.js" ]; then
+    echo "ERROR: Build failed, server file still not found!"
+    exit 1
+  else
+    echo "Build completed successfully!"
+  fi
+else
+  echo "Build directory found, skipping build."
+fi
+
 # Iniciar o servidor Express diretamente
 echo "Iniciando servidor Express..."
 exec node server.js
