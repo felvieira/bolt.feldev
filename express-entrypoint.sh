@@ -9,33 +9,29 @@ echo "SUPABASE_SERVICE_KEY presente: ${SUPABASE_SERVICE_KEY:+yes}"
 echo "SESSION_SECRET presente: ${SESSION_SECRET:+yes}"
 
 #########################################
-# 1. Garantir SESSION_SECRET (delegado a coolify-setup.sh)
+# 1. Garantir SESSION_SECRET
 #########################################
 if [ -z "${SESSION_SECRET}" ]; then
-  echo "SESSION_SECRET não definido. Executando coolify-setup.sh para gerar/injetar SESSION_SECRET."
-  if [ -f "./coolify-setup.sh" ]; then
-    chmod +x ./coolify-setup.sh
-    ./coolify-setup.sh
-  else
-    echo "ERROR: coolify-setup.sh não encontrado."
-    exit 1
-  fi
+  echo "SESSION_SECRET não definido. Gerando novo SESSION_SECRET..."
+  
+  # Gera um SESSION_SECRET aleatório
+  NEW_SESSION_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '\n')
+  
+  # Atualiza a variável de ambiente para o processo atual
+  export SESSION_SECRET="$NEW_SESSION_SECRET"
+  
+  echo "Novo SESSION_SECRET gerado (valor oculto)."
 else
   echo "SESSION_SECRET definido (valor oculto)."
 fi
 
 #########################################
-# 2. Verificação e Injeção das Variáveis do Supabase
+# 2. Verificação das Variáveis do Supabase
 #########################################
 if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ] || [ -z "${SUPABASE_SERVICE_KEY}" ]; then
-  echo "WARNING: Variáveis críticas do Supabase ausentes. Executando update-supabase-creds.sh para injetar as credenciais."
-  if [ -f "./update-supabase-creds.sh" ]; then
-    chmod +x ./update-supabase-creds.sh
-    ./update-supabase-creds.sh
-  else
-    echo "ERROR: update-supabase-creds.sh não encontrado."
-    exit 1
-  fi
+  echo "WARNING: Variáveis críticas do Supabase ausentes ou não definidas."
+  echo "Verifique se SUPABASE_URL, SUPABASE_ANON_KEY e SUPABASE_SERVICE_KEY estão configuradas."
+  echo "A aplicação pode não funcionar corretamente sem essas variáveis."
 else
   echo "Variáveis do Supabase definidas."
 fi
@@ -71,11 +67,13 @@ patch_env_files
 
 echo "Arquivos de ambiente atualizados."
 
-# Executar o script de injeção de variáveis de ambiente
+# Verificar script inject-env-vars.sh, mas não falhar se ausente
 if [ -f "./inject-env-vars.sh" ]; then
   echo "Executando script de injeção de variáveis de ambiente..."
   chmod +x ./inject-env-vars.sh
   ./inject-env-vars.sh
+else
+  echo "Script inject-env-vars.sh não encontrado. Pulando esta etapa."
 fi
 
 #########################################
