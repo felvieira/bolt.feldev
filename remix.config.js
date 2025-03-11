@@ -8,7 +8,7 @@ module.exports = {
   assetsBuildDirectory: "public/build",
   serverBuildPath: "build/server/index.js",
   publicPath: "/build/",
-  // Changed from cloudflare-workers to node
+  // Already changed from cloudflare-workers to node
   serverBuildTarget: "node",
   future: {
     v2_dev: true,
@@ -18,15 +18,18 @@ module.exports = {
     v2_normalizeFormMethod: true,
     v2_routeConvention: true,
   },
-  // Simplified bundled dependencies
-  serverDependenciesToBundle: ["marked", "prismjs"],
+  // Bundle all dependencies to avoid ESM/CommonJS compatibility issues
+  serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
-  serverMinify: true,
-  serverModuleFormat: "esm",
+  // Disable minification temporarily for better debugging
+  serverMinify: false,
+  // Change to CommonJS format for better compatibility
+  serverModuleFormat: "cjs",
   tailwind: true,
   postcss: true,
-  sourcemap: false,
+  // Enable sourcemaps for debugging
+  sourcemap: true,
   devServerPort: 8002,
-  // Use the standard entry server instead of a custom one
+  // Use the standard entry server
   server: "./app/entry.server.js"
 };
