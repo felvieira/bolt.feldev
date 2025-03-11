@@ -8,7 +8,6 @@ module.exports = {
   assetsBuildDirectory: "public/build",
   serverBuildPath: "build/server/index.js",
   publicPath: "/build/",
-  // Already changed from cloudflare-workers to node
   serverBuildTarget: "node",
   future: {
     v2_dev: true,
@@ -23,7 +22,7 @@ module.exports = {
   watchPaths: ["./public"],
   // Disable minification temporarily for better debugging
   serverMinify: false,
-  // Change to CommonJS format for better compatibility
+  // Use cjs format for better compatibility with Express
   serverModuleFormat: "cjs",
   tailwind: true,
   postcss: true,
@@ -31,5 +30,5 @@ module.exports = {
   sourcemap: true,
   devServerPort: 8002,
   // Use the standard entry server
-  server: "./app/entry.server.js"
+  server: "./app/entry.server.tsx"
 };
