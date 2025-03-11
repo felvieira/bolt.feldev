@@ -29,6 +29,8 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
     volumes:
       - session-data:/app/session-data
+    # Explicitly run build before starting server
+    command: bash -c "pnpm run build && pnpm run start"
     healthcheck:
       start_period: 40s
     restart: unless-stopped
@@ -76,7 +78,8 @@ services:
       - session-data:/app/session-data
     ports:
       - "5173:5173"
-    command: pnpm run dev --host 0.0.0.0
+    # Build before starting dev server
+    command: bash -c "pnpm run build && pnpm run dev --host 0.0.0.0"
     profiles: ["development"]
     networks:
       - shared
@@ -95,7 +98,8 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: pnpm run dockerstart
+    # Make sure prebuild also builds first
+    command: bash -c "pnpm run build && pnpm run dockerstart"
     volumes:
       - session-data:/app/session-data
     profiles: ["prebuilt"]
