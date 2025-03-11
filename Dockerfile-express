@@ -20,9 +20,6 @@ FROM base AS build
 WORKDIR /app
 COPY . .
 
-# Realiza o build da aplicação
-RUN pnpm run build
-
 # Ajusta permissões e corrige finais de linha (LF vs CRLF) para os scripts
 RUN chmod +x express-entrypoint.sh && \
     tr -d '\r' < express-entrypoint.sh > express-entrypoint.sh.tmp && \
@@ -35,12 +32,7 @@ RUN if [ -f "postdeploy.sh" ]; then \
       mv postdeploy.sh.tmp postdeploy.sh; \
     fi
 
-# Se o script inject-env-vars.sh existir, ajusta permissões
-RUN if [ -f "inject-env-vars.sh" ]; then \
-      chmod +x inject-env-vars.sh && \
-      tr -d '\r' < inject-env-vars.sh > inject-env-vars.sh.tmp && \
-      mv inject-env-vars.sh.tmp inject-env-vars.sh; \
-    fi
+# Removed inject-env-vars section as requested
 
 # --- Início do estágio de Production ---
 FROM build AS production
@@ -103,5 +95,5 @@ RUN mkdir -p /app/session-data && chmod 777 /app/session-data
 # Expõe a porta da aplicação
 EXPOSE 5173
 
-# Inicia o entrypoint
+# Inicia o entrypoint com build e início do servidor
 CMD ["bash", "/app/express-entrypoint.sh"]
