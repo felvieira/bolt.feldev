@@ -12,12 +12,15 @@ import cookieParser from 'cookie-parser';
 // Initialize __dirname (needed in ESM)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Import the build directly from the file path
-// This is a more reliable way to import in production
-const build = await import('./build/server/index.js');
-
-// For Express context adapter
-import { createExpressContext } from './app/utils/express-context-adapter.server.js';
+// Import the build - use dynamic import with error handling
+let build;
+try {
+  build = await import('./build/server/index.js');
+  console.log('Successfully imported production build');
+} catch (error) {
+  console.error('Failed to import build:', error);
+  process.exit(1);
+}
 
 const app = express();
 
@@ -121,8 +124,12 @@ app.all(
     build,
     mode: 'production', // Force production mode
     getLoadContext(req, res) {
-      // Use our context adapter to maintain compatibility
-      return createExpressContext(req, res);
+      // Inline implementation of context adapter
+      return {
+        env: { ...process.env },
+        req,
+        res
+      };
     },
   })
 );
