@@ -91,18 +91,67 @@ function getStatusText(status: number): string {
 
 /**
  * Creates a standardized function for Express API route handling
+ * that properly handles both Express and Remix response patterns
  */
 export function createApiHandler(
-  handler: (context: ExpressAppContext, request: Request, response: Response) => Promise<Response>
+  handler: (context: ExpressAppContext, request: Request, response: Response) => Promise<Response | void>
 ) {
   return async function apiHandler(args: { context: ExpressAppContext, request: Request, params: any }) {
     try {
       const { context, request } = args;
       const response = context.res || new Response();
       
-      return await handler(context, request, response);
+      // Call the handler function, which may return a Response or undefined
+      const result = await handler(context, request, response);
+      
+      // If the handler returned nothing, assume it's using Express-style response methods
+      // and has already handled sending the response
+      if (!result) {
+        // If response has already been sent via Express methods, just return it
+        if (response.headersSent) {
+          return response;
+        }
+        
+        // If no response was actually sent (but handler didn't return a Response),
+        // return a default Response to prevent hanging requests
+        return new Response(null, { status: 204 });
+      }
+      
+      // If handler returned a Response, use that (Remix-style)
+      return result;
     } catch (error) {
       return handleApiError(error);
     }
   };
+}
+
+/**
+ * Utility to help safely handle errors in Express route handlers
+ * after Express has already sent headers
+ * 
+ * @param response Express response object
+ * @param error The error that occurred
+ */
+export function handleStreamingError(response: Response, error: unknown) {
+  console.error('Streaming API Error:', error);
+  
+  // Only try to send an error response if headers haven't been sent yet
+  if (!response.headersSent) {
+    if (error instanceof Error && error.message?.includes('API key')) {
+      response.status(401).json({ error: 'Invalid or missing API key' });
+    } else {
+      response.status(500).json({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+      });
+    }
+  } else {
+    // Headers already sent, try to end the response with an error message
+    try {
+      response.write('\nError occurred during streaming: ' + 
+        (error instanceof Error ? error.message : 'Unknown error'));
+      response.end();
+    } catch (e) {
+      console.error('Failed to write error to already started stream:', e);
+    }
+  }
 }
