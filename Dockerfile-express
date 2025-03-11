@@ -23,10 +23,24 @@ COPY . .
 # Realiza o build da aplicação
 RUN pnpm run build
 
-# Ajusta permissões e corrige finais de linha (LF vs CRLF) para o entrypoint
+# Ajusta permissões e corrige finais de linha (LF vs CRLF) para os scripts
 RUN chmod +x express-entrypoint.sh && \
     tr -d '\r' < express-entrypoint.sh > express-entrypoint.sh.tmp && \
     mv express-entrypoint.sh.tmp express-entrypoint.sh
+
+# Se o script postdeploy.sh existir, ajusta permissões
+RUN if [ -f "postdeploy.sh" ]; then \
+      chmod +x postdeploy.sh && \
+      tr -d '\r' < postdeploy.sh > postdeploy.sh.tmp && \
+      mv postdeploy.sh.tmp postdeploy.sh; \
+    fi
+
+# Se o script inject-env-vars.sh existir, ajusta permissões
+RUN if [ -f "inject-env-vars.sh" ]; then \
+      chmod +x inject-env-vars.sh && \
+      tr -d '\r' < inject-env-vars.sh > inject-env-vars.sh.tmp && \
+      mv inject-env-vars.sh.tmp inject-env-vars.sh; \
+    fi
 
 # --- Início do estágio de Production ---
 FROM build AS production
@@ -47,7 +61,7 @@ ENV NODE_ENV=${NODE_ENV:-production} \
     SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY} \
     SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 
-# Cria uma versão básica dos arquivos de ambiente
+# Cria uma versão básica dos arquivos de ambiente (que serão posteriormente atualizados pelo entrypoint)
 RUN echo "### Criando arquivos de ambiente básicos ###" && \
     { \
       echo "# .env.local - para o runtime da aplicação"; \
