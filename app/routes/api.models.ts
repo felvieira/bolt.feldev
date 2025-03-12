@@ -75,13 +75,11 @@ export const loader = createApiHandler(async (context: ExpressAppContext, reques
       });
     }
 
-    response.status(200).json({
+    return json({
       modelList,
       providers,
       defaultProvider,
     });
-    
-    return response;
   } catch (error) {
     return handleApiError(error);
   }
