@@ -3,12 +3,19 @@
  */
 module.exports = {
   appDirectory: "app",
-  // Em vez de "public/assets", vamos colocar "build/client"
-  assetsBuildDirectory: "build/client",
-  serverBuildPath: "build/server/index.js",
-  // Prefixo público "/assets"
+
+  // Gere a saída do frontend em "build/client/assets"
+  assetsBuildDirectory: "build/client/assets",
+
+  // Quando o navegador requisita "/assets/algumArquivo.js", 
+  // o Remix gerará esse "algumArquivo.js" dentro de "build/client/assets/"
   publicPath: "/assets/",
+
+  // Onde sairão os arquivos do backend
+  serverBuildPath: "build/server/index.js",
   serverBuildTarget: "node",
+
+  // Pode manter o resto igual
   future: {
     v2_dev: true,
     v2_errorBoundary: true,
