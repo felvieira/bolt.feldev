@@ -61,3 +61,33 @@ export const loader = async (args: { context: ExpressAppContext, request: Reques
 
       if (provider) {
         // Only update models for the specific provider
+        const providerInstance = llmManager.getProvider(provider);
+
+        if (providerInstance) {
+          modelList = await llmManager.getModelListFromProvider(providerInstance, {
+            apiKeys,
+            providerSettings,
+            serverEnv: context.env,
+          });
+        }
+      } else {
+        // Update all models
+        modelList = await llmManager.updateModelList({
+          apiKeys,
+          providerSettings,
+          serverEnv: context.env,
+        });
+      }
+
+      return json({
+        modelList,
+        providers,
+        defaultProvider,
+      });
+    } catch (error) {
+      return handleApiError(error);
+    }
+  });
+
+  return handler(args.context, args.request, args.context.res);
+};
