@@ -6,6 +6,7 @@ import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
 import { createApiHandler } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+import { json } from '@remix-run/node';
 
 // Metadata function can remain the same as it's used by the client-side Remix
 export const meta = () => {
@@ -14,8 +15,7 @@ export const meta = () => {
 
 // Convert loader to Express-compatible handler
 export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
-  response.status(200).json({});
-  return response;
+  return json({});
 });
 
 export default function Index() {
