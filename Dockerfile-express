@@ -21,15 +21,10 @@ WORKDIR /app
 COPY . .
 
 # Ajusta permissões e corrige finais de linha (LF vs CRLF) para os scripts
+RUN chmod +x supabase-config.sh && \
+    sed -i 's/\r$//' /supabase-config.sh
 RUN chmod +x express-entrypoint.sh && \
-    tr -d '\r' < express-entrypoint.sh > express-entrypoint.sh.tmp && \
-    mv express-entrypoint.sh.tmp express-entrypoint.sh
-
-COPY postdeploy.sh /postdeploy.sh
-RUN chmod 755 /postdeploy.sh && \
-    sed -i 's/\r$//' /postdeploy.sh
-
-# Removed inject-env-vars section as requested
+    sed -i 's/\r$//' /express-entrypoint.sh
 
 # --- Início do estágio de Production ---
 FROM build AS production
