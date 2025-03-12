@@ -305,7 +305,7 @@ if [ "$should_run_migrations" = true ]; then
   if [ "$migration_success" = false ]; then
     log "AVISO: Houve erros durante a aplicação das migrações. Verifique os logs acima."
   else
-    log "=== Execução das migrações concluída com sucesso. ==="
+    log "=== Execução das migrações concluída com sucesso. ===
   fi
 
   ###############################################################################
