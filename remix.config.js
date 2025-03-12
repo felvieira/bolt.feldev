@@ -1,13 +1,11 @@
-// remix.config.js
-
 /**
  * @type {import('@remix-run/dev').AppConfig}
  */
 module.exports = {
   appDirectory: "app",
-  assetsBuildDirectory: "public/build",
+  assetsBuildDirectory: "public/assets", // Alterado de "public/build" para "public/assets"
   serverBuildPath: "build/server/index.js",
-  publicPath: "/build/",
+  publicPath: "/assets/", // Alterado de "/build/" para "/assets/"
   serverBuildTarget: "node",
   future: {
     v2_dev: true,
