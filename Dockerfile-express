@@ -25,11 +25,9 @@ RUN chmod +x express-entrypoint.sh && \
     tr -d '\r' < express-entrypoint.sh > express-entrypoint.sh.tmp && \
     mv express-entrypoint.sh.tmp express-entrypoint.sh
 
-# Se o script postdeploy.sh existir, ajusta permissões
 COPY postdeploy.sh /postdeploy.sh
-RUN chmod +x /postdeploy.sh && \
-    tr -d '\r' < /postdeploy.sh > /postdeploy.sh.tmp && \
-    mv /postdeploy.sh.tmp /postdeploy.sh
+RUN chmod 755 /postdeploy.sh && \
+    sed -i 's/\r$//' /postdeploy.sh
 
 # Removed inject-env-vars section as requested
 
