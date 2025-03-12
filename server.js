@@ -8,69 +8,54 @@ import fs from "fs";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 
-// Initialize __dirname (needed in ESM)
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// -----------------------------------------------------------------------------
+// Inicializa __dirname (já que usamos ESM)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-console.log("Starting Express server with:");
+// Log básico
+console.log("=== Starting Express server ===");
 console.log("- Current directory:", process.cwd());
 console.log("- __dirname:", __dirname);
 console.log("- NODE_ENV:", process.env.NODE_ENV || "development");
-console.log("- Expected build path:", path.join(__dirname, "build/server/index.js"));
+console.log("- Expecting Remix build at:", path.join(__dirname, "build/server/index.js"));
 
-const buildServerDir = path.join(__dirname, "build/server");
+// -----------------------------------------------------------------------------
+// Verifica se build do Remix existe
+const buildServerDir = path.join(__dirname, "build", "server");
 const buildFilePath = path.join(buildServerDir, "index.js");
 
 if (!fs.existsSync(buildServerDir)) {
-  console.error("ERROR: Build directory does not exist:", buildServerDir);
-  console.error('Please run "npm run build" to generate the server build');
+  console.error("ERRO: Pasta de build do servidor não existe:", buildServerDir);
   process.exit(1);
 }
-
 if (!fs.existsSync(buildFilePath)) {
-  console.error("ERROR: Build output file does not exist:", buildFilePath);
-  try {
-    const files = fs.readdirSync(buildServerDir);
-    console.error(files.join("\n"));
-  } catch (error) {
-    console.error("Could not read directory contents:", error);
-  }
-  console.error('Please run "npm run build" to generate the server build');
+  console.error("ERRO: Arquivo build/index.js não existe:", buildFilePath);
   process.exit(1);
 }
 
+// Importa build do Remix
 let build;
 try {
-  console.log("Attempting to import build from:", buildFilePath);
-  build = await import("./build/server/index.js");
-  console.log("Successfully imported build module");
+  build = await import(buildFilePath);
+  console.log(">> Remix build importado com sucesso!");
 } catch (error) {
-  console.error("Failed to import build:", error);
-  if (error.code === "ERR_MODULE_NOT_FOUND") {
-    console.error("\nPossible solutions:");
-    console.error('1. Make sure you have run "npm run build" before starting the server');
-    console.error("2. Check remix.config.js and ensure serverModuleFormat is set correctly");
-    console.error("3. Verify that your remix.config.js serverBuildPath matches where server.js is looking");
-  }
+  console.error("Falha ao importar Remix build:", error);
   process.exit(1);
 }
 
+// -----------------------------------------------------------------------------
+// Cria app Express
 const app = express();
 
+// Configura session secret
 let sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
-  console.warn(
-    "SESSION_SECRET not defined; using a generated value. This is not secure for production."
-  );
+  console.warn("SESSION_SECRET não definido; gerando valor aleatório (não é seguro em produção).");
   sessionSecret = require("crypto").randomBytes(32).toString("hex");
-  if (process.env.RUNNING_IN_DOCKER === "true") {
-    const sessionDataPath = "/app/session-data";
-    if (fs.existsSync(sessionDataPath)) {
-      fs.writeFileSync(path.join(sessionDataPath, "session-secret"), sessionSecret);
-      console.log("Generated and saved new SESSION_SECRET to session-data");
-    }
-  }
 }
 
+// Middlewares básicos
 app.use(cookieParser());
 app.use(
   session({
@@ -80,43 +65,43 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias
     }
   })
 );
-
 app.use(
   compression({
     level: 6,
     threshold: 0,
     filter: (req, res) => {
-      if (res.getHeader("Content-Type")?.includes("image/")) {
-        return false;
-      }
+      if (res.getHeader("Content-Type")?.includes("image/")) return false;
       return compression.filter(req, res);
     }
   })
 );
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// -----------------------------------------------------------------------------
+// Define cabeçalhos de segurança (para webcontainers, se precisar)
 app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   next();
 });
 
-// Serve estático em "/assets" diretamente de "build/client"
+// -----------------------------------------------------------------------------
+// Serve ESTÁTICOS do front-end gerado pelo Remix em /assets
+// -> Se Remix estiver gerando em "build/client/assets"
 app.use(
   "/assets",
-  express.static(path.join(__dirname, "build", "client"), {
+  express.static(path.join(__dirname, "build", "client", "assets"), {
     immutable: true,
     maxAge: "1y"
   })
 );
 
-// Servir a pasta "public" no root (ex.: imagens e favicon)
+// Serve a pasta "public" na raiz
 app.use(
   express.static(path.join(__dirname, "public"), {
     maxAge: "1h",
@@ -128,12 +113,13 @@ app.use(
   })
 );
 
-// Health check endpoint
+// -----------------------------------------------------------------------------
+// Rota simples de health check
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "healthy",
-    version: process.env.npm_package_version || "unknown",
     environment: process.env.NODE_ENV || "development",
+    version: process.env.npm_package_version || "unknown",
     uptime: process.uptime(),
     supabase: {
       url: process.env.SUPABASE_URL ? "set ✓" : "not set ✗",
@@ -143,31 +129,32 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Remix request handler
+// -----------------------------------------------------------------------------
+// Handler do Remix (para qualquer rota que não seja um arquivo estático)
 app.all(
   "*",
   createRequestHandler({
     build,
     mode: process.env.NODE_ENV || "production",
     getLoadContext(req, res) {
-      return {
-        env: { ...process.env },
-        req,
-        res
-      };
+      // Disponibiliza env e req/res se precisar
+      return { env: { ...process.env }, req, res };
     }
   })
 );
 
-// Error handling
+// -----------------------------------------------------------------------------
+// Tratamento de erro genérico
 app.use((err, req, res, next) => {
   console.error("Server error:", err);
   res.status(500).json({
     message: "Internal Server Error",
-    ...(process.env.NODE_ENV !== "production" && { error: err.message })
+    ...(process.env.NODE_ENV !== "production" && { error: err?.message })
   });
 });
 
+// -----------------------------------------------------------------------------
+// Sobe servidor
 const port = process.env.PORT || 5173;
 app.listen(port, () => {
   console.log(`
