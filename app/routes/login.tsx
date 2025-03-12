@@ -8,6 +8,7 @@ import { useState } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
 import { createApiHandler } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+import { json, redirect } from '@remix-run/node';
 
 export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
   // Express typically uses middleware like express.urlencoded() to parse form data
@@ -20,8 +21,7 @@ export const action = createApiHandler(async (context: ExpressAppContext, reques
   const isSignUp = formData.isSignUp === 'true';
 
   if (typeof email !== 'string' || typeof password !== 'string') {
-    response.status(400).json({ error: 'Email and password are required.' });
-    return response;
+    return json({ error: 'Email and password are required.' }, { status: 400 });
   }
 
   try {
@@ -39,10 +39,9 @@ export const action = createApiHandler(async (context: ExpressAppContext, reques
         throw signUpError;
       }
 
-      response.status(200).json({
+      return json({
         message: 'Please check your email to confirm your account.',
       });
-      return response;
     } else {
       // Handle sign in
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -59,18 +58,19 @@ export const action = createApiHandler(async (context: ExpressAppContext, reques
       const session = await getSession(cookieHeader);
       session.set('access_token', data.session.access_token);
 
-      // Set cookie and redirect
+      // Set cookie and redirect - using Remix pattern
       const cookie = await commitSession(session);
-      response.setHeader('Set-Cookie', cookie);
-      response.redirect(302, '/');
-      return response;
+      return redirect('/', {
+        headers: {
+          'Set-Cookie': cookie
+        }
+      });
     }
   } catch (error) {
     const authError = error as AuthError;
-    response.status(400).json({
+    return json({
       error: authError.message || 'Authentication failed',
-    });
-    return response;
+    }, { status: 400 });
   }
 });
 
