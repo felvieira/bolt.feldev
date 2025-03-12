@@ -32,7 +32,7 @@ handle_error() {
   fi
 }
 
-log "=== INICIANDO SCRIPT DE POST-DEPLOY ==="
+log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DO SUPABASE ==="
 log "Registrando em: $LOG_FILE"
 
 ###############################################################################
@@ -59,7 +59,7 @@ wait_for_container() {
 }
 
 ###############################################################################
-# 2. LOCALIZAR CONTAINER DO MINIO E CONFIGURAR BUCKET
+# 2. LOCALIZAR CONTAINER DO MINIO E VERIFICAR/CONFIGURAR BUCKET
 ###############################################################################
 log "Localizando container do MinIO..."
 minio_container=$(wait_for_container "supabase-minio" 60)
@@ -68,26 +68,47 @@ if [ -z "$minio_container" ]; then
 fi
 
 log "=== Container MinIO encontrado: $minio_container ==="
-log "=== Configurando bucket no MinIO ==="
 
 # Essas variáveis devem estar definidas no ambiente do post-deploy
 if [ -z "$SERVICE_USER_MINIO" ] || [ -z "$SERVICE_PASSWORD_MINIO" ]; then
   handle_error "Variáveis SERVICE_USER_MINIO ou SERVICE_PASSWORD_MINIO não definidas." "fatal"
 fi
 
-# Configura o cliente MinIO e cria o bucket
-minio_config_result=$(docker exec -T "$minio_container" sh -c "
-  mc alias set supabase-minio http://localhost:9000 \"$SERVICE_USER_MINIO\" \"$SERVICE_PASSWORD_MINIO\" &&
-  mc mb --ignore-existing supabase-minio/$MINIO_BUCKET
+# Configurar o cliente MinIO
+docker exec -T "$minio_container" sh -c "
+  mc alias set supabase-minio http://localhost:9000 \"$SERVICE_USER_MINIO\" \"$SERVICE_PASSWORD_MINIO\"
+"
+
+# Verificar se o bucket já existe
+log "Verificando se o bucket '$MINIO_BUCKET' já existe..."
+bucket_exists=$(docker exec -T "$minio_container" sh -c "
+  mc ls supabase-minio | grep -c \"$MINIO_BUCKET\" || true
 ")
 
-if [ $? -ne 0 ]; then
-  handle_error "Falha ao configurar bucket no MinIO: $minio_config_result"
+if [ "$bucket_exists" -eq 0 ]; then
+  log "Bucket '$MINIO_BUCKET' não existe. Criando..."
+  minio_config_result=$(docker exec -T "$minio_container" sh -c "
+    mc mb supabase-minio/$MINIO_BUCKET
+  ")
+  
+  if [ $? -ne 0 ]; then
+    handle_error "Falha ao criar bucket no MinIO: $minio_config_result"
+  else
+    log "Bucket '$MINIO_BUCKET' criado com sucesso!"
+  fi
 else
-  log "Bucket '$MINIO_BUCKET' criado/verificado com sucesso!"
+  log "Bucket '$MINIO_BUCKET' já existe. Verificando políticas..."
 fi
 
-# Configurar permissões no bucket para permitir apenas acesso do bolt-app
+# Verificar política atual antes de aplicar nova
+log "Verificando políticas existentes no bucket..."
+current_policy=$(docker exec -T "$minio_container" sh -c "
+  mc anonymous get supabase-minio/$MINIO_BUCKET
+")
+
+log "Política atual: $current_policy"
+
+# Configurar permissões no bucket
 log "Configurando permissões restritas no bucket do MinIO..."
 
 # Cria uma política de acesso personalizada
@@ -168,107 +189,144 @@ log "DB_PORT=$DB_PORT"
 log "DB_NAME=$DB_NAME"
 
 ###############################################################################
-# 5. CRIAR BACKUP DO BANCO ANTES DE APLICAR MIGRAÇÕES
+# 5. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM
 ###############################################################################
-log "Criando backup do banco de dados antes de aplicar migrações..."
-docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
-  sh -c "pg_dump -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f $BACKUP_FILE"
+log "Verificando se o schema auth e a tabela chats já existem..."
 
-if [ $? -eq 0 ]; then
-  log "Backup criado com sucesso em: $BACKUP_FILE"
-else
-  log "AVISO: Não foi possível criar backup. Continuando mesmo assim..."
+# Verificar schema auth
+schema_auth_exists=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+  sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'auth');\"")
+
+# Verificar tabela auth.users
+auth_users_exists=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+  sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users');\"")
+
+# Verificar tabela chats
+chats_table_exists=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+  sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'chats');\"")
+
+# Verificar índices na tabela chats
+idx_url_id_exists=""
+idx_timestamp_exists=""
+
+if [ "$(echo "$chats_table_exists" | xargs)" = "t" ]; then
+  idx_url_id_exists=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+    sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE tablename = 'chats' AND indexname = 'idx_chats_url_id');\"")
+  
+  idx_timestamp_exists=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+    sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE tablename = 'chats' AND indexname = 'idx_chats_timestamp');\"")
 fi
 
-###############################################################################
-# 6. COPIAR MIGRAÇÕES PARA O CONTAINER DO DB
-###############################################################################
-log "Preparando diretório temporário para migrações..."
-# Remove e recria o diretório temporário no container do DB
-docker exec -T "$db_container" sh -c "rm -rf $TMP_DIR && mkdir -p $TMP_DIR"
+log "Schema auth existe: $(echo "$schema_auth_exists" | xargs)"
+log "Tabela auth.users existe: $(echo "$auth_users_exists" | xargs)"
+log "Tabela chats existe: $(echo "$chats_table_exists" | xargs)"
 
-# Copia os arquivos de migração locais (arquivos .sql) para dentro do container
-if [ -d "$LOCAL_MIGRATIONS_DIR" ]; then
-  log "=== Copiando arquivos .sql de '$LOCAL_MIGRATIONS_DIR' para o container ==="
-  docker cp "$LOCAL_MIGRATIONS_DIR/." "$db_container:$TMP_DIR"
-  
-  # Listar arquivos copiados para validação
-  migration_files=$(docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' | sort")
-  if [ -z "$migration_files" ]; then
-    log "AVISO: Nenhum arquivo .sql encontrado para migração."
-  else
-    log "Arquivos de migração encontrados:"
-    docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' | sort" | while read -r file; do
-      log "  - $(basename "$file")"
-    done
-  fi
-else
-  log "AVISO: Pasta '$LOCAL_MIGRATIONS_DIR' não existe ou não é um diretório. Pulando etapa de migrações."
+if [ "$(echo "$chats_table_exists" | xargs)" = "t" ]; then
+  log "Índice idx_chats_url_id existe: $(echo "$idx_url_id_exists" | xargs)"
+  log "Índice idx_chats_timestamp existe: $(echo "$idx_timestamp_exists" | xargs)"
 fi
 
-###############################################################################
-# 7. EXECUTAR CADA ARQUIVO .SQL DENTRO DO CONTAINER DO DB
-###############################################################################
-log "=== Aplicando migrações (.sql), se existirem ==="
-migration_success=true
-
-docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' -type f | sort" | while read -r sql_file; do
-  filename=$(basename "$sql_file")
-  log "Aplicando $filename..."
-  
-  # Executa o script de migração
-  migration_output=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
-    sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f \"$TMP_DIR/$filename\" 2>&1")
-  
-  migration_status=$?
-  
-  if [ $migration_status -eq 0 ]; then
-    log "✅ Migração '$filename' aplicada com sucesso."
-  else
-    log "❌ ERRO ao aplicar migração '$filename': $migration_output"
-    migration_success=false
-  fi
-done
-
-if [ "$migration_success" = false ]; then
-  log "AVISO: Houve erros durante a aplicação das migrações. Verifique os logs acima."
+# Verificar se tudo já está configurado corretamente
+if [ "$(echo "$schema_auth_exists" | xargs)" = "t" ] && \
+   [ "$(echo "$auth_users_exists" | xargs)" = "t" ] && \
+   [ "$(echo "$chats_table_exists" | xargs)" = "t" ] && \
+   [ "$(echo "$idx_url_id_exists" | xargs)" = "t" ] && \
+   [ "$(echo "$idx_timestamp_exists" | xargs)" = "t" ]; then
+   
+  log "✅ Todas as tabelas e índices já existem e estão configurados corretamente!"
+  log "Pulando etapa de migrações."
+  should_run_migrations=false
 else
-  log "=== Execução das migrações concluída com sucesso. ==="
-fi
-
-###############################################################################
-# 8. VERIFICAR SE MIGRAÇÕES FORAM CRIADAS
-#    -> Exemplo: checar se existe uma tabela específica.
-#    -> Caso não exista, emitir APENAS um AVISO (sem falhar o deploy).
-###############################################################################
-log "=== Verificando se a tabela '$CHECK_TABLE' existe ==="
-
-# Usamos 'to_regclass' para checar a existência
-output=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
-  sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT to_regclass('public.$CHECK_TABLE');\"")
-
-# Removendo possíveis espaços em branco
-output="$(echo "$output" | xargs)"
-
-if [ "$output" = "public.$CHECK_TABLE" ] || [ "$output" = "$CHECK_TABLE" ]; then
-  log "✅ Sucesso: a tabela '$CHECK_TABLE' foi encontrada. Migrations aparentemente aplicadas."
-else
-  log "⚠️ AVISO: a tabela '$CHECK_TABLE' não foi encontrada."
-  log "   Verifique se as migrations foram realmente aplicadas ou rode manualmente."
+  log "⚠️ Algumas tabelas ou índices não existem. Executando migrações..."
+  should_run_migrations=true
   
-  # Tentativa de rollback?
-  read -p "Deseja tentar restaurar o backup? (s/N): " should_restore
-  if [[ "$should_restore" =~ ^[Ss]$ ]]; then
-    log "Tentando restaurar backup do banco de dados..."
+  # Criar backup apenas se alguma estrutura já existir
+  if [ "$(echo "$chats_table_exists" | xargs)" = "t" ]; then
+    log "Criando backup do banco de dados antes de aplicar migrações..."
     docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
-      sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f $BACKUP_FILE"
-      
+      sh -c "pg_dump -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f $BACKUP_FILE"
+
     if [ $? -eq 0 ]; then
-      log "Restauração concluída com sucesso."
+      log "Backup criado com sucesso em: $BACKUP_FILE"
     else
-      log "ERRO: Falha ao restaurar o backup."
+      log "AVISO: Não foi possível criar backup. Continuando mesmo assim..."
     fi
   fi
+fi
+
+###############################################################################
+# 6. APLICAR MIGRAÇÕES SE NECESSÁRIO
+###############################################################################
+if [ "$should_run_migrations" = true ]; then
+  log "Preparando diretório temporário para migrações..."
+  # Remove e recria o diretório temporário no container do DB
+  docker exec -T "$db_container" sh -c "rm -rf $TMP_DIR && mkdir -p $TMP_DIR"
+
+  # Copia os arquivos de migração locais (arquivos .sql) para dentro do container
+  if [ -d "$LOCAL_MIGRATIONS_DIR" ]; then
+    log "=== Copiando arquivos .sql de '$LOCAL_MIGRATIONS_DIR' para o container ==="
+    docker cp "$LOCAL_MIGRATIONS_DIR/." "$db_container:$TMP_DIR"
+    
+    # Listar arquivos copiados para validação
+    migration_files=$(docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' | sort")
+    if [ -z "$migration_files" ]; then
+      log "AVISO: Nenhum arquivo .sql encontrado para migração."
+    else
+      log "Arquivos de migração encontrados:"
+      docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' | sort" | while read -r file; do
+        log "  - $(basename "$file")"
+      done
+    fi
+  else
+    log "AVISO: Pasta '$LOCAL_MIGRATIONS_DIR' não existe ou não é um diretório. Pulando etapa de migrações."
+  fi
+
+  log "=== Aplicando migrações (.sql), se existirem ==="
+  migration_success=true
+
+  docker exec -T "$db_container" sh -c "find $TMP_DIR -name '*.sql' -type f | sort" | while read -r sql_file; do
+    filename=$(basename "$sql_file")
+    log "Aplicando $filename..."
+    
+    # Executa o script de migração
+    migration_output=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+      sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -f \"$sql_file\" 2>&1")
+    
+    migration_status=$?
+    
+    if [ $migration_status -eq 0 ]; then
+      log "✅ Migração '$filename' aplicada com sucesso."
+    else
+      log "❌ ERRO ao aplicar migração '$filename': $migration_output"
+      migration_success=false
+    fi
+  done
+
+  if [ "$migration_success" = false ]; then
+    log "AVISO: Houve erros durante a aplicação das migrações. Verifique os logs acima."
+  else
+    log "=== Execução das migrações concluída com sucesso. ==="
+  fi
+
+  ###############################################################################
+  # 7. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS
+  ###############################################################################
+  log "=== Verificando se a tabela '$CHECK_TABLE' existe ==="
+
+  table_exists_after=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
+    sh -c "psql -U $DB_USER -h localhost -p $DB_PORT -d $DB_NAME -tAc \"SELECT to_regclass('public.$CHECK_TABLE');\"")
+
+  # Removendo possíveis espaços em branco
+  table_exists_after="$(echo "$table_exists_after" | xargs)"
+
+  if [ "$table_exists_after" = "public.$CHECK_TABLE" ] || [ "$table_exists_after" = "$CHECK_TABLE" ]; then
+    log "✅ Sucesso: a tabela '$CHECK_TABLE' foi encontrada. Migrations foram aplicadas."
+  else
+    log "⚠️ AVISO: a tabela '$CHECK_TABLE' não foi encontrada após as migrações."
+    log "   Verifique os logs acima para possíveis erros durante as migrações."
+  fi
+else
+  log "Migrações não serão executadas pois as tabelas e índices já existem."
 fi
 
 log "=== INFORMAÇÕES PARA TROUBLESHOOTING ==="
@@ -281,4 +339,4 @@ log ""
 log "Para ver o conteúdo da tabela $CHECK_TABLE (se existir):"
 log "SELECT * FROM $CHECK_TABLE LIMIT 10;"
 
-log "=== POSTDEPLOY FINALIZADO! ==="
+log "=== CONFIGURAÇÃO DO SUPABASE FINALIZADA! ==="
