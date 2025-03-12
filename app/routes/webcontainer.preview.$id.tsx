@@ -3,6 +3,7 @@ import { useLoaderData } from '@remix-run/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createApiHandler } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+import { json } from '@remix-run/node';
 
 const PREVIEW_CHANNEL = 'preview-updates';
 
@@ -10,12 +11,10 @@ export const loader = createApiHandler(async (context: ExpressAppContext, reques
   const previewId = request.params.id;
 
   if (!previewId) {
-    response.status(400).json({ error: 'Preview ID is required' });
-    return response;
+    return json({ error: 'Preview ID is required' }, { status: 400 });
   }
 
-  response.status(200).json({ previewId });
-  return response;
+  return json({ previewId });
 });
 
 export default function WebContainerPreview() {
