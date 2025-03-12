@@ -6,12 +6,12 @@ import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 // Handle all HTTP methods
 export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
   const path = request.params['*'];
-  return handleProxyRequest(request, response, path);
+  return await handleProxyRequest(request, response, path);
 });
 
 export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
   const path = request.params['*'];
-  return handleProxyRequest(request, response, path);
+  return await handleProxyRequest(request, response, path);
 });
 
 async function handleProxyRequest(request: Request, response: Response, path: string | undefined) {
@@ -54,34 +54,30 @@ async function handleProxyRequest(request: Request, response: Response, path: st
 
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
-      Object.entries(corsHeaders).forEach(([key, value]) => {
-        response.setHeader(key, value);
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders
       });
-      response.status(204).end();
-      return response;
     }
 
-    // Forward the response headers
-    const headers = Array.from(fetchResponse.headers.entries());
-    headers.forEach(([key, value]) => {
-      response.setHeader(key, value);
+    // Read response data
+    const data = await fetchResponse.arrayBuffer();
+    
+    // Create response headers combining original headers with CORS headers
+    const responseHeaders = new Headers();
+    
+    // Add original headers
+    Array.from(fetchResponse.headers.entries()).forEach(([key, value]) => {
+      responseHeaders.set(key, value);
     });
-
+    
     // Add CORS headers
     Object.entries(corsHeaders).forEach(([key, value]) => {
-      response.setHeader(key, value);
+      responseHeaders.set(key, value);
     });
-
-    // Set status code
-    response.status(fetchResponse.status);
-
-    // Stream the response body
-    const data = await fetchResponse.arrayBuffer();
-    response.end(Buffer.from(data));
     
-    return response;
-  } catch (error) {
-    console.error('Git proxy error:', error);
-    return handleApiError(error, 500);
-  }
-}
+    // Return the final response with the appropriate status code
+    return new Response(Buffer.from(data), {
+      status: fetchResponse.status,
+      headers: responseHeaders,
+    });
