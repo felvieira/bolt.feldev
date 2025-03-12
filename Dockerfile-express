@@ -93,7 +93,8 @@ RUN mkdir -p /app/session-data && chmod 777 /app/session-data
 EXPOSE 5173
 
 # Roda o script do postdeploy.sh
-CMD ["bash", "/app/postdeploy.sh"]
+RUN echo "### Configurando o Supabase ###"
+CMD ["bash", "/app/supabase-config.sh"]
 
 # Inicia o entrypoint com build e início do servidor
 CMD ["bash", "/app/express-entrypoint.sh"]
