@@ -81,3 +81,8 @@ async function handleProxyRequest(request: Request, response: Response, path: st
       status: fetchResponse.status,
       headers: responseHeaders,
     });
+  } catch (error) {
+    console.error('Git proxy error:', error);
+    return handleApiError(error, 500);
+  }
+}
