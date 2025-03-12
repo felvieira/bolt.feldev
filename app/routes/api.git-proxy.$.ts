@@ -1,20 +1,32 @@
-import { json } from '@remix-run/node';
 import { type Request, type Response } from 'express';
-import { createApiHandler, handleApiError } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 
 // Handle all HTTP methods
-export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
-  const path = request.params['*'];
-  return await handleProxyRequest(request, response, path);
-});
+export const action = async (args: { context: ExpressAppContext, request: Request }) => {
+  const { createApiHandler } = await import('~/utils/api-utils.server');
+  const handler = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+    const path = request.params['*'];
+    return await handleProxyRequest(request, path);
+  });
+  
+  return handler(args.context, args.request, args.context.res);
+};
 
-export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
-  const path = request.params['*'];
-  return await handleProxyRequest(request, response, path);
-});
+export const loader = async (args: { context: ExpressAppContext, request: Request }) => {
+  const { createApiHandler } = await import('~/utils/api-utils.server');
+  const handler = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+    const path = request.params['*'];
+    return await handleProxyRequest(request, path);
+  });
+  
+  return handler(args.context, args.request, args.context.res);
+};
 
-async function handleProxyRequest(request: Request, response: Response, path: string | undefined) {
+async function handleProxyRequest(request: Request, path: string | undefined) {
+  // Import server modules inside the function
+  const { json } = await import('@remix-run/node');
+  const { handleApiError } = await import('~/utils/api-utils.server');
+  
   try {
     if (!path) {
       return json({ error: 'Invalid proxy URL format' }, { status: 400 });
