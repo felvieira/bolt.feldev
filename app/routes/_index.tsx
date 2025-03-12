@@ -4,9 +4,7 @@ import { BaseChat } from '~/components/chat/BaseChat';
 import { Chat } from '~/components/chat/Chat.client';
 import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
-import { createApiHandler } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
-import { json } from '@remix-run/node';
 
 // Metadata function can remain the same as it's used by the client-side Remix
 export const meta = () => {
@@ -14,9 +12,16 @@ export const meta = () => {
 };
 
 // Convert loader to Express-compatible handler
-export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
-  return json({});
-});
+export const loader = async (args: { context: ExpressAppContext, request: Request }) => {
+  const { json } = await import('@remix-run/node');
+  const { createApiHandler } = await import('~/utils/api-utils.server');
+  
+  const handler = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+    return json({});
+  });
+
+  return handler(args.context, args.request, args.context.res);
+};
 
 export default function Index() {
   return (
