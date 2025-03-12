@@ -1,12 +1,23 @@
+// remix.config.js
+
 /**
  * @type {import('@remix-run/dev').AppConfig}
  */
 module.exports = {
+  // Diretório do seu código Remix
   appDirectory: "app",
-  assetsBuildDirectory: "public/assets", // Alterado de "public/build" para "public/assets"
+
+  // Altere para "build/client" para que os assets fiquem gerados lá
+  assetsBuildDirectory: "build/client",
+
+  // A build do servidor continua em build/server/index.js
   serverBuildPath: "build/server/index.js",
-  publicPath: "/assets/", // Alterado de "/build/" para "/assets/"
+
+  // O prefixo público dos assets será "/assets/"
+  publicPath: "/assets/",
+
   serverBuildTarget: "node",
+
   future: {
     v2_dev: true,
     v2_errorBoundary: true,
@@ -15,18 +26,15 @@ module.exports = {
     v2_normalizeFormMethod: true,
     v2_routeConvention: true,
   },
-  // Bundle all dependencies to avoid ESM/CommonJS compatibility issues
+
+  // Outras configurações
   serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
-  // Disable minification temporarily for better debugging
   serverMinify: false,
-  // Use cjs format for better compatibility with Express
   serverModuleFormat: "cjs",
   tailwind: true,
   postcss: true,
-  // Enable sourcemaps for debugging
   sourcemap: true,
   devServerPort: 8002,
-  // Use the standard entry server
   server: "./app/entry.server.tsx"
 };
