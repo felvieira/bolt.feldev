@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DIRETA DO SUPABASE ==="
+log "Registrando em: $LOG_FILE"
+
 echo "###############################################################################"
 echo "# 0. DEFINIÇÕES E VARIÁVEIS GLOBAIS"
 echo "###############################################################################"
@@ -37,9 +40,6 @@ handle_error() {
     exit 1
   fi
 }
-
-log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DIRETA DO SUPABASE ==="
-log "Registrando em: $LOG_FILE"
 
 echo "###############################################################################"
 echo "# 1. VERIFICAR CONEXÃO COM MINIO"
