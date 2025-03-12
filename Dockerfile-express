@@ -92,5 +92,8 @@ RUN mkdir -p /app/session-data && chmod 777 /app/session-data
 # Expõe a porta da aplicação
 EXPOSE 5173
 
+# Roda o script do postdeploy.sh
+CMD ["bash", "/app/postdeploy.sh"]
+
 # Inicia o entrypoint com build e início do servidor
 CMD ["bash", "/app/express-entrypoint.sh"]
