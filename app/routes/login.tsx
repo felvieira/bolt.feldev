@@ -1,78 +1,84 @@
 // app/routes/login.tsx
 import { Request, Response } from 'express';
 import { Form, useActionData } from '@remix-run/react';
-import { getSupabaseClient } from '~/utils/supabase.server';
-import { getSession, commitSession } from '~/session.server';
 import { Header } from '~/components/header/Header';
 import { useState } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
-import { createApiHandler } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
-import { json, redirect } from '@remix-run/node';
 
-export const action = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
-  // Express typically uses middleware like express.urlencoded() to parse form data
-  // If that middleware is active, the data will be in request.body
-  // Otherwise, we need to handle form parsing ourselves
-  const formData = request.body || {};
+export const action = async (args: { context: ExpressAppContext, request: Request }) => {
+  // Dynamically import server modules
+  const { json, redirect } = await import('@remix-run/node');
+  const { createApiHandler } = await import('~/utils/api-utils.server');
+  const { getSupabaseClient } = await import('~/utils/supabase.server');
+  const { getSession, commitSession } = await import('~/session.server');
   
-  const email = formData.email;
-  const password = formData.password;
-  const isSignUp = formData.isSignUp === 'true';
+  const handler = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+    // Express typically uses middleware like express.urlencoded() to parse form data
+    // If that middleware is active, the data will be in request.body
+    // Otherwise, we need to handle form parsing ourselves
+    const formData = request.body || {};
+    
+    const email = formData.email;
+    const password = formData.password;
+    const isSignUp = formData.isSignUp === 'true';
 
-  if (typeof email !== 'string' || typeof password !== 'string') {
-    return json({ error: 'Email and password are required.' }, { status: 400 });
-  }
-
-  try {
-    // Get Supabase client when needed
-    const supabase = getSupabaseClient();
-
-    if (isSignUp) {
-      // Handle sign up
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (signUpError) {
-        throw signUpError;
-      }
-
-      return json({
-        message: 'Please check your email to confirm your account.',
-      });
-    } else {
-      // Handle sign in
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Get session from request cookies
-      const cookieHeader = request.headers.cookie || '';
-      const session = await getSession(cookieHeader);
-      session.set('access_token', data.session.access_token);
-
-      // Set cookie and redirect - using Remix pattern
-      const cookie = await commitSession(session);
-      return redirect('/', {
-        headers: {
-          'Set-Cookie': cookie
-        }
-      });
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return json({ error: 'Email and password are required.' }, { status: 400 });
     }
-  } catch (error) {
-    const authError = error as AuthError;
-    return json({
-      error: authError.message || 'Authentication failed',
-    }, { status: 400 });
-  }
-});
+
+    try {
+      // Get Supabase client when needed
+      const supabase = getSupabaseClient();
+
+      if (isSignUp) {
+        // Handle sign up
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (signUpError) {
+          throw signUpError;
+        }
+
+        return json({
+          message: 'Please check your email to confirm your account.',
+        });
+      } else {
+        // Handle sign in
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        // Get session from request cookies
+        const cookieHeader = request.headers.cookie || '';
+        const session = await getSession(cookieHeader);
+        session.set('access_token', data.session.access_token);
+
+        // Set cookie and redirect - using Remix pattern
+        const cookie = await commitSession(session);
+        return redirect('/', {
+          headers: {
+            'Set-Cookie': cookie
+          }
+        });
+      }
+    } catch (error) {
+      const authError = error as AuthError;
+      return json({
+        error: authError.message || 'Authentication failed',
+      }, { status: 400 });
+    }
+  });
+
+  return handler(args.context, args.request, args.context.res);
+};
 
 export default function Login() {
   const actionData = useActionData<{ error?: string; message?: string }>();
