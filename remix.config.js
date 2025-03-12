@@ -1,23 +1,14 @@
-// remix.config.js
-
 /**
  * @type {import('@remix-run/dev').AppConfig}
  */
 module.exports = {
-  // Diretório do seu código Remix
   appDirectory: "app",
-
-  // Altere para "build/client" para que os assets fiquem gerados lá
+  // Em vez de "public/assets", vamos colocar "build/client"
   assetsBuildDirectory: "build/client",
-
-  // A build do servidor continua em build/server/index.js
   serverBuildPath: "build/server/index.js",
-
-  // O prefixo público dos assets será "/assets/"
+  // Prefixo público "/assets"
   publicPath: "/assets/",
-
   serverBuildTarget: "node",
-
   future: {
     v2_dev: true,
     v2_errorBoundary: true,
@@ -26,8 +17,6 @@ module.exports = {
     v2_normalizeFormMethod: true,
     v2_routeConvention: true,
   },
-
-  // Outras configurações
   serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
   serverMinify: false,
