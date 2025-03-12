@@ -5,9 +5,17 @@ import './utils/env-bridge.server.js';
 import { RemixServer } from '@remix-run/react';
 import { isbot } from 'isbot';
 import * as ReactDOMServer from 'react-dom/server';
-import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from './lib/stores/theme';
+
+// Standard renderHeadToString implementation for use with remix-island
+// Adapted from remix-island source to avoid import issues
+function renderHeadToString({ request, remixContext, Head }) {
+  const markup = ReactDOMServer.renderToString(
+    <Head />
+  );
+  return markup;
+}
 
 export default async function handleRequest(
   request,
@@ -32,59 +40,58 @@ export default async function handleRequest(
     }
   }
 
-  // Set headers first
-  responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
-  responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
-  responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+  // For bots, use standard renderToString for optimal SEO
+  if (isbot(request.headers.get("User-Agent"))) {
+    const body = await ReactDOMServer.renderToString(
+      <RemixServer context={remixContext} url={request.url} />
+    );
+    
+    const html = `<!DOCTYPE html>
+<html lang="en" data-theme="${themeStore.value}">
+<head>${renderHeadToString({ request, remixContext, Head })}</head>
+<body><div id="root" class="w-full h-full">${body}</div></body>
+</html>`;
 
-  // Render the head with remix-island
-  let head;
-  try {
-    head = renderHeadToString({ request, remixContext, Head });
-  } catch (error) {
-    console.error("Error rendering head:", error);
-    // Fallback if renderHeadToString fails
-    head = `
-      <meta charSet="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <script>
-        setTutorialKitTheme();
-        function setTutorialKitTheme() {
-          let theme = localStorage.getItem('bolt_theme');
-          if (!theme) {
-            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          }
-          document.querySelector('html')?.setAttribute('data-theme', theme);
-        }
-      </script>
-    `;
+    return new Response(html, {
+      headers: {
+        ...Object.fromEntries(responseHeaders),
+        'Content-Type': 'text/html',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+      },
+      status: responseStatusCode,
+    });
   }
 
-  // Use a simple approach to server rendering
-  // Avoiding stream issues with renderToPipeableStream
-  let html;
+  // For normal browsers, use standard renderToString for initial content
+  // Avoid the stream rendering that's causing issues
+  let body;
   try {
-    html = ReactDOMServer.renderToStaticMarkup(
+    body = await ReactDOMServer.renderToString(
       <RemixServer context={remixContext} url={request.url} />
     );
   } catch (error) {
     console.error("Error rendering app:", error);
-    html = `<p>Error rendering the application. Please try again later.</p>`;
+    // If we fail to render, return a basic shell
+    body = "";
     responseStatusCode = 500;
   }
 
-  // Create the full HTML document
-  const document = `
-<!DOCTYPE html>
+  const headMarkup = renderHeadToString({ request, remixContext, Head });
+  
+  const html = `<!DOCTYPE html>
 <html lang="en" data-theme="${themeStore.value}">
-<head>${head}</head>
-<body><div id="root" class="w-full h-full">${html}</div></body>
-</html>
-  `.trim();
+<head>${headMarkup}</head>
+<body><div id="root" class="w-full h-full">${body}</div></body>
+</html>`;
 
-  // Return the HTML document
-  return new Response(document, {
-    headers: responseHeaders,
+  return new Response(html, {
+    headers: {
+      ...Object.fromEntries(responseHeaders),
+      'Content-Type': 'text/html',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
     status: responseStatusCode,
   });
 }
