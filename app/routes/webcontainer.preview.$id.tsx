@@ -1,21 +1,27 @@
 import { Request, Response } from 'express';
 import { useLoaderData } from '@remix-run/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createApiHandler } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
-import { json } from '@remix-run/node';
 
 const PREVIEW_CHANNEL = 'preview-updates';
 
-export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
-  const previewId = request.params.id;
+export const loader = async (args: { context: ExpressAppContext, request: Request }) => {
+  // Dynamically import server-only modules
+  const { json } = await import('@remix-run/node');
+  const { createApiHandler } = await import('~/utils/api-utils.server');
+  
+  const handler = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
+    const previewId = request.params.id;
 
-  if (!previewId) {
-    return json({ error: 'Preview ID is required' }, { status: 400 });
-  }
+    if (!previewId) {
+      return json({ error: 'Preview ID is required' }, { status: 400 });
+    }
 
-  return json({ previewId });
-});
+    return json({ previewId });
+  });
+  
+  return handler(args.context, args.request, args.context.res);
+};
 
 export default function WebContainerPreview() {
   // Note: The client-side component can remain mostly unchanged as it uses React hooks
