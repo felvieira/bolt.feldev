@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DIRETA DO SUPABASE ==="
-log "Registrando em: $LOG_FILE"
-
 echo "###############################################################################"
 echo "# 0. DEFINIÇÕES E VARIÁVEIS GLOBAIS"
 echo "###############################################################################"
@@ -21,11 +18,17 @@ CHECK_TABLE="chats"
 # Nome do bucket no MinIO
 MINIO_BUCKET="bolt-app-files"
 
-# Configurações de conexão (via variáveis de ambiente)
-MINIO_HOST=${MINIO_HOST:-"supabase-minio"}
-MINIO_PORT=${MINIO_PORT:-"9000"}
+# Usar variáveis de ambiente diretamente (definidas no Coolify)
+MINIO_HOST=${SUPABASE_MINIO_HOST}
+MINIO_PORT=${SUPABASE_MINIO_PORT:-9000}
 MINIO_USER=${SERVICE_USER_MINIO}
 MINIO_PASSWORD=${SERVICE_PASSWORD_MINIO}
+
+PG_HOST=${SUPABASE_DB_HOST}
+PG_PORT=${SUPABASE_DB_PORT:-5432}
+PG_USER=${PG_USER:-postgres}
+PG_PASSWORD=${PG_PASSWORD}
+PG_DATABASE=${PG_DATABASE:-postgres}
 
 # Função para logging
 log() {
@@ -41,11 +44,19 @@ handle_error() {
   fi
 }
 
+log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DIRETA DO SUPABASE ==="
+log "Registrando em: $LOG_FILE"
+
 echo "###############################################################################"
 echo "# 1. VERIFICAR CONEXÃO COM MINIO"
 echo "###############################################################################"
 echo ""
 log "Verificando conexão com MinIO..."
+
+# Verificar se variáveis obrigatórias estão definidas
+if [ -z "$MINIO_HOST" ] || [ -z "$MINIO_USER" ] || [ -z "$MINIO_PASSWORD" ]; then
+  handle_error "Variáveis SUPABASE_MINIO_HOST, SERVICE_USER_MINIO ou SERVICE_PASSWORD_MINIO não definidas." "fatal"
+fi
 
 # Verificar se o MinIO client está instalado
 if ! command -v mc &> /dev/null; then
@@ -130,47 +141,15 @@ mc policy set $POLICY_FILE supabase-minio/$MINIO_BUCKET
 log "=== Bucket configurado com permissões adequadas ==="
 
 echo "###############################################################################"
-echo "# 3. EXTRAIR INFORMAÇÕES DE CONEXÃO COM O BANCO"
-echo "###############################################################################"
-echo ""
-
-# Extrai informações da DATABASE_URL se estiver definida, caso contrário usa variáveis específicas
-if [ -n "$DATABASE_URL" ]; then
-    log "Extraindo informações de conexão da DATABASE_URL..."
-    # Remove o prefixo "postgresql://" ou "postgres://"
-    STR="$(echo "$DATABASE_URL" | sed 's#^\(postgres\|postgresql\)://##')"
-    
-    # Separa USER:PASS de HOST:PORT/DB
-    USERPASS="$(echo "$STR" | cut -d'@' -f1)"        # postgres:secret
-    HOSTPORTDB="$(echo "$STR" | cut -d'@' -f2)"      # my-postgres:5432/postgres
-    
-    PG_USER="$(echo "$USERPASS" | cut -d':' -f1)"    # postgres
-    PG_PASSWORD="$(echo "$USERPASS" | cut -d':' -f2)" 
-    HOSTPORT="$(echo "$HOSTPORTDB" | cut -d'/' -f1)" # my-postgres:5432
-    PG_DATABASE="$(echo "$HOSTPORTDB" | cut -d'/' -f2)"  # postgres
-    PG_HOST="$(echo "$HOSTPORT" | cut -d':' -f1)"    # my-postgres
-    PG_PORT="$(echo "$HOSTPORT" | cut -d':' -f2)"    # 5432
-else
-    log "DATABASE_URL não encontrada, usando variáveis de ambiente específicas..."
-    PG_HOST=${PG_HOST:-"supabase-db"}
-    PG_PORT=${PG_PORT:-"5432"}
-    PG_USER=${PG_USER:-"postgres"}
-    PG_PASSWORD=${PG_PASSWORD}
-    PG_DATABASE=${PG_DATABASE:-"postgres"}
-fi
-
-log "=== Dados extraídos para conexão PostgreSQL ==="
-log "PG_HOST=$PG_HOST"
-log "PG_PORT=$PG_PORT"
-log "PG_USER=$PG_USER"
-log "PG_PASSWORD=[oculto]"
-log "PG_DATABASE=$PG_DATABASE"
-
-echo "###############################################################################"
-echo "# 4. VERIFICAR CONEXÃO COM POSTGRESQL"
+echo "# 3. VERIFICAR CONEXÃO COM POSTGRESQL"
 echo "###############################################################################"
 echo ""
 log "Verificando conexão com PostgreSQL..."
+
+# Verificar se variáveis obrigatórias estão definidas
+if [ -z "$PG_HOST" ] || [ -z "$PG_PASSWORD" ]; then
+  handle_error "Variáveis SUPABASE_DB_HOST ou PG_PASSWORD não definidas." "fatal"
+fi
 
 # Verificar se cliente PostgreSQL está instalado
 if ! command -v psql &> /dev/null; then
@@ -189,7 +168,7 @@ fi
 log "Conexão com PostgreSQL estabelecida com sucesso."
 
 echo "###############################################################################"
-echo "# 5. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
+echo "# 4. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
 echo "###############################################################################"
 echo ""
 log "Verificando se o schema auth e a tabela chats já existem..."
@@ -250,7 +229,7 @@ else
 fi
 
 echo "###############################################################################"
-echo "# 6. APLICAR MIGRAÇÕES SE NECESSÁRIO"
+echo "# 5. APLICAR MIGRAÇÕES SE NECESSÁRIO"
 echo "###############################################################################"
 echo ""
 if [ "$should_run_migrations" = true ]; then
@@ -291,7 +270,7 @@ if [ "$should_run_migrations" = true ]; then
   fi
 
   echo "###############################################################################"
-  echo "# 7. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
+  echo "# 6. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
   echo "###############################################################################"
   echo ""
   log "=== Verificando se a tabela '$CHECK_TABLE' existe ==="
@@ -312,7 +291,7 @@ else
 fi
 
 echo "###############################################################################"
-echo "# 8. INFORMAÇÕES PARA TROUBLESHOOTING"
+echo "# 7. INFORMAÇÕES PARA TROUBLESHOOTING"
 echo "###############################################################################"
 echo ""
 log "=== INFORMAÇÕES PARA TROUBLESHOOTING ==="
