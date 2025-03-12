@@ -20,10 +20,8 @@ FROM base AS build
 WORKDIR /app
 COPY . .
 
-# Ajusta permissões e corrige finais de linha (LF vs CRLF) para os scripts
-# CORREÇÃO: Usando ./supabase-config.sh em vez de /supabase-config.sh
-RUN chmod +x ./supabase-config.sh && \
-    sed -i 's/\r$//' ./supabase-config.sh
+# Ajusta permissões e corrige finais de linha (LF vs CRLF) para o script express-entrypoint.sh
+# Nota: supabase-config.sh será executado no host, não no container
 RUN chmod +x ./express-entrypoint.sh && \
     sed -i 's/\r$//' ./express-entrypoint.sh
 
@@ -88,5 +86,5 @@ RUN mkdir -p /app/session-data && chmod 777 /app/session-data
 # Expõe a porta da aplicação
 EXPOSE 5173
 
-# Executa ambos os scripts em sequência
-CMD bash /app/supabase-config.sh && bash /app/express-entrypoint.sh
+# Executa apenas o script de entrypoint do Express
+CMD ["bash", "/app/express-entrypoint.sh"]
