@@ -83,16 +83,18 @@ app.use(
   })
 );
 
-app.use(compression({
-  level: 6,
-  threshold: 0,
-  filter: (req, res) => {
-    if (res.getHeader('Content-Type')?.includes('image/')) {
-      return false;
-    }
-    return compression.filter(req, res);
-  }
-}));
+app.use(
+  compression({
+    level: 6,
+    threshold: 0,
+    filter: (req, res) => {
+      if (res.getHeader('Content-Type')?.includes('image/')) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -103,26 +105,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// **Atualizado:** Servir assets a partir da pasta public/assets via a rota "/assets"
+// Serve estático em "/assets" diretamente de "build/client"
 app.use(
   '/assets',
-  express.static(path.join(__dirname, 'public', 'assets'), { 
-    immutable: true, 
-    maxAge: '1y' 
+  express.static(path.join(__dirname, 'build', 'client'), {
+    immutable: true,
+    maxAge: '1y',
   })
 );
 
+// Servir a pasta "public" no root (imagens, favicon, etc.)
 app.use(
-  express.static(path.join(__dirname, 'public'), { 
+  express.static(path.join(__dirname, 'public'), {
     maxAge: '1h',
-    setHeaders: (res, path) => {
-      if (path.endsWith('.html')) {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
         res.setHeader('Cache-Control', 'public, max-age=0');
       }
-    }
+    },
   })
 );
 
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -132,11 +136,12 @@ app.get('/health', (req, res) => {
     supabase: {
       url: process.env.SUPABASE_URL ? 'set ✓' : 'not set ✗',
       anonKey: process.env.SUPABASE_ANON_KEY ? 'set ✓' : 'not set ✗',
-      serviceKey: process.env.SUPABASE_SERVICE_KEY ? 'set ✓' : 'not set ✗'
-    }
+      serviceKey: process.env.SUPABASE_SERVICE_KEY ? 'set ✓' : 'not set ✗',
+    },
   });
 });
 
+// Remix request handler
 app.all(
   '*',
   createRequestHandler({
@@ -146,17 +151,18 @@ app.all(
       return {
         env: { ...process.env },
         req,
-        res
+        res,
       };
     },
   })
 );
 
+// Error handling
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Internal Server Error',
-    ...(process.env.NODE_ENV !== 'production' && { error: err.message })
+    ...(process.env.NODE_ENV !== 'production' && { error: err.message }),
   });
 });
 
