@@ -7,6 +7,10 @@ services:
       dockerfile: Dockerfile-express
       args:
         - SESSION_SECRET=${SESSION_SECRET}
+        - SUPABASE_URL=${SUPABASE_URL}
+        - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+        - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+        - NODE_ENV=production
     ports:
       - "5173:5173"
     environment:
@@ -27,10 +31,14 @@ services:
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
       - SESSION_SECRET=${SESSION_SECRET}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - DATABASE_URL=${DATABASE_URL}
     volumes:
       - session-data:/app/session-data
-    # Explicitly run build before starting server
-    command: bash -c "pnpm run build && pnpm run start"
+    # Explicitamente executar o express-entrypoint.sh (sem o supabase-config.sh)
+    command: bash /app/express-entrypoint.sh
     healthcheck:
       start_period: 40s
     restart: unless-stopped
@@ -67,6 +75,10 @@ services:
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
       - SESSION_SECRET=${SESSION_SECRET}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - DATABASE_URL=${DATABASE_URL}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -96,6 +108,10 @@ services:
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
       - SESSION_SECRET=${SESSION_SECRET}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - DATABASE_URL=${DATABASE_URL}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # Make sure prebuild also builds first
