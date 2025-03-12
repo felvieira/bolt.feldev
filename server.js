@@ -1,4 +1,3 @@
-// server.js
 import express from 'express';
 import compression from 'compression';
 import session from 'express-session';
@@ -124,10 +123,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files
+// Serve static files from the "public/assets" directory under the "/assets" route
 app.use(
-  '/build',
-  express.static(path.join(__dirname, 'public', 'build'), { 
+  '/assets',
+  express.static(path.join(__dirname, 'public', 'assets'), { 
     immutable: true, 
     maxAge: '1y' 
   })
