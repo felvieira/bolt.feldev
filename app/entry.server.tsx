@@ -5,7 +5,6 @@ import './utils/env-bridge.server.js';
 import { RemixServer } from '@remix-run/react';
 import { isbot } from 'isbot';
 import * as ReactDOMServer from 'react-dom/server';
-// Import renderHeadToString properly to fix the "not defined" error
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from './lib/stores/theme';
@@ -33,35 +32,59 @@ export default async function handleRequest(
     }
   }
 
-  let didError = false;
-
-  // Use standard Remix approach for rendering
-  const instance = <RemixServer context={remixContext} url={request.url} />;
-  
-  // Use renderToString for simplicity, avoiding stream issues
-  let html = ReactDOMServer.renderToString(instance);
-
-  // Set response headers
+  // Set headers first
   responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
   responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
   responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
 
-  // Render the head portion with remix-island
-  const head = renderHeadToString({ request, remixContext, Head });
+  // Render the head with remix-island
+  let head;
+  try {
+    head = renderHeadToString({ request, remixContext, Head });
+  } catch (error) {
+    console.error("Error rendering head:", error);
+    // Fallback if renderHeadToString fails
+    head = `
+      <meta charSet="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <script>
+        setTutorialKitTheme();
+        function setTutorialKitTheme() {
+          let theme = localStorage.getItem('bolt_theme');
+          if (!theme) {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.querySelector('html')?.setAttribute('data-theme', theme);
+        }
+      </script>
+    `;
+  }
+
+  // Use a simple approach to server rendering
+  // Avoiding stream issues with renderToPipeableStream
+  let html;
+  try {
+    html = ReactDOMServer.renderToStaticMarkup(
+      <RemixServer context={remixContext} url={request.url} />
+    );
+  } catch (error) {
+    console.error("Error rendering app:", error);
+    html = `<p>Error rendering the application. Please try again later.</p>`;
+    responseStatusCode = 500;
+  }
 
   // Create the full HTML document
-  const doctype = '<!DOCTYPE html>\n';
-  const htmlOpen = `<html lang="en" data-theme="${themeStore.value}">\n`;
-  const headHtml = `<head>${head}</head>\n`;
-  const bodyOpen = '<body><div id="root" class="w-full h-full">';
-  const bodyClose = '</div></body></html>';
+  const document = `
+<!DOCTYPE html>
+<html lang="en" data-theme="${themeStore.value}">
+<head>${head}</head>
+<body><div id="root" class="w-full h-full">${html}</div></body>
+</html>
+  `.trim();
 
-  // Return the complete HTML with the rendered app content
-  return new Response(
-    doctype + htmlOpen + headHtml + bodyOpen + html + bodyClose,
-    {
-      headers: responseHeaders,
-      status: responseStatusCode,
-    }
-  );
+  // Return the HTML document
+  return new Response(document, {
+    headers: responseHeaders,
+    status: responseStatusCode,
+  });
 }
