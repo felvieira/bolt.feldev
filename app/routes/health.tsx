@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { createApiHandler } from '~/utils/api-utils.server';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 import { getEnvVar } from '~/utils/express-context-adapter.server';
+import { json } from '@remix-run/node';
 
 export const loader = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
   // Check if SESSION_SECRET is set using the context adapter
@@ -12,7 +13,7 @@ export const loader = createApiHandler(async (context: ExpressAppContext, reques
   const nodeEnv = getEnvVar(context, 'NODE_ENV') || process.env.NODE_ENV || 'unknown';
   const isDocker = getEnvVar(context, 'RUNNING_IN_DOCKER') === 'true' || process.env.RUNNING_IN_DOCKER === 'true';
 
-  response.status(200).json({
+  return json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || 'unknown',
@@ -22,8 +23,6 @@ export const loader = createApiHandler(async (context: ExpressAppContext, reques
       isDocker,
     },
   });
-  
-  return response;
 });
 
 export default function Health() {
