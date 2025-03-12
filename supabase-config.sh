@@ -1,9 +1,10 @@
 #!/bin/bash
 set -e
 
-###############################################################################
-# 0. DEFINIÇÕES E VARIÁVEIS GLOBAIS
-###############################################################################
+echo "###############################################################################"
+echo "# 0. DEFINIÇÕES E VARIÁVEIS GLOBAIS"
+echo "###############################################################################"
+echo ""
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="/tmp/postdeploy_${TIMESTAMP}.log"
 BACKUP_FILE="/tmp/db_backup_${TIMESTAMP}.sql"
@@ -35,9 +36,10 @@ handle_error() {
 log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DO SUPABASE ==="
 log "Registrando em: $LOG_FILE"
 
-###############################################################################
-# 1. FUNÇÃO: aguardar até encontrar um container cujo nome inclua um padrão
-###############################################################################
+echo "###############################################################################"
+echo "# 1. FUNÇÃO: aguardar até encontrar um container cujo nome inclua um padrão"
+echo "###############################################################################"
+echo ""
 wait_for_container() {
   local pattern="$1"
   local timeout="${2:-30}"
@@ -58,9 +60,10 @@ wait_for_container() {
   return 1
 }
 
-###############################################################################
-# 2. LOCALIZAR CONTAINER DO MINIO E VERIFICAR/CONFIGURAR BUCKET
-###############################################################################
+echo "###############################################################################"
+echo "# 2. LOCALIZAR CONTAINER DO MINIO E VERIFICAR/CONFIGURAR BUCKET"
+echo "###############################################################################"
+echo ""
 log "Localizando container do MinIO..."
 minio_container=$(wait_for_container "supabase-minio" 60)
 if [ -z "$minio_container" ]; then
@@ -148,9 +151,10 @@ docker exec -T "$minio_container" sh -c "mc policy set $POLICY_FILE supabase-min
 
 log "=== Bucket configurado com permissões adequadas ==="
 
-###############################################################################
-# 3. LOCALIZAR CONTAINER DO DB (SUPABASE/POSTGRES)
-###############################################################################
+echo "###############################################################################"
+echo "# 3. LOCALIZAR CONTAINER DO DB (SUPABASE/POSTGRES)"
+echo "###############################################################################"
+echo ""
 log "Localizando container do banco de dados..."
 db_container=$(wait_for_container "supabase-db" 60)
 if [ -z "$db_container" ]; then
@@ -159,9 +163,10 @@ fi
 
 log "=== Container DB encontrado: $db_container ==="
 
-###############################################################################
-# 4. PARSEAR A DATABASE_URL PARA EXTRAIR USUÁRIO, SENHA, HOST, PORTA, NOME DO DB
-###############################################################################
+echo "###############################################################################"
+echo "# 4. PARSEAR A DATABASE_URL PARA EXTRAIR USUÁRIO, SENHA, HOST, PORTA, NOME DO DB"
+echo "###############################################################################"
+echo ""
 if [ -z "$DATABASE_URL" ]; then
   handle_error "Variável DATABASE_URL não está definida." "fatal"
 fi
@@ -188,9 +193,10 @@ log "DB_HOST=$DB_HOST"
 log "DB_PORT=$DB_PORT"
 log "DB_NAME=$DB_NAME"
 
-###############################################################################
-# 5. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM
-###############################################################################
+echo "###############################################################################"
+echo "# 5. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
+echo "###############################################################################"
+echo ""
 log "Verificando se o schema auth e a tabela chats já existem..."
 
 # Verificar schema auth
@@ -254,9 +260,10 @@ else
   fi
 fi
 
-###############################################################################
-# 6. APLICAR MIGRAÇÕES SE NECESSÁRIO
-###############################################################################
+echo "###############################################################################"
+echo "# 6. APLICAR MIGRAÇÕES SE NECESSÁRIO"
+echo "###############################################################################"
+echo ""
 if [ "$should_run_migrations" = true ]; then
   log "Preparando diretório temporário para migrações..."
   # Remove e recria o diretório temporário no container do DB
@@ -308,9 +315,10 @@ if [ "$should_run_migrations" = true ]; then
     log "=== Execução das migrações concluída com sucesso. ===
   fi
 
-  ###############################################################################
-  # 7. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS
-  ###############################################################################
+  echo "###############################################################################"
+  echo "# 7. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
+  echo "###############################################################################"
+  echo ""
   log "=== Verificando se a tabela '$CHECK_TABLE' existe ==="
 
   table_exists_after=$(docker exec -e PGPASSWORD="$DB_PASSWORD" -T "$db_container" \
