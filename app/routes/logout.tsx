@@ -1,3 +1,7 @@
+// app/routes/logout.tsx
+import { Request, Response } from 'express';
+import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+
 export const loader = async (args: { context: ExpressAppContext, request: Request }) => {
   // Dynamically import server modules
   const { redirect } = await import('@remix-run/node');
@@ -7,7 +11,7 @@ export const loader = async (args: { context: ExpressAppContext, request: Reques
   
   const handler = createApiHandler(async (context: ExpressAppContext, request: Request, response: Response) => {
     const cookieHeader = request.headers.cookie || '';
-    const session = await getSession(cookieHeader);
+    const session = await getSession(cookieHeader, context);
     
     // Sign out from Supabase if there's an access token
     const accessToken = session.get('access_token');
@@ -31,3 +35,7 @@ export const loader = async (args: { context: ExpressAppContext, request: Reques
 
   return handler(args.context, args.request, args.context.res);
 };
+
+export default function Logout() {
+  return <p>Logging out...</p>;
+}
