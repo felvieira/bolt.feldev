@@ -95,7 +95,84 @@ else
 fi
 
 echo "###############################################################################"
-echo "# 2. VERIFICAR CONEXÃO COM POSTGRESQL"
+echo "# 2. CONFIGURAR POLÍTICAS PARA O BUCKET"
+echo "###############################################################################"
+echo ""
+log "Verificando e configurando políticas para o bucket..."
+
+# Verificar políticas existentes
+policies_output=$(curl -s -X GET "$SUPABASE_URL/storage/v1/policies?search=$MINIO_BUCKET" \
+  -H "apikey: $SUPABASE_SERVICE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY")
+
+# Criar políticas de acesso padrão para o bucket
+create_policy() {
+  local name=$1
+  local definition=$2
+  local roles=$3
+  
+  log "Criando/atualizando política '$name' para o bucket '$MINIO_BUCKET'..."
+  
+  policy_create_output=$(curl -s -X POST "$SUPABASE_URL/storage/v1/policies" \
+    -H "apikey: $SUPABASE_SERVICE_KEY" \
+    -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"name\": \"$name\",
+      \"bucket_id\": \"$MINIO_BUCKET\",
+      \"definition\": $definition,
+      \"owner\": null,
+      \"roles\": $roles
+    }")
+  
+  if [[ $policy_create_output == *"$name"* ]]; then
+    log "✅ Política '$name' criada/atualizada com sucesso!"
+  else
+    log "❌ ERRO ao criar política '$name': $policy_create_output"
+  fi
+}
+
+# Políticas para usuário autenticado
+if [[ $policies_output != *"${MINIO_BUCKET}_select_auth"* ]]; then
+  # Política de leitura para usuários autenticados
+  create_policy "${MINIO_BUCKET}_select_auth" \
+    "{\"id\": \"authenticated\", \"action\": \"select\"}" \
+    "[\"authenticated\"]"
+fi
+
+if [[ $policies_output != *"${MINIO_BUCKET}_insert_auth"* ]]; then
+  # Política de escrita para usuários autenticados
+  create_policy "${MINIO_BUCKET}_insert_auth" \
+    "{\"id\": \"authenticated\", \"action\": \"insert\"}" \
+    "[\"authenticated\"]"
+fi
+
+if [[ $policies_output != *"${MINIO_BUCKET}_update_auth"* ]]; then
+  # Política de atualização para usuários autenticados
+  create_policy "${MINIO_BUCKET}_update_auth" \
+    "{\"id\": \"authenticated\", \"action\": \"update\"}" \
+    "[\"authenticated\"]"
+fi
+
+if [[ $policies_output != *"${MINIO_BUCKET}_delete_auth"* ]]; then
+  # Política de exclusão para usuários autenticados
+  create_policy "${MINIO_BUCKET}_delete_auth" \
+    "{\"id\": \"authenticated\", \"action\": \"delete\"}" \
+    "[\"authenticated\"]"
+fi
+
+# Políticas para usuário anônimo (se necessário)
+if [[ $policies_output != *"${MINIO_BUCKET}_select_anon"* ]]; then
+  # Política de leitura para usuários anônimos
+  create_policy "${MINIO_BUCKET}_select_anon" \
+    "{\"id\": \"anon\", \"action\": \"select\"}" \
+    "[\"anon\"]"
+fi
+
+log "✅ Políticas do bucket configuradas com sucesso!"
+
+echo "###############################################################################"
+echo "# 3. VERIFICAR CONEXÃO COM POSTGRESQL"
 echo "###############################################################################"
 echo ""
 log "Verificando conexão com PostgreSQL..."
@@ -122,7 +199,7 @@ fi
 log "Conexão com PostgreSQL estabelecida com sucesso."
 
 echo "###############################################################################"
-echo "# 3. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
+echo "# 4. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
 echo "###############################################################################"
 echo ""
 log "Verificando se o schema auth e a tabela chats já existem..."
@@ -183,7 +260,7 @@ else
 fi
 
 echo "###############################################################################"
-echo "# 4. APLICAR MIGRAÇÕES SE NECESSÁRIO"
+echo "# 5. APLICAR MIGRAÇÕES SE NECESSÁRIO"
 echo "###############################################################################"
 echo ""
 if [ "$should_run_migrations" = true ]; then
@@ -224,7 +301,7 @@ if [ "$should_run_migrations" = true ]; then
   fi
 
   echo "###############################################################################"
-  echo "# 5. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
+  echo "# 6. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
   echo "###############################################################################"
   echo ""
   log "=== Verificando se a tabela '$CHECK_TABLE' existe ==="
@@ -245,7 +322,7 @@ else
 fi
 
 echo "###############################################################################"
-echo "# 6. INFORMAÇÕES PARA TROUBLESHOOTING"
+echo "# 7. INFORMAÇÕES PARA TROUBLESHOOTING"
 echo "###############################################################################"
 echo ""
 log "=== INFORMAÇÕES PARA TROUBLESHOOTING ==="
