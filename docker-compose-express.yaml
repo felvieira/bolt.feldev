@@ -41,7 +41,7 @@ services:
     command: bash /app/express-entrypoint.sh
     healthcheck:
       start_period: 40s
-    restart: unless-stopped
+    restart: no
     networks:
       - shared
     
