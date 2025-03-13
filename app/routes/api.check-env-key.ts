@@ -1,6 +1,10 @@
-import { type Request, type Response } from 'express';
+import express from 'express';
 import { providerBaseUrlEnvKeys } from '~/utils/constants';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 export const loader = async (args: { context: ExpressAppContext, request: Request }) => {
   // Dynamically import server modules
