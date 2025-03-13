@@ -1,7 +1,6 @@
 import express from "express";
 import compression from "compression";
 import session from "express-session";
-import { createClient } from "redis";
 import RedisStore from "connect-redis";
 import { createRequestHandler } from "@remix-run/express";
 import path from "path";
@@ -9,6 +8,8 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
+import { getRedis } from "./app/utils/redis-session.server.js";
+import crypto from "crypto";
 
 // -----------------------------------------------------------------------------
 // Inicializa __dirname (já que usamos ESM)
@@ -47,26 +48,15 @@ try {
 }
 
 // -----------------------------------------------------------------------------
-// Redis client setup
+// Redis client setup using redis-session.server.js
 let redisClient;
 let redisStore;
 
 try {
-  console.log("Attempting to connect to Redis...");
-  redisClient = createClient({
-    url: process.env.REDIS_URL || "redis://localhost:6379",
-    socket: {
-      reconnectStrategy: (retries) => Math.min(retries * 50, 2000)
-    }
-  });
-
-  redisClient.on("error", (err) => {
-    console.error("Redis connection error:", err);
-  });
-
-  // Initialize Redis client
-  await redisClient.connect();
-  console.log("Connected to Redis successfully");
+  console.log("Attempting to connect to Redis using redis-session module...");
+  // Use the existing Redis utility from redis-session.server.js
+  redisClient = await getRedis();
+  console.log("Redis client retrieved successfully");
   
   // Create Redis store
   redisStore = new RedisStore({
@@ -86,7 +76,7 @@ const app = express();
 let sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
   console.warn("SESSION_SECRET não definido; gerando valor aleatório (não é seguro em produção).");
-  sessionSecret = require("crypto").randomBytes(32).toString("hex");
+  sessionSecret = crypto.randomBytes(32).toString("hex");
 }
 
 // Middlewares básicos
