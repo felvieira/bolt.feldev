@@ -1,10 +1,14 @@
-import { Request, Response } from 'express';
+import express from 'express';
 import { ClientOnly } from 'remix-utils/client-only';
 import { BaseChat } from '~/components/chat/BaseChat';
 import { GitUrlImport } from '~/components/git/GitUrlImport.client';
 import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 // Metadata function can remain the same as it's used by the client-side Remix
 export const meta = () => {
