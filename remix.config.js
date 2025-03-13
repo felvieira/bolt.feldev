@@ -27,7 +27,7 @@ module.exports = {
   serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
   serverMinify: false,
-  serverModuleFormat: "cjs",
+  serverModuleFormat: "esm", // Alterado de "cjs" para "esm"
   tailwind: true,
   postcss: true,
   sourcemap: true,
