@@ -22,12 +22,22 @@ MINIO_BUCKET="bolt-app-files"
 SUPABASE_URL=${SUPABASE_URL:-"https://supabase.cantodorei.com.br"}
 SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
 
-# Usar nomes de container completos com sufixos
-PG_HOST="supabase-db-mk0sogoswoss8c48480sogc0"
-PG_PORT="5432"
-PG_USER="postgres"
+# Usar nomes de container de variáveis de ambiente ou usar padrão com sufixo atual
+SUPABASE_DB_CONTAINER=${SUPABASE_DB_CONTAINER:-"supabase-db-mk0sogoswoss8c48480sogc0"}
+SUPABASE_MINIO_CONTAINER=${SUPABASE_MINIO_CONTAINER:-"supabase-minio-mk0sogoswoss8c48480sogc0"}
+
+# Conexão PostgreSQL
+PG_HOST=${SUPABASE_DB_CONTAINER}
+PG_PORT=${SUPABASE_DB_PORT:-"5432"}
+PG_USER=${PG_USER:-"postgres"}
 PG_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
-PG_DATABASE="postgres"
+PG_DATABASE=${PG_DATABASE:-"postgres"}
+
+# Conexão MinIO (caso necessária no futuro)
+MINIO_HOST=${SUPABASE_MINIO_CONTAINER}
+MINIO_PORT=${SUPABASE_MINIO_PORT:-"9000"}
+MINIO_USER=${SERVICE_USER_MINIO}
+MINIO_PASSWORD=${SERVICE_PASSWORD_MINIO}
 
 # Função para logging
 log() {
