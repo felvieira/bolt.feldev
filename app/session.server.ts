@@ -2,7 +2,7 @@
 import { createCookieSessionStorage } from '@remix-run/node';
 import { getEnvVar } from './utils/express-context-adapter.server';
 import type { ExpressAppContext } from './utils/express-context-adapter.server';
-import { createRedisSessionStorage } from './utils/redis-session.server';
+import { createRedisSessionStore } from './utils/redis-session.server';
 
 // Fallback to cookie storage if Redis isn't available
 function generateSimpleSecret(): string {
@@ -35,7 +35,7 @@ async function initRedisSessionStorage(context?: ExpressAppContext) {
   
   try {
     // Try to create Redis session storage
-    sessionStorage = await createRedisSessionStorage(context);
+    sessionStorage = await createRedisSessionStore(context);
     isRedisInitialized = true;
     console.log('Redis session storage initialized successfully');
   } catch (error) {
