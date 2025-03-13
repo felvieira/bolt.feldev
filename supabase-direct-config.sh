@@ -100,74 +100,37 @@ echo "##########################################################################
 echo ""
 log "Verificando e configurando políticas para o bucket..."
 
-# Verificar políticas existentes
-policies_output=$(curl -s -X GET "$SUPABASE_URL/storage/v1/policies?search=$MINIO_BUCKET" \
-  -H "apikey: $SUPABASE_SERVICE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY")
-
-# Criar políticas de acesso padrão para o bucket
-create_policy() {
-  local name=$1
-  local definition=$2
-  local roles=$3
+# Função para criar política na interface do Supabase
+set_policy() {
+  local operation=$1  # select, insert, update, delete
+  local role=$2       # anon, authenticated
   
-  log "Criando/atualizando política '$name' para o bucket '$MINIO_BUCKET'..."
+  log "Configurando política de '$operation' para '$role' no bucket '$MINIO_BUCKET'..."
   
-  policy_create_output=$(curl -s -X POST "$SUPABASE_URL/storage/v1/policies" \
+  # URL correta para definir políticas
+  policy_url="$SUPABASE_URL/storage/v1/bucket/$MINIO_BUCKET/policy/$role/$operation"
+  
+  policy_output=$(curl -s -X PUT "$policy_url" \
     -H "apikey: $SUPABASE_SERVICE_KEY" \
     -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
     -H "Content-Type: application/json" \
-    -d "{
-      \"name\": \"$name\",
-      \"bucket_id\": \"$MINIO_BUCKET\",
-      \"definition\": $definition,
-      \"owner\": null,
-      \"roles\": $roles
-    }")
+    -d "{\"allowed\": true}")
   
-  if [[ $policy_create_output == *"$name"* ]]; then
-    log "✅ Política '$name' criada/atualizada com sucesso!"
+  if [[ $policy_output == *"true"* ]] || [[ $policy_output == *"allowed"* ]]; then
+    log "✅ Política de '$operation' para '$role' configurada com sucesso!"
   else
-    log "❌ ERRO ao criar política '$name': $policy_create_output"
+    log "❌ ERRO ao configurar política de '$operation' para '$role': $policy_output"
   fi
 }
 
-# Políticas para usuário autenticado
-if [[ $policies_output != *"${MINIO_BUCKET}_select_auth"* ]]; then
-  # Política de leitura para usuários autenticados
-  create_policy "${MINIO_BUCKET}_select_auth" \
-    "{\"id\": \"authenticated\", \"action\": \"select\"}" \
-    "[\"authenticated\"]"
-fi
+# Definir políticas para usuário autenticado (todas as operações)
+set_policy "select" "authenticated"
+set_policy "insert" "authenticated"
+set_policy "update" "authenticated"
+set_policy "delete" "authenticated"
 
-if [[ $policies_output != *"${MINIO_BUCKET}_insert_auth"* ]]; then
-  # Política de escrita para usuários autenticados
-  create_policy "${MINIO_BUCKET}_insert_auth" \
-    "{\"id\": \"authenticated\", \"action\": \"insert\"}" \
-    "[\"authenticated\"]"
-fi
-
-if [[ $policies_output != *"${MINIO_BUCKET}_update_auth"* ]]; then
-  # Política de atualização para usuários autenticados
-  create_policy "${MINIO_BUCKET}_update_auth" \
-    "{\"id\": \"authenticated\", \"action\": \"update\"}" \
-    "[\"authenticated\"]"
-fi
-
-if [[ $policies_output != *"${MINIO_BUCKET}_delete_auth"* ]]; then
-  # Política de exclusão para usuários autenticados
-  create_policy "${MINIO_BUCKET}_delete_auth" \
-    "{\"id\": \"authenticated\", \"action\": \"delete\"}" \
-    "[\"authenticated\"]"
-fi
-
-# Políticas para usuário anônimo (se necessário)
-if [[ $policies_output != *"${MINIO_BUCKET}_select_anon"* ]]; then
-  # Política de leitura para usuários anônimos
-  create_policy "${MINIO_BUCKET}_select_anon" \
-    "{\"id\": \"anon\", \"action\": \"select\"}" \
-    "[\"anon\"]"
-fi
+# Definir política para usuário anônimo (apenas leitura)
+set_policy "select" "anon"
 
 log "✅ Políticas do bucket configuradas com sucesso!"
 
