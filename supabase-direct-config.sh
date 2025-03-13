@@ -69,7 +69,7 @@ if ! command -v curl &> /dev/null; then
 fi
 
 # Verificar se o bucket já está registrado na API do Supabase
-bucket_check_output=$(curl -s -X GET "$SUPABASE_URL/storage/v1/bucket/$MINIO_BUCKET" \
+bucket_check_output=$(curl -s -X GET "$SUPABASE_URL/storage/v1/buckets/$MINIO_BUCKET" \
   -H "apikey: $SUPABASE_SERVICE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_KEY")
 
@@ -80,7 +80,7 @@ else
   log "Bucket '$MINIO_BUCKET' não está registrado no Supabase Dashboard. Registrando..."
   
   # Registrar o bucket via API do Supabase
-  bucket_create_output=$(curl -s -X POST "$SUPABASE_URL/storage/v1/bucket" \
+  bucket_create_output=$(curl -s -X POST "$SUPABASE_URL/storage/v1/buckets" \
     -H "apikey: $SUPABASE_SERVICE_KEY" \
     -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
     -H "Content-Type: application/json" \
@@ -108,15 +108,21 @@ set_policy() {
   log "Configurando política de '$operation' para '$role' no bucket '$MINIO_BUCKET'..."
   
   # URL correta para definir políticas
-  policy_url="$SUPABASE_URL/storage/v1/bucket/$MINIO_BUCKET/policy/$role/$operation"
+  policy_url="$SUPABASE_URL/storage/v1/buckets/$MINIO_BUCKET/policies"
   
-  policy_output=$(curl -s -X PUT "$policy_url" \
+  policy_output=$(curl -s -X POST "$policy_url" \
     -H "apikey: $SUPABASE_SERVICE_KEY" \
     -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"allowed\": true}")
+    -d "{
+      \"name\": \"${role}_${operation}\",
+      \"definition\": {
+        \"role\": \"${role}\",
+        \"operations\": [\"${operation}\"]
+      }
+    }")
   
-  if [[ $policy_output == *"true"* ]] || [[ $policy_output == *"allowed"* ]]; then
+  if [[ $policy_output == *"name"* ]]; then
     log "✅ Política de '$operation' para '$role' configurada com sucesso!"
   else
     log "❌ ERRO ao configurar política de '$operation' para '$role': $policy_output"
