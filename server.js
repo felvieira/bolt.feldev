@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
-import { getRedis } from "/app/utils/redis-session.server";
+import { getRedis } from "/app/utils/redis-session.server.js";
 import crypto from "crypto";
 
 // -----------------------------------------------------------------------------
