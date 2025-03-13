@@ -7,6 +7,7 @@ echo "SUPABASE_URL presente: ${SUPABASE_URL:+yes}"
 echo "SUPABASE_ANON_KEY presente: ${SUPABASE_ANON_KEY:+yes}"
 echo "SUPABASE_SERVICE_KEY presente: ${SUPABASE_SERVICE_KEY:+yes}"
 echo "SESSION_SECRET presente: ${SESSION_SECRET:+yes}"
+echo "REDIS_URL presente: ${REDIS_URL:+yes}"
 
 if [ -z "${SESSION_SECRET}" ]; then
   echo "WARNING: SESSION_SECRET não definido."
@@ -20,21 +21,14 @@ else
   echo "Variáveis do Supabase definidas."
 fi
 
-# Verifica se a pasta build/server existe, se não, faz o build
-if [ ! -d "/app/build/server" ] || [ ! -f "/app/build/server/index.js" ]; then
-  echo "Build directory or server file not found, running build..."
-  pnpm run build
-  
-  # Verify build was successful
-  if [ ! -f "/app/build/server/index.js" ]; then
-    echo "ERROR: Build failed, server file still not found!"
-    exit 1
-  else
-    echo "Build completed successfully!"
-  fi
+if [ -z "${REDIS_URL}" ]; then
+  echo "WARNING: REDIS_URL não definido. Usando fallback para cookie storage."
 else
-  echo "Build directory found, skipping build."
+  echo "REDIS_URL definido. Tentando conectar ao Redis."
 fi
+
+# Removido o bloco de verificação e execução do build
+# O build agora é feito durante a criação da imagem Docker
 
 # Iniciar o servidor Express diretamente
 echo "Iniciando servidor Express..."
