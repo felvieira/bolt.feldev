@@ -1,4 +1,4 @@
-import { type Request, type Response } from 'express';
+import express from 'express';
 import { createDataStream, generateId } from 'ai';
 import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS, type FileMap } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/common/prompts/prompts';
@@ -8,6 +8,10 @@ import { createScopedLogger } from '~/utils/logger';
 import type { ContextAnnotation, ProgressAnnotation } from '~/types/context';
 import { WORK_DIR } from '~/utils/constants';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 // Create a placeholder that we'll replace with the dynamic import
 const createApiHandlerPlaceholder = (handler) => handler;
