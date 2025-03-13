@@ -1,7 +1,6 @@
 // app/root.tsx
-import { json, redirect, type LoaderFunction } from '@remix-run/node';
 import { useStore } from '@nanostores/react';
-import type { LinksFunction } from '@remix-run/node';
+import { json, redirect, type LoaderFunction, type LinksFunction } from '@remix-run/node';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
@@ -15,8 +14,8 @@ import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
 
-import { json, type LoaderFunction } from '@remix-run/node';
 import { requireAuth } from '~/utils/auth.server';
+import { logStore } from './lib/stores/logs';
 
 export const links: LinksFunction = () => [
   {
@@ -115,8 +114,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </>
   );
 }
-
-import { logStore } from './lib/stores/logs';
 
 export default function App() {
   const theme = useStore(themeStore);
