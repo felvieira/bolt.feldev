@@ -99,6 +99,12 @@ export function createApiHandler(
   return async function apiHandler(args: { context: ExpressAppContext, request: Request, params: any }) {
     try {
       const { context, request } = args;
+      
+      // Better request body handling for both Express and Remix requests
+      if (request.body && typeof request.body !== 'string' && !(request.body instanceof ReadableStream)) {
+        request.body = JSON.stringify(request.body);
+      }
+      
       // Create a mock Express response object that doesn't actually send responses
       const mockResponse: Partial<Response> = {
         status: (code: number) => mockResponse,
