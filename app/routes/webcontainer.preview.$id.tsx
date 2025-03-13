@@ -1,7 +1,11 @@
-import { Request, Response } from 'express';
+import express from 'express';
 import { useLoaderData } from '@remix-run/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 const PREVIEW_CHANNEL = 'preview-updates';
 
