@@ -1,4 +1,5 @@
 // app/root.tsx
+import { json, redirect, type LoaderFunction } from '@remix-run/node';
 import { useStore } from '@nanostores/react';
 import type { LinksFunction } from '@remix-run/node';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
