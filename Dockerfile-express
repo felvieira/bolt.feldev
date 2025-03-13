@@ -16,7 +16,7 @@ RUN npm install -g npm@latest && \
 RUN pnpm install
 
 # --- Início do estágio de Build ---
-FROM base AS build
+FROM base AS builder
 WORKDIR /app
 COPY . .
 
@@ -36,7 +36,7 @@ RUN if [ ! -f "/app/build/server/index.js" ]; then \
     fi
 
 # --- Início do estágio de Production ---
-FROM node:20.18.0-bookworm-slim AS production
+FROM node:20.18.0-bookworm-slim
 WORKDIR /app
 
 # Define argumentos de build para segredos e variáveis de ambiente
@@ -58,11 +58,11 @@ ENV NODE_ENV=${NODE_ENV:-production} \
     REDIS_URL=${REDIS_URL}
 
 # Copia apenas os arquivos necessários do estágio de build
-COPY --from=build /app/build ./build
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./
-COPY --from=build /app/server.js ./
-COPY --from=build /app/express-entrypoint.sh ./
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/server.js ./
+COPY --from=builder /app/express-entrypoint.sh ./
 
 # Garantir que o script de entrypoint tenha permissão de execução
 RUN chmod +x ./express-entrypoint.sh
