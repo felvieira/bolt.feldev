@@ -1,10 +1,14 @@
 // app/routes/login.tsx
-import { Request, Response } from 'express';
+import express from 'express';
 import { Form, useActionData } from '@remix-run/react';
 import { Header } from '~/components/header/Header';
 import { useState } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 export const action = async (args: { context: ExpressAppContext, request: Request }) => {
   // Dynamically import server modules
