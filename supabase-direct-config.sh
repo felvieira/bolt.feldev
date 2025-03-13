@@ -18,17 +18,16 @@ CHECK_TABLE="chats"
 # Nome do bucket no MinIO
 MINIO_BUCKET="bolt-app-files"
 
-# Usar variáveis de ambiente diretamente (definidas no Coolify)
-MINIO_HOST=${SUPABASE_MINIO_HOST}
-MINIO_PORT=${SUPABASE_MINIO_PORT:-9000}
-MINIO_USER=${SERVICE_USER_MINIO}
-MINIO_PASSWORD=${SERVICE_PASSWORD_MINIO}
+# Configurações Supabase
+SUPABASE_URL=${SUPABASE_URL:-"https://supabase.cantodorei.com.br"}
+SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
 
-PG_HOST=${SUPABASE_DB_HOST}
-PG_PORT=${SUPABASE_DB_PORT:-5432}
-PG_USER=${PG_USER:-postgres}
-PG_PASSWORD=${PG_PASSWORD}
-PG_DATABASE=${PG_DATABASE:-postgres}
+# Usar nomes de container completos com sufixos
+PG_HOST="supabase-db-mk0sogoswoss8c48480sogc0"
+PG_PORT="5432"
+PG_USER="postgres"
+PG_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+PG_DATABASE="postgres"
 
 # Função para logging
 log() {
@@ -48,107 +47,52 @@ log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DIRETA DO SUPABASE ==="
 log "Registrando em: $LOG_FILE"
 
 echo "###############################################################################"
-echo "# 1. VERIFICAR CONEXÃO COM MINIO"
+echo "# 1. VERIFICAR BUCKET USANDO A API DO SUPABASE"
 echo "###############################################################################"
 echo ""
-log "Verificando conexão com MinIO..."
+log "Verificando se o bucket está registrado no Supabase Storage..."
 
-# Verificar se variáveis obrigatórias estão definidas
-if [ -z "$MINIO_HOST" ] || [ -z "$MINIO_USER" ] || [ -z "$MINIO_PASSWORD" ]; then
-  handle_error "Variáveis SUPABASE_MINIO_HOST, SERVICE_USER_MINIO ou SERVICE_PASSWORD_MINIO não definidas." "fatal"
+# Instalar curl se não estiver disponível
+if ! command -v curl &> /dev/null; then
+    log "curl não encontrado, instalando..."
+    apt-get update && apt-get install -y curl
 fi
 
-# Verificar se o MinIO client está instalado
-if ! command -v mc &> /dev/null; then
-    log "Cliente MinIO não encontrado, instalando..."
-    wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
-    chmod +x /usr/local/bin/mc
-fi
+# Verificar se o bucket já está registrado na API do Supabase
+bucket_check_output=$(curl -s -X GET "$SUPABASE_URL/storage/v1/bucket/$MINIO_BUCKET" \
+  -H "apikey: $SUPABASE_SERVICE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY")
 
-# Configurar cliente MinIO
-log "Configurando cliente MinIO (${MINIO_HOST}:${MINIO_PORT})..."
-mc alias set supabase-minio "http://${MINIO_HOST}:${MINIO_PORT}" "${MINIO_USER}" "${MINIO_PASSWORD}"
-
-if [ $? -ne 0 ]; then
-    handle_error "Não foi possível conectar ao MinIO. Verifique as credenciais e conexão." "fatal"
-fi
-
-echo "###############################################################################"
-echo "# 2. VERIFICAR/CONFIGURAR BUCKET NO MINIO"
-echo "###############################################################################"
-echo ""
-# Verificar se o bucket já existe
-log "Verificando se o bucket '$MINIO_BUCKET' já existe..."
-bucket_exists=$(mc ls supabase-minio | grep -c "$MINIO_BUCKET" || true)
-
-if [ "$bucket_exists" -eq 0 ]; then
-  log "Bucket '$MINIO_BUCKET' não existe. Criando..."
-  mc mb supabase-minio/$MINIO_BUCKET
-  
-  if [ $? -ne 0 ]; then
-    handle_error "Falha ao criar bucket no MinIO." "fatal"
-  else
-    log "Bucket '$MINIO_BUCKET' criado com sucesso!"
-  fi
+# Verifica se a resposta inclui o nome do bucket
+if [[ $bucket_check_output == *"$MINIO_BUCKET"* ]]; then
+  log "✅ Bucket '$MINIO_BUCKET' já está registrado no Supabase Dashboard."
 else
-  log "Bucket '$MINIO_BUCKET' já existe. Verificando políticas..."
+  log "Bucket '$MINIO_BUCKET' não está registrado no Supabase Dashboard. Registrando..."
+  
+  # Registrar o bucket via API do Supabase
+  bucket_create_output=$(curl -s -X POST "$SUPABASE_URL/storage/v1/bucket" \
+    -H "apikey: $SUPABASE_SERVICE_KEY" \
+    -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"id\":\"$MINIO_BUCKET\",\"name\":\"$MINIO_BUCKET\",\"public\":false}")
+  
+  if [[ $bucket_create_output == *"$MINIO_BUCKET"* ]]; then
+    log "✅ Bucket '$MINIO_BUCKET' registrado com sucesso no Supabase Dashboard!"
+  else
+    log "❌ ERRO ao registrar bucket no Supabase: $bucket_create_output"
+    # Não falhar, pois o bucket pode existir fisicamente, só não está registrado no dashboard
+  fi
 fi
 
-# Verificar política atual antes de aplicar nova
-log "Verificando políticas existentes no bucket..."
-current_policy=$(mc anonymous get supabase-minio/$MINIO_BUCKET)
-
-log "Política atual: $current_policy"
-
-# Configurar permissões no bucket
-log "Configurando permissões restritas no bucket do MinIO..."
-
-# Cria uma política de acesso personalizada
-POLICY_FILE="/tmp/bucket_policy.json"
-cat > $POLICY_FILE << EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": ["*"]
-      },
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::${MINIO_BUCKET}/*",
-        "arn:aws:s3:::${MINIO_BUCKET}"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:UserAgent": "bolt-app-client"
-        }
-      }
-    }
-  ]
-}
-EOF
-
-# Aplica a política ao bucket
-mc anonymous set none supabase-minio/$MINIO_BUCKET
-mc policy set $POLICY_FILE supabase-minio/$MINIO_BUCKET
-
-log "=== Bucket configurado com permissões adequadas ==="
-
 echo "###############################################################################"
-echo "# 3. VERIFICAR CONEXÃO COM POSTGRESQL"
+echo "# 2. VERIFICAR CONEXÃO COM POSTGRESQL"
 echo "###############################################################################"
 echo ""
 log "Verificando conexão com PostgreSQL..."
 
 # Verificar se variáveis obrigatórias estão definidas
-if [ -z "$PG_HOST" ] || [ -z "$PG_PASSWORD" ]; then
-  handle_error "Variáveis SUPABASE_DB_HOST ou PG_PASSWORD não definidas." "fatal"
+if [ -z "$PG_PASSWORD" ]; then
+  handle_error "Variável SERVICE_PASSWORD_POSTGRES não definida." "fatal"
 fi
 
 # Verificar se cliente PostgreSQL está instalado
@@ -168,7 +112,7 @@ fi
 log "Conexão com PostgreSQL estabelecida com sucesso."
 
 echo "###############################################################################"
-echo "# 4. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
+echo "# 3. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
 echo "###############################################################################"
 echo ""
 log "Verificando se o schema auth e a tabela chats já existem..."
@@ -229,7 +173,7 @@ else
 fi
 
 echo "###############################################################################"
-echo "# 5. APLICAR MIGRAÇÕES SE NECESSÁRIO"
+echo "# 4. APLICAR MIGRAÇÕES SE NECESSÁRIO"
 echo "###############################################################################"
 echo ""
 if [ "$should_run_migrations" = true ]; then
@@ -270,7 +214,7 @@ if [ "$should_run_migrations" = true ]; then
   fi
 
   echo "###############################################################################"
-  echo "# 6. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
+  echo "# 5. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
   echo "###############################################################################"
   echo ""
   log "=== Verificando se a tabela '$CHECK_TABLE' existe ==="
@@ -291,7 +235,7 @@ else
 fi
 
 echo "###############################################################################"
-echo "# 7. INFORMAÇÕES PARA TROUBLESHOOTING"
+echo "# 6. INFORMAÇÕES PARA TROUBLESHOOTING"
 echo "###############################################################################"
 echo ""
 log "=== INFORMAÇÕES PARA TROUBLESHOOTING ==="
@@ -302,6 +246,6 @@ log "Para listar todas as tabelas públicas:"
 log "\\dt"
 log ""
 log "Para ver o conteúdo da tabela $CHECK_TABLE (se existir):"
-log "SELECT * FROM $CHECK_TABLE LIMIT 10;"
+log "SELECT * FROM chats LIMIT 10;"
 
 log "=== CONFIGURAÇÃO DIRETA DO SUPABASE FINALIZADA! ==="
