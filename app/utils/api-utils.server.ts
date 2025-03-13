@@ -1,7 +1,11 @@
 // app/utils/api-utils.server.ts
-import type { Request, Response } from 'express';
+import express from 'express';
 import { json } from '@remix-run/node';
 import type { ExpressAppContext } from './express-context-adapter.server';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 /**
  * Helper for handling API errors consistently across Express routes
