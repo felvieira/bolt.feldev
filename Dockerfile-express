@@ -63,9 +63,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/server.js ./
 COPY --from=builder /app/express-entrypoint.sh ./
+COPY --from=builder /app/supabase-direct-config.sh ./
 
 # Garantir que o script de entrypoint tenha permissão de execução
-RUN chmod +x ./express-entrypoint.sh
+RUN chmod +x ./express-entrypoint.sh ./supabase-direct-config.sh
 
 # Cria uma versão básica dos arquivos de ambiente
 RUN echo "### Criando arquivos de ambiente básicos ###" && \
