@@ -21,18 +21,30 @@ WORKDIR /app
 COPY . .
 
 # Ajusta permissões e corrige finais de linha (LF vs CRLF) para o script express-entrypoint.sh
-# Nota: supabase-config.sh será executado no host, não no container
 RUN chmod +x ./express-entrypoint.sh && \
     sed -i 's/\r$//' ./express-entrypoint.sh
 
+# Executa o build durante a criação da imagem
+RUN pnpm run build
+
+# Verify build was successful
+RUN if [ ! -f "/app/build/server/index.js" ]; then \
+    echo "ERROR: Build failed, server file not found!" && \
+    exit 1; \
+    else \
+    echo "Build completed successfully!"; \
+    fi
+
 # --- Início do estágio de Production ---
-FROM build AS production
+FROM node:20.18.0-bookworm-slim AS production
+WORKDIR /app
 
 # Define argumentos de build para segredos e variáveis de ambiente
 ARG SESSION_SECRET
 ARG SUPABASE_URL
 ARG SUPABASE_SERVICE_KEY
 ARG SUPABASE_ANON_KEY
+ARG REDIS_URL
 ARG NODE_ENV
 ARG RUNNING_IN_DOCKER=true
 
@@ -42,9 +54,20 @@ ENV NODE_ENV=${NODE_ENV:-production} \
     SESSION_SECRET=${SESSION_SECRET} \
     SUPABASE_URL=${SUPABASE_URL} \
     SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY} \
-    SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+    SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
+    REDIS_URL=${REDIS_URL}
 
-# Cria uma versão básica dos arquivos de ambiente (que serão posteriormente atualizados pelo entrypoint)
+# Copia apenas os arquivos necessários do estágio de build
+COPY --from=build /app/build ./build
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
+COPY --from=build /app/server.js ./
+COPY --from=build /app/express-entrypoint.sh ./
+
+# Garantir que o script de entrypoint tenha permissão de execução
+RUN chmod +x ./express-entrypoint.sh
+
+# Cria uma versão básica dos arquivos de ambiente
 RUN echo "### Criando arquivos de ambiente básicos ###" && \
     { \
       echo "# .env.local - para o runtime da aplicação"; \
@@ -52,6 +75,7 @@ RUN echo "### Criando arquivos de ambiente básicos ###" && \
       echo "SUPABASE_URL=${SUPABASE_URL}"; \
       echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"; \
       echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}"; \
+      echo "REDIS_URL=${REDIS_URL}"; \
       echo "DATABASE_URL=${DATABASE_URL}"; \
       echo "NODE_ENV=${NODE_ENV:-production}"; \
       echo "RUNNING_IN_DOCKER=true"; \
