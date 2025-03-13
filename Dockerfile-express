@@ -35,6 +35,8 @@ RUN if [ ! -f "/app/build/server/index.js" ]; then \
     echo "Build completed successfully!"; \
     fi
 
+RUN find /app -name "redis-session.server.js" -type f
+
 # --- Início do estágio de Production ---
 FROM node:20.18.0-bookworm-slim
 WORKDIR /app
