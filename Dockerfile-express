@@ -66,7 +66,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/server.js ./
 COPY --from=builder /app/express-entrypoint.sh ./
 COPY --from=builder /app/supabase-direct-config.sh ./
-COPY --from=builder /app/app/utils/redis-session.server.js ./app/utils/
+COPY --from=builder /app/utils/redis-session.server.js ./app/utils/
 
 # Garantir que o script de entrypoint tenha permissão de execução
 RUN chmod +x ./express-entrypoint.sh ./supabase-direct-config.sh
