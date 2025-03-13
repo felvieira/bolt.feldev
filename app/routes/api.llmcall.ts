@@ -1,9 +1,13 @@
-import { type Request, type Response } from 'express';
+import express from 'express';
 import type { ProviderInfo } from '~/types/model';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
 import { createScopedLogger } from '~/utils/logger';
 import { PROVIDER_LIST } from '~/utils/constants';
 import { MAX_TOKENS } from '~/lib/.server/llm/constants';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 const logger = createScopedLogger('api.llmcall');
 
