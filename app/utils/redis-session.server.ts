@@ -1,7 +1,7 @@
 // app/utils/redis-session.server.ts
 import { createClient } from 'redis';
 import { createSessionStorage } from '@remix-run/node';
-import { createRedisSessionStorage } from 'connect-redis';
+import RedisStore from 'connect-redis';
 import { getEnvVar } from './express-context-adapter.server';
 import type { ExpressAppContext } from './express-context-adapter.server';
 
@@ -31,7 +31,7 @@ const getRedisClient = (context?: ExpressAppContext) => {
 let redisClient: ReturnType<typeof createClient> | null = null;
 
 // Create the session storage with Redis
-export const createRedisSessionStorage = async (context?: ExpressAppContext) => {
+export const createRedisSessionStore = async (context?: ExpressAppContext) => {
   // Initialize Redis client if not already connected
   if (!redisClient) {
     redisClient = getRedisClient(context);
@@ -60,7 +60,7 @@ export const createRedisSessionStorage = async (context?: ExpressAppContext) => 
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 8, // 8 hours (in seconds)
     },
-    storage: createRedisSessionStorage({
+    storage: new RedisStore({
       client: redisClient,
       prefix: 'bolt:sess:',
       ttl: 60 * 60 * 8 // 8 hours (in seconds)
