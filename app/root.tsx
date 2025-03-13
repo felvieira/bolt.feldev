@@ -57,7 +57,7 @@ const inlineThemeCode = stripIndents`
 `;
 
 // Works with both Express and Remix loaders
-export const loader: LoaderFunction = async ({ request }) => {
+export const loader: LoaderFunction = async ({ request, context }) => {
   // Handle both Express Request objects and Remix Request objects
   const url = request instanceof Request 
     ? request.url 
@@ -71,9 +71,22 @@ export const loader: LoaderFunction = async ({ request }) => {
   }
 
   // Check auth for all other routes
-  await requireAuth(request);
-
-  return json({});
+  try {
+    await requireAuth(request, context);
+    return json({});
+  } catch (error) {
+    if (error instanceof Response && error.status === 302) {
+      throw error; // Rethrow redirects
+    }
+    
+    console.error("Auth error:", error);
+    // For the login page, just return an empty object instead of showing an error
+    if (pathname === '/login') {
+      return json({});
+    }
+    
+    throw redirect('/login');
+  }
 };
 
 export const Head = createHead(() => (
