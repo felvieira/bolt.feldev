@@ -1,7 +1,11 @@
-import { type Request, type Response } from 'express';
+import express from 'express';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { ProviderInfo } from '~/types/model';
 import type { ExpressAppContext } from '~/utils/express-context-adapter.server';
+
+// Use type em vez de importação direta
+type Request = express.Request;
+type Response = express.Response;
 
 interface ModelsResponse {
   modelList: ModelInfo[];
