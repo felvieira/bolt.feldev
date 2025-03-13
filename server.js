@@ -8,7 +8,6 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
-import { getRedis } from "/utils/redis-session.server.js";
 import crypto from "crypto";
 
 // -----------------------------------------------------------------------------
@@ -22,6 +21,61 @@ console.log("- Current directory:", process.cwd());
 console.log("- __dirname:", __dirname);
 console.log("- NODE_ENV:", process.env.NODE_ENV || "development");
 console.log("- Expecting Remix build at:", path.join(__dirname, "build/server/index.js"));
+
+// -----------------------------------------------------------------------------
+// Function to find a file recursively
+function findFile(directory, filename) {
+  console.log(`Searching for ${filename} in ${directory}...`);
+  let results = [];
+  
+  try {
+    const files = fs.readdirSync(directory);
+    
+    for (const file of files) {
+      const filePath = path.join(directory, file);
+      const stats = fs.statSync(filePath);
+      
+      if (stats.isDirectory()) {
+        // Skip node_modules to avoid excessive searching
+        if (file !== 'node_modules') {
+          results = results.concat(findFile(filePath, filename));
+        }
+      } else if (file === filename) {
+        console.log(`Found ${filename} at ${filePath}`);
+        results.push(filePath);
+      }
+    }
+  } catch (err) {
+    console.error(`Error searching directory ${directory}:`, err);
+  }
+  
+  return results;
+}
+
+// Find all occurrences of the file
+const rootDir = '/app'; // Docker container root
+const fileName = 'redis-session.server.js';
+console.log(`Searching for ${fileName} under ${rootDir}...`);
+const foundFiles = findFile(rootDir, fileName);
+
+let getRedis;
+
+if (foundFiles.length > 0) {
+  try {
+    console.log(`Attempting to import from ${foundFiles[0]}...`);
+    const redisModule = await import(`file://${foundFiles[0]}`);
+    getRedis = redisModule.getRedis;
+    console.log('Successfully imported Redis module!');
+  } catch (err) {
+    console.error('Failed to import Redis module:', err);
+    // Log error but don't fail the process
+    console.error('The server will continue, but Redis functionality will not work');
+  }
+} else {
+  console.error(`Could not find ${fileName} in ${rootDir}`);
+  // Log error but don't fail the process
+  console.error('The server will continue, but Redis functionality will not work');
+}
 
 // -----------------------------------------------------------------------------
 // Verifica se build do Remix existe
@@ -53,19 +107,24 @@ let redisClient;
 let redisStore;
 
 try {
-  console.log("Attempting to connect to Redis using redis-session module...");
-  // Use the existing Redis utility from redis-session.server.js
-  redisClient = await getRedis();
-  console.log("Redis client retrieved successfully");
-  
-  // Create Redis store
-  redisStore = new RedisStore({
-    client: redisClient,
-    prefix: "bolt:sess:",
-  });
-  console.log("Redis session store initialized");
+  if (getRedis) {
+    console.log("Attempting to connect to Redis using redis-session module...");
+    // Use the existing Redis utility from redis-session.server.js
+    redisClient = await getRedis();
+    console.log("Redis client retrieved successfully");
+    
+    // Create Redis store
+    redisStore = new RedisStore({
+      client: redisClient,
+      prefix: "bolt:sess:",
+    });
+    console.log("Redis session store initialized");
+  } else {
+    console.warn("Redis module not found, session store will use memory instead");
+  }
 } catch (error) {
-  console.warn("Failed to connect to Redis, falling back to memory store:", error);
+  console.warn("Failed to connect to Redis:", error);
+  console.warn("The application will run without Redis, some features may not work correctly");
 }
 
 // -----------------------------------------------------------------------------
