@@ -9,7 +9,7 @@
     "**/isomorphic-git/*",
     "**/framer-motion/*"
   ],
-  "type": "module", // Adicionado explicitamente para garantir que use ESM
+  "type": "module",
   "version": "0.0.6",
   "scripts": {
     "deploy": "npm run build",
