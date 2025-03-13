@@ -1,6 +1,8 @@
 import express from "express";
 import compression from "compression";
 import session from "express-session";
+import { createClient } from "redis";
+import RedisStore from "connect-redis";
 import { createRequestHandler } from "@remix-run/express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -45,6 +47,38 @@ try {
 }
 
 // -----------------------------------------------------------------------------
+// Redis client setup
+let redisClient;
+let redisStore;
+
+try {
+  console.log("Attempting to connect to Redis...");
+  redisClient = createClient({
+    url: process.env.REDIS_URL || "redis://localhost:6379",
+    socket: {
+      reconnectStrategy: (retries) => Math.min(retries * 50, 2000)
+    }
+  });
+
+  redisClient.on("error", (err) => {
+    console.error("Redis connection error:", err);
+  });
+
+  // Initialize Redis client
+  await redisClient.connect();
+  console.log("Connected to Redis successfully");
+  
+  // Create Redis store
+  redisStore = new RedisStore({
+    client: redisClient,
+    prefix: "bolt:sess:",
+  });
+  console.log("Redis session store initialized");
+} catch (error) {
+  console.warn("Failed to connect to Redis, falling back to memory store:", error);
+}
+
+// -----------------------------------------------------------------------------
 // Cria app Express
 const app = express();
 
@@ -59,6 +93,7 @@ if (!sessionSecret) {
 app.use(cookieParser());
 app.use(
   session({
+    store: redisStore || undefined, // Fall back to default MemoryStore if Redis not available
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
@@ -121,6 +156,9 @@ app.get("/health", (req, res) => {
     environment: process.env.NODE_ENV || "development",
     version: process.env.npm_package_version || "unknown",
     uptime: process.uptime(),
+    redis: {
+      connected: redisClient?.isReady || false
+    },
     supabase: {
       url: process.env.SUPABASE_URL ? "set ✓" : "not set ✗",
       anonKey: process.env.SUPABASE_ANON_KEY ? "set ✓" : "not set ✗",
@@ -138,7 +176,13 @@ app.all(
     mode: process.env.NODE_ENV || "production",
     getLoadContext(req, res) {
       // Disponibiliza env e req/res se precisar
-      return { env: { ...process.env }, req, res };
+      return { 
+        env: { ...process.env }, 
+        req, 
+        res,
+        // Provide redis client to the context if available
+        redis: redisClient?.isReady ? redisClient : undefined
+      };
     }
   })
 );
@@ -151,6 +195,16 @@ app.use((err, req, res, next) => {
     message: "Internal Server Error",
     ...(process.env.NODE_ENV !== "production" && { error: err?.message })
   });
+});
+
+// Graceful shutdown to close Redis connection
+process.on('SIGINT', async () => {
+  console.log('Shutting down server...');
+  if (redisClient?.isReady) {
+    console.log('Closing Redis connection...');
+    await redisClient.quit();
+  }
+  process.exit(0);
 });
 
 // -----------------------------------------------------------------------------
@@ -167,5 +221,7 @@ app.listen(port, () => {
   console.log(`NODE_ENV: ${process.env.NODE_ENV || "development"}`);
   console.log(`SESSION_SECRET: ${sessionSecret ? "Set ✓" : "Not set ✗"}`);
   console.log(`SUPABASE_URL: ${process.env.SUPABASE_URL ? "Set ✓" : "Not set ✗"}`);
+  console.log(`REDIS_URL: ${process.env.REDIS_URL ? "Set ✓" : "Default (localhost:6379)"}`);
+  console.log(`REDIS Connected: ${redisClient?.isReady ? "Yes ✓" : "No ✗ (using memory store)"}`);
   console.log("★═══════════════════════════════════════★");
 });
