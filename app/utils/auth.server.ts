@@ -8,13 +8,13 @@ import type { ExpressAppContext } from './express-context-adapter.server';
  * Check if a user is authenticated and redirect to login if not.
  * Compatible with both Express and Remix request objects.
  */
-export async function requireAuth(request: Request | Express.Request) {
+export async function requireAuth(request: Request | Express.Request, context?: ExpressAppContext) {
   // Get session - works with either Express or Remix requests
   const session = 'headers' in request && typeof request.headers.get !== 'function' 
-    ? await getSessionFromRequest(request)
-    : await getSession(request.headers.get('Cookie'));
+    ? await getSessionFromRequest(request, context)
+    : await getSession(request.headers.get('Cookie'), context);
 
-  const accessToken = session?.access_token;
+  const accessToken = session?.get('access_token');
   
   // If no access token, redirect to login
   if (!accessToken) {
@@ -28,10 +28,10 @@ export async function requireAuth(request: Request | Express.Request) {
     // Use appropriate client based on request type
     if ('headers' in request && typeof request.headers.get !== 'function') {
       // Express request
-      supabaseClient = getSupabaseClientFromRequest(request);
+      supabaseClient = getSupabaseClientFromRequest(request, context);
     } else {
       // Remix request
-      supabaseClient = getSupabaseClient();
+      supabaseClient = getSupabaseClient(context);
       
       // Set auth manually for Remix requests
       supabaseClient.auth.setSession({
@@ -50,16 +50,5 @@ export async function requireAuth(request: Request | Express.Request) {
   } catch (error) {
     // Clear invalid session and redirect to login
     throw redirect('/login');
-  }
-}
-
-/**
- * Get current user if authenticated, or return null
- */
-export async function getCurrentUser(request: Request | Express.Request) {
-  try {
-    return await requireAuth(request);
-  } catch (error) {
-    return null;
   }
 }
