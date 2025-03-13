@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+echo ""
 echo "###############################################################################"
 echo "# 0. DEFINIÇÕES E VARIÁVEIS GLOBAIS"
 echo "###############################################################################"
@@ -56,6 +56,7 @@ handle_error() {
 log "=== INICIANDO SCRIPT DE CONFIGURAÇÃO DIRETA DO SUPABASE ==="
 log "Registrando em: $LOG_FILE"
 
+echo ""
 echo "###############################################################################"
 echo "# 1. VERIFICAR BUCKET USANDO A API DO SUPABASE"
 echo "###############################################################################"
@@ -94,6 +95,7 @@ else
   fi
 fi
 
+echo ""
 echo "###############################################################################"
 echo "# 2. CONFIGURAR POLÍTICAS PARA O BUCKET"
 echo "###############################################################################"
@@ -140,6 +142,7 @@ set_policy "select" "anon"
 
 log "✅ Políticas do bucket configuradas com sucesso!"
 
+echo ""
 echo "###############################################################################"
 echo "# 3. VERIFICAR CONEXÃO COM POSTGRESQL"
 echo "###############################################################################"
@@ -165,8 +168,9 @@ if [ $? -ne 0 ]; then
     handle_error "Não foi possível conectar ao PostgreSQL. Verifique as credenciais e conexão." "fatal"
 fi
 
+echo ""
 log "Conexão com PostgreSQL estabelecida com sucesso."
-
+echo ""
 echo "###############################################################################"
 echo "# 4. VERIFICAR SE O SCHEMA E TABELAS JÁ EXISTEM"
 echo "###############################################################################"
@@ -227,7 +231,7 @@ else
     fi
   fi
 fi
-
+echo ""
 echo "###############################################################################"
 echo "# 5. APLICAR MIGRAÇÕES SE NECESSÁRIO"
 echo "###############################################################################"
@@ -268,7 +272,7 @@ if [ "$should_run_migrations" = true ]; then
   else
     log "=== Execução das migrações concluída com sucesso. ==="
   fi
-
+  echo ""
   echo "###############################################################################"
   echo "# 6. VERIFICAR SE AS MIGRAÇÕES FORAM APLICADAS"
   echo "###############################################################################"
@@ -289,19 +293,5 @@ if [ "$should_run_migrations" = true ]; then
 else
   log "Migrações não serão executadas pois as tabelas e índices já existem."
 fi
-
-echo "###############################################################################"
-echo "# 7. INFORMAÇÕES PARA TROUBLESHOOTING"
-echo "###############################################################################"
-echo ""
-log "=== INFORMAÇÕES PARA TROUBLESHOOTING ==="
-log "Para conectar ao banco de dados manualmente, use:"
-log "PGPASSWORD='$PG_PASSWORD' psql -h $PG_HOST -p $PG_PORT -U $PG_USER -d $PG_DATABASE"
-log ""
-log "Para listar todas as tabelas públicas:"
-log "\\dt"
-log ""
-log "Para ver o conteúdo da tabela $CHECK_TABLE (se existir):"
-log "SELECT * FROM chats LIMIT 10;"
 
 log "=== CONFIGURAÇÃO DIRETA DO SUPABASE FINALIZADA! ==="
