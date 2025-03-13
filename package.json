@@ -116,6 +116,8 @@
     "remix-utils": "^7.7.0",
     "shiki": "^1.24.0",
     "unist-util-visit": "^5.0.0"
+    "connect-redis": "^7.1.0",
+    "redis": "^4.6.12"
   },
   "devDependencies": {
     "@blitz/eslint-plugin": "0.1.0",
@@ -146,6 +148,8 @@
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^2.1.7",
     "zod": "^3.24.1"
+    "connect-redis": "^7.1.0",
+    "redis": "^4.6.12"
   },
   "resolutions": {
     "@typescript-eslint/utils": "^8.0.0-alpha.30"
