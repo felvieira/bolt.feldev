@@ -7,7 +7,7 @@ export default {
 
   // Quando o navegador requisita "/assets/algumArquivo.js", 
   // o Remix gerará esse "algumArquivo.js" dentro de "build/client/assets/"
-  publicPath: "/",  // Changed from "/assets/" to allow root-level asset serving
+  publicPath: "/assets/",  
 
   // Onde sairão os arquivos do backend
   serverBuildPath: "build/server/index.js",
