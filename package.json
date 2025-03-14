@@ -13,8 +13,8 @@
   "version": "0.0.6",
   "scripts": {
     "deploy": "npm run build",
-    "build": "node -e \"process.env.NODE_NO_WARNINGS='1'; require('child_process').spawnSync('remix', ['vite:build'], { stdio: 'inherit', shell: true });\"",
-    "dev": "node pre-start.cjs && remix vite:dev",
+    "build": "node -e \"process.env.NODE_NO_WARNINGS='1'; import('./pre-start.js').then(() => { import('@remix-run/dev').then(remix => remix.build()); });\"",
+    "dev": "node pre-start.js && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint app",
@@ -152,5 +152,5 @@
   "resolutions": {
     "@typescript-eslint/utils": "^8.0.0-alpha.30"
   },
-  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b634981b2f827cdcacc698cc0cfb88af"
+  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b834981b2f827cdcacc698cc0cfb88af"
 }
