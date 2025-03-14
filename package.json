@@ -8,6 +8,7 @@
     "**/buffer/*",
     "**/isomorphic-git/*",
     "**/framer-motion/*"
+    "**/utils/env-bridge.server.js"
   ],
   "type": "module",
   "version": "0.0.6",
