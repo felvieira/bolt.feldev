@@ -1,4 +1,4 @@
-// Converter para ECMAScript modules
+// Arquivo renomeado para pre-start.mjs para indicar que usa ESM
 import { execSync } from 'child_process';
 
 // Get git hash with fallback
