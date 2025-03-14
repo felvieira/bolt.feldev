@@ -7,7 +7,7 @@
     "*.css",
     "**/buffer/*",
     "**/isomorphic-git/*",
-    "**/framer-motion/*"
+    "**/framer-motion/*",
     "**/utils/env-bridge.server.js"
   ],
   "type": "module",
