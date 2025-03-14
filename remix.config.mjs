@@ -15,21 +15,21 @@ export default {
   serverBuildPath: "build/server/index.js",
   serverBuildTarget: "node",
 
-  // Pode manter o resto igual
+  // Mantém apenas flags de futuro relevantes e remove os obsoletos
   future: {
-    v2_dev: true,
-    v2_errorBoundary: true,
-    v2_headers: true,
-    v2_meta: true,
-    v2_normalizeFormMethod: true,
-    v2_routeConvention: true,
+    v3_fetcherPersist: true,
+    v3_relativeSplatPath: true,
+    v3_throwAbortReason: true,
+    v3_lazyRouteDiscovery: true,
+    v3_singleFetch: true,
   },
+  
   serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
   serverMinify: false,
   serverModuleFormat: "esm", // Alterado de "cjs" para "esm"
-  tailwind: true,
-  postcss: true,
+  tailwind: false, // Desativado para evitar conflitos
+  postcss: false, // Desativado para evitar conflitos
   sourcemap: true,
   devServerPort: 8002,
   server: "./app/entry.server.tsx"
