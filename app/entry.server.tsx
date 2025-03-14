@@ -5,7 +5,7 @@ import './utils/env-bridge.server.js';
 import { RemixServer } from '@remix-run/react';
 import { isbot } from 'isbot';
 import * as ReactDOMServer from 'react-dom/server';
-import { Head } from './root';
+import { Head } from './root.tsx';  // Update to include .tsx extension
 import { themeStore } from './lib/stores/theme';
 
 // Standard renderHeadToString implementation for use with remix-island
