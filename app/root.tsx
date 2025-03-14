@@ -2,13 +2,21 @@
 import { useStore } from '@nanostores/react';
 import { json, redirect, type LoaderFunction, type LinksFunction } from '@remix-run/node';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
+import tailwindReset from '@unocss/reset/tailwind-compat.css';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
 
-// Importando apenas o que é estritamente necessário
-// Removendo importações problemáticas de CSS/SCSS
+// Importações CSS simplificadas (sem query params)
+import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css';
+import xtermStyles from '@xterm/xterm/css/xterm.css';
+
+// Importar o CSS global diretamente, sem ?url ou ?inline
+import './styles/index.scss';
+
+// Importar UnoCSS de forma direta
+import 'uno.css';
 
 import { requireAuth } from '~/utils/auth.server';
 import { logStore } from './lib/stores/logs';
@@ -18,6 +26,18 @@ export const links: LinksFunction = () => [
     rel: 'icon',
     href: '/favicon.svg',
     type: 'image/svg+xml',
+  },
+  {
+    rel: 'stylesheet',
+    href: tailwindReset,
+  },
+  {
+    rel: 'stylesheet',
+    href: reactToastifyStyles,
+  },
+  {
+    rel: 'stylesheet',
+    href: xtermStyles,
   },
   {
     rel: 'preconnect',
@@ -31,15 +51,6 @@ export const links: LinksFunction = () => [
   {
     rel: 'stylesheet',
     href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-  },
-  // Adicionando links para CSS através de CDN ou arquivos estáticos
-  {
-    rel: 'stylesheet',
-    href: '/assets/xterm.css', // Assumindo que você copiará este arquivo para a pasta public/assets
-  },
-  {
-    rel: 'stylesheet',
-    href: '/assets/react-toastify.css', // Assumindo que você copiará este arquivo para a pasta public/assets
   },
 ];
 
