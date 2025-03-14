@@ -42,7 +42,7 @@ export default defineConfig((config) => {
     build: {
       target: 'esnext',
       rollupOptions: {
-        external: ['@remix-run/node', 'virtual:uno.css'],
+        external: ['@remix-run/node'],
         output: {
           // Preserve original file names and structure for static assets
           assetFileNames: (assetInfo) => {
@@ -80,6 +80,15 @@ export default defineConfig((config) => {
       scss(),  // Add SCSS support
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
+      // Add side effect plugin for env-bridge
+      {
+        name: 'side-effect-env-bridge',
+        transform(code, id) {
+          if (id.includes('utils/env-bridge.server.js')) {
+            return { code, moduleSideEffects: true };
+          }
+        }
+      }
     ],
     optimizeDeps: {
       include: ['marked', 'prismjs'],
