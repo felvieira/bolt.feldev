@@ -1,3 +1,4 @@
+// Converter para ECMAScript modules
 import { execSync } from 'child_process';
 
 // Get git hash with fallback
@@ -30,5 +31,3 @@ console.log('📍 Current Commit Version:', commitJson.hash);
 console.log('SESSION_SECRET:', process.env.SESSION_SECRET ? 'Set ✓' : 'Not set ✗');
 console.log('  Please wait until the URL appears here');
 console.log('★═══════════════════════════════════════★');
-
-export default commitJson;
