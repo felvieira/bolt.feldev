@@ -28,8 +28,8 @@ export default {
   watchPaths: ["./public"],
   serverMinify: false,
   serverModuleFormat: "esm", // Alterado de "cjs" para "esm"
-  tailwind: false, // Desativado para evitar conflitos
-  postcss: false, // Desativado para evitar conflitos
+  tailwind: true,  // Mantido habilitado para preservar a aparência
+  postcss: true,   // Mantido habilitado para preservar a aparência
   sourcemap: true,
   devServerPort: 8002,
   server: "./app/entry.server.tsx"
