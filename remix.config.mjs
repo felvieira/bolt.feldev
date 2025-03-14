@@ -1,4 +1,6 @@
-/** @type {import('@remix-run/dev').AppConfig} */
+/**
+ * @type {import('@remix-run/dev').AppConfig}
+ */
 export default {
   appDirectory: "app",
 
@@ -7,7 +9,7 @@ export default {
 
   // Quando o navegador requisita "/assets/algumArquivo.js", 
   // o Remix gerará esse "algumArquivo.js" dentro de "build/client/assets/"
-  publicPath: "/assets/",  
+  publicPath: "/assets/",
 
   // Onde sairão os arquivos do backend
   serverBuildPath: "build/server/index.js",
@@ -25,15 +27,10 @@ export default {
   serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
   serverMinify: false,
-  serverModuleFormat: "esm", 
+  serverModuleFormat: "esm", // Alterado de "cjs" para "esm"
   tailwind: true,
   postcss: true,
   sourcemap: true,
   devServerPort: 8002,
-  server: "./app/entry.server.tsx",
-  
-  // Adicionar suporte para servir arquivos estáticos de diferentes locais
-  assetsPublicPath: {
-    "/": ["build/client", "public"],
-  }
+  server: "./app/entry.server.tsx"
 };
