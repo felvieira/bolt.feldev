@@ -6,6 +6,8 @@ import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 dotenv.config();
 
@@ -25,64 +27,36 @@ const getGitHash = () => {
 
 export default defineConfig((config) => {
   const isProd = config.mode === 'production';
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
-
-      // Set NODE_ENV directly in Vite config instead of .env
       'process.env.NODE_ENV': JSON.stringify(config.mode),
-
-      /*
-       * Note: Type Stripping warning is expected and can be ignored
-       * or suppressed by running with NODE_NO_WARNINGS=1
-       */
     },
     build: {
       target: 'esnext',
       rollupOptions: {
         external: ['@remix-run/node'],
-        output: isProd
-          ? {
-              manualChunks(id) {
-                // Vendor dependencies
-                if (id.includes('node_modules')) {
-                  if (id.includes('marked') || id.includes('prismjs')) {
-                    return 'vendor';
-                  }
-
-                  if (id.includes('emacs-lisp') || id.includes('cpp')) {
-                    return 'editor-core';
-                  }
-
-                  // Split editor languages into separate chunks
-                  if (id.includes('languages')) {
-                    return 'editor-languages';
-                  }
-                }
-
-                // Split UI components into smaller chunks
-                if (id.includes('app/components')) {
-                  if (id.includes('workbench')) {
-                    return 'ui-workbench';
-                  }
-
-                  if (id.includes('chat')) {
-                    return 'ui-chat';
-                  }
-
-                  return 'ui-core';
-                }
-
-                return undefined;
-              },
+        output: {
+          // Preserve original file names and structure for static assets
+          assetFileNames: (assetInfo) => {
+            // Preserve logos, icons, and other static assets with their original path
+            if (/\.(png|jpe?g|svg|gif|ico)$/.test(assetInfo.name)) {
+              return `client/[name][extname]`;
             }
-          : undefined,
+            // For other assets, use the default naming
+            return 'client/assets/[name]-[hash][extname]';
+          },
+          // Preserve chunk names that make sense
+          chunkFileNames: 'client/assets/[name]-[hash].js',
+          entryFileNames: 'client/assets/[name]-[hash].js'
+        },
       },
-      chunkSizeWarningLimit: 2500, // Increased to reduce warnings
+      chunkSizeWarningLimit: 2500,
       minify: isProd ? 'esbuild' : false,
-      sourcemap: !isProd, // Only enable source maps in development
+      sourcemap: !isProd,
     },
     plugins: [
       nodePolyfills({
@@ -94,7 +68,7 @@ export default defineConfig((config) => {
           v3_relativeSplatPath: true,
           v3_throwAbortReason: true,
           v3_lazyRouteDiscovery: true,
-          v3_singleFetch: true, // Add support for React Router v7's single fetch
+          v3_singleFetch: true,
         },
       }),
       UnoCSS(),
