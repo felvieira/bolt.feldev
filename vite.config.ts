@@ -8,7 +8,10 @@ import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { sass } from 'vite-plugin-sass';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const scss = require('vite-plugin-sass');
 
 dotenv.config();
 
@@ -39,7 +42,7 @@ export default defineConfig((config) => {
     build: {
       target: 'esnext',
       rollupOptions: {
-        external: ['@remix-run/node'],
+        external: ['@remix-run/node', 'virtual:uno.css'],
         output: {
           // Preserve original file names and structure for static assets
           assetFileNames: (assetInfo) => {
@@ -74,7 +77,7 @@ export default defineConfig((config) => {
       }),
       UnoCSS(),
       tsconfigPaths(),
-      sass(),  // Add SCSS support
+      scss(),  // Add SCSS support
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
