@@ -13,7 +13,7 @@
   "version": "0.0.6",
   "scripts": {
     "deploy": "npm run build",
-    "build": "node -e \"process.env.NODE_NO_WARNINGS='1'; import('@remix-run/dev/dist/cli.js').then(remix => remix.build());\"",
+    "build": "node build-script.mjs",
     "dev": "node pre-start.js && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
