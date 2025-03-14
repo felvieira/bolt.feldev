@@ -11,7 +11,6 @@ import path from 'path';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const scss = require('vite-plugin-sass');
 
 dotenv.config();
 
@@ -77,7 +76,6 @@ export default defineConfig((config) => {
       }),
       UnoCSS(),
       tsconfigPaths(),
-      scss(),  // Add SCSS support
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
       // Add side effect plugin for env-bridge
