@@ -8,9 +8,7 @@ import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
+import fs from 'fs';
 
 dotenv.config();
 
@@ -28,10 +26,41 @@ const getGitHash = () => {
   }
 };
 
+// Copiar arquivos CSS necessários para a pasta public/assets
+function copyRequiredCssFiles() {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const publicAssetsDir = path.join(__dirname, 'public', 'assets');
+  
+  // Garantir que o diretório existe
+  if (!fs.existsSync(publicAssetsDir)) {
+    fs.mkdirSync(publicAssetsDir, { recursive: true });
+  }
+  
+  try {
+    // Copiar arquivo xterm.css
+    const xtermCssPath = path.join(__dirname, 'node_modules', '@xterm', 'xterm', 'css', 'xterm.css');
+    if (fs.existsSync(xtermCssPath)) {
+      fs.copyFileSync(xtermCssPath, path.join(publicAssetsDir, 'xterm.css'));
+      console.log('✅ Arquivo xterm.css copiado com sucesso');
+    }
+    
+    // Copiar arquivo react-toastify.css
+    const toastifyCssPath = path.join(__dirname, 'node_modules', 'react-toastify', 'dist', 'ReactToastify.css');
+    if (fs.existsSync(toastifyCssPath)) {
+      fs.copyFileSync(toastifyCssPath, path.join(publicAssetsDir, 'react-toastify.css'));
+      console.log('✅ Arquivo react-toastify.css copiado com sucesso');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao copiar arquivos CSS:', error);
+  }
+}
+
+// Executar a cópia dos arquivos
+copyRequiredCssFiles();
+
 export default defineConfig((config) => {
   const isProd = config.mode === 'production';
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
+  
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
@@ -41,18 +70,19 @@ export default defineConfig((config) => {
     build: {
       target: 'esnext',
       rollupOptions: {
-        external: ['@remix-run/node'],
+        external: [
+          '@remix-run/node',
+          // Marcar arquivos problemáticos como externos
+          'uno.css',
+          /\.scss$/,
+        ],
         output: {
-          // Preserve original file names and structure for static assets
           assetFileNames: (assetInfo) => {
-            // Preserve logos, icons, and other static assets with their original path
             if (/\.(png|jpe?g|svg|gif|ico)$/.test(assetInfo.name)) {
               return `client/[name][extname]`;
             }
-            // For other assets, use the default naming
             return 'client/assets/[name]-[hash][extname]';
           },
-          // Preserve chunk names that make sense
           chunkFileNames: 'client/assets/[name]-[hash].js',
           entryFileNames: 'client/assets/[name]-[hash].js'
         },
@@ -78,43 +108,11 @@ export default defineConfig((config) => {
       tsconfigPaths(),
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-      // Garantir que arquivos com efeitos colaterais sejam processados
       {
-        name: 'ensure-side-effects',
-        config(config) {
-          if (!config.optimizeDeps) config.optimizeDeps = {};
-          if (!config.optimizeDeps.include) config.optimizeDeps.include = [];
-          
-          // Adiciona suporte a CSS e SCSS
-          return {
-            ...config,
-            css: {
-              preprocessorOptions: {
-                scss: {
-                  api: 'modern-compiler',
-                  sassOptions: {
-                    outputStyle: 'compressed',
-                  }
-                },
-              },
-            },
-            // Marcar explicitamente os arquivos com efeitos colaterais
-            build: {
-              ...(config.build || {}),
-              commonjsOptions: {
-                strictRequires: true,
-              }
-            }
-          };
-        },
+        name: 'ensure-env-bridge-side-effects',
         transform(code, id) {
-          // Marcar explicitamente o arquivo env-bridge como tendo efeitos colaterais
           if (id.includes('utils/env-bridge.server')) {
-            return { code, moduleSideEffects: true };
-          }
-          // Marcar imports de CSS/SCSS como tendo efeitos colaterais
-          if (id.endsWith('.scss') || id.endsWith('.css') || id.includes('uno.css')) {
-            return { code, moduleSideEffects: true };
+            return { code, moduleSideEffects: 'no-treeshake' };
           }
         }
       }
@@ -131,23 +129,6 @@ export default defineConfig((config) => {
       'SESSION_SECRET',
       'XAI_API_KEY',
     ],
-    css: {
-      preprocessorOptions: {
-        scss: {
-          api: 'modern-compiler',
-        },
-      },
-      // Adicionar um módulo para lidar com URLs em arquivos CSS/SCSS
-      modules: {
-        localsConvention: 'camelCaseOnly',
-      }
-    },
-    resolve: {
-      // Ajudar o Vite a encontrar imports virtuais como "virtual:uno.css"
-      alias: {
-        'virtual:uno.css': path.resolve(__dirname, 'node_modules', 'unocss', 'dist', 'vite.js'),
-      }
-    }
   };
 });
 
