@@ -78,11 +78,42 @@ export default defineConfig((config) => {
       tsconfigPaths(),
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-      // Add side effect plugin for env-bridge
+      // Garantir que arquivos com efeitos colaterais sejam processados
       {
-        name: 'side-effect-env-bridge',
+        name: 'ensure-side-effects',
+        config(config) {
+          if (!config.optimizeDeps) config.optimizeDeps = {};
+          if (!config.optimizeDeps.include) config.optimizeDeps.include = [];
+          
+          // Adiciona suporte a CSS e SCSS
+          return {
+            ...config,
+            css: {
+              preprocessorOptions: {
+                scss: {
+                  api: 'modern-compiler',
+                  sassOptions: {
+                    outputStyle: 'compressed',
+                  }
+                },
+              },
+            },
+            // Marcar explicitamente os arquivos com efeitos colaterais
+            build: {
+              ...(config.build || {}),
+              commonjsOptions: {
+                strictRequires: true,
+              }
+            }
+          };
+        },
         transform(code, id) {
-          if (id.includes('utils/env-bridge.server.js')) {
+          // Marcar explicitamente o arquivo env-bridge como tendo efeitos colaterais
+          if (id.includes('utils/env-bridge.server')) {
+            return { code, moduleSideEffects: true };
+          }
+          // Marcar imports de CSS/SCSS como tendo efeitos colaterais
+          if (id.endsWith('.scss') || id.endsWith('.css') || id.includes('uno.css')) {
             return { code, moduleSideEffects: true };
           }
         }
@@ -106,7 +137,17 @@ export default defineConfig((config) => {
           api: 'modern-compiler',
         },
       },
+      // Adicionar um módulo para lidar com URLs em arquivos CSS/SCSS
+      modules: {
+        localsConvention: 'camelCaseOnly',
+      }
     },
+    resolve: {
+      // Ajudar o Vite a encontrar imports virtuais como "virtual:uno.css"
+      alias: {
+        'virtual:uno.css': path.resolve(__dirname, 'node_modules', 'unocss', 'dist', 'vite.js'),
+      }
+    }
   };
 });
 
