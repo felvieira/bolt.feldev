@@ -2,19 +2,13 @@
 import { useStore } from '@nanostores/react';
 import { json, redirect, type LoaderFunction, type LinksFunction } from '@remix-run/node';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
-import tailwindReset from '@unocss/reset/tailwind-compat.css?inline';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
 
-// Importar estilos como inline para evitar problemas de loader
-import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?inline';
-import globalStyles from './styles/index.scss?inline';
-import xtermStyles from '@xterm/xterm/css/xterm.css?inline';
-
-// Importar UnoCSS diretamente do plugin
-import 'uno.css';
+// Importando apenas o que é estritamente necessário
+// Removendo importações problemáticas de CSS/SCSS
 
 import { requireAuth } from '~/utils/auth.server';
 import { logStore } from './lib/stores/logs';
@@ -37,6 +31,15 @@ export const links: LinksFunction = () => [
   {
     rel: 'stylesheet',
     href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+  },
+  // Adicionando links para CSS através de CDN ou arquivos estáticos
+  {
+    rel: 'stylesheet',
+    href: '/assets/xterm.css', // Assumindo que você copiará este arquivo para a pasta public/assets
+  },
+  {
+    rel: 'stylesheet',
+    href: '/assets/react-toastify.css', // Assumindo que você copiará este arquivo para a pasta public/assets
   },
 ];
 
@@ -93,11 +96,6 @@ export const Head = createHead(() => (
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <Meta />
     <Links />
-    {/* Incluir estilos inline para garantir carregamento mesmo sem loaders configurados */}
-    <style dangerouslySetInnerHTML={{ __html: tailwindReset }} />
-    <style dangerouslySetInnerHTML={{ __html: reactToastifyStyles }} />
-    <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
-    <style dangerouslySetInnerHTML={{ __html: xtermStyles }} />
     <script dangerouslySetInnerHTML={{ __html: inlineThemeCode }} />
   </>
 ));
