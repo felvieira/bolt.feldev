@@ -1,7 +1,5 @@
-/**
- * @type {import('@remix-run/dev').AppConfig}
- */
-module.exports = {
+/** @type {import('@remix-run/dev').AppConfig} */
+export default {
   appDirectory: "app",
 
   // Gere a saída do frontend em "build/client/assets"
@@ -27,7 +25,7 @@ module.exports = {
   serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
   serverMinify: false,
-  serverModuleFormat: "esm", // Alterado de "cjs" para "esm"
+  serverModuleFormat: "esm", 
   tailwind: true,
   postcss: true,
   sourcemap: true,
