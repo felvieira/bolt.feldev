@@ -60,6 +60,18 @@ const getRedisClient = (context?: ExpressAppContext) => {
   return client;
 };
 
+// Helper function to retrieve SESSION_SECRET via child_process
+const getSessionSecretFromChildProcess = (): string | null => {
+  try {
+    const sessionSecret = execSync('echo $SESSION_SECRET').toString().trim();
+    console.log('Retrieved SESSION_SECRET using child_process:', !!sessionSecret);
+    return sessionSecret;
+  } catch (error) {
+    console.error('Failed to retrieve SESSION_SECRET using child_process:', error);
+    return null;
+  }
+};
+
 // Initialize Redis client (connect only when needed)
 let redisClient: ReturnType<typeof createClient> | null = null;
 
@@ -74,12 +86,14 @@ export const createRedisSessionStore = async (context?: ExpressAppContext) => {
     });
   }
 
-  const sessionSecret = context 
-    ? getEnvVar(context, 'SESSION_SECRET') 
-    : process.env.SESSION_SECRET;
+  // Get SESSION_SECRET with multiple fallback methods
+  const sessionSecret = 
+    getEnvVar(context, 'SESSION_SECRET') || 
+    process.env.SESSION_SECRET || 
+    getSessionSecretFromChildProcess();
 
   if (!sessionSecret) {
-    throw new Error('SESSION_SECRET environment variable is required');
+    throw new Error('SESSION_SECRET could not be retrieved through any method');
   }
 
   // Create session storage with Redis as the store
