@@ -178,27 +178,32 @@ app.use((req, res, next) => {
 });
 
 // -----------------------------------------------------------------------------
-// Serve ESTÁTICOS do front-end gerado pelo Remix em /assets
-// -> Se Remix estiver gerando em "build/client/assets"
-app.use(
-  "/assets",
-  express.static(path.join(__dirname, "build", "client", "assets"), {
-    immutable: true,
-    maxAge: "1y"
-  })
-);
+// Serve arquivos estáticos de múltiplos diretórios
+const staticDirs = [
+  { route: '/', dir: path.join(__dirname, "build", "client") },
+  { route: '/', dir: path.join(__dirname, "public") },
+  { route: '/assets', dir: path.join(__dirname, "build", "client", "assets"), options: { immutable: true, maxAge: "1y" } }
+];
 
-// Serve a pasta "public" na raiz
-app.use(
-  express.static(path.join(__dirname, "public"), {
-    maxAge: "1h",
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".html")) {
-        res.setHeader("Cache-Control", "public, max-age=0");
+staticDirs.forEach(({ route, dir, options = {} }) => {
+  app.use(
+    route,
+    express.static(dir, {
+      maxAge: options.maxAge || "1h",
+      immutable: options.immutable || false,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "public, max-age=0");
+        }
+        // Adicione headers de segurança para recursos estáticos
+        res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+        res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
       }
-    }
-  })
-);
+    })
+  );
+});
+
+console.log("Serving static files from:", staticDirs.map(dir => dir.dir));
 
 // -----------------------------------------------------------------------------
 // Rota simples de health check
