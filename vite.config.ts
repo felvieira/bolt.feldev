@@ -74,18 +74,23 @@ export default defineConfig((config) => {
           v3_singleFetch: true,
         },
       }),
-      // Configuração do UnoCSS
       UnoCSS({
         mode: 'global',
       }),
       tsconfigPaths(),
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-      // Garantir que env-bridge.server seja processado corretamente
+      // Garantir que arquivos importantes tenham efeitos colaterais
       {
-        name: 'ensure-side-effects',
+        name: 'ensure-important-files-side-effects',
         transform(code, id) {
-          if (id.includes('utils/env-bridge.server')) {
+          // Verificar se o arquivo é um dos que precisamos marcar com efeitos colaterais
+          if (
+            id.includes('utils/env-bridge.server') ||
+            id.includes('uno.css') ||
+            id.endsWith('.scss') ||
+            id.endsWith('.css')
+          ) {
             return { code, moduleSideEffects: 'no-treeshake' };
           }
           return null;
@@ -108,9 +113,13 @@ export default defineConfig((config) => {
       // Configuração explícita para SCSS
       preprocessorOptions: {
         scss: {
+          // Opções básicas sem configurações específicas que podem causar conflitos
           outputStyle: 'expanded',
+          includePaths: ['node_modules', 'app/styles']
         },
       },
+      // Desativa a otimização de CSS em desenvolvimento para facilitar o debugging
+      devSourcemap: true,
     },
     resolve: {
       alias: {
