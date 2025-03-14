@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+import { execSync } from 'child_process';
 
 // Get git hash with fallback
 const getGitHash = () => {
@@ -14,7 +14,7 @@ const getGitHash = () => {
   }
 };
 
-let commitJson = {
+const commitJson = {
   hash: JSON.stringify(getGitHash()),
   version: JSON.stringify(process.env.npm_package_version),
 };
@@ -30,3 +30,5 @@ console.log('📍 Current Commit Version:', commitJson.hash);
 console.log('SESSION_SECRET:', process.env.SESSION_SECRET ? 'Set ✓' : 'Not set ✗');
 console.log('  Please wait until the URL appears here');
 console.log('★═══════════════════════════════════════★');
+
+export default commitJson;
