@@ -2,6 +2,7 @@ import express from "express";
 import compression from "compression";
 import session from "express-session";
 import RedisStore from "connect-redis";
+import { createClient } from "redis";
 import { createRequestHandler } from "@remix-run/express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -9,6 +10,7 @@ import fs from "fs";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import crypto from "crypto";
+import { execSync } from "child_process";
 
 // -----------------------------------------------------------------------------
 // Inicializa __dirname (já que usamos ESM)
@@ -23,59 +25,66 @@ console.log("- NODE_ENV:", process.env.NODE_ENV || "development");
 console.log("- Expecting Remix build at:", path.join(__dirname, "build/server/index.js"));
 
 // -----------------------------------------------------------------------------
-// Function to find a file recursively
-function findFile(directory, filename) {
-  console.log(`Searching for ${filename} in ${directory}...`);
-  let results = [];
+// Direct Redis implementation
+// Redis client setup directly in server.js
+const getRedis = async () => {
+  console.log("=== REDIS CONNECTION SETUP ===");
   
-  try {
-    const files = fs.readdirSync(directory);
-    
-    for (const file of files) {
-      const filePath = path.join(directory, file);
-      const stats = fs.statSync(filePath);
-      
-      if (stats.isDirectory()) {
-        // Skip node_modules to avoid excessive searching
-        if (file !== 'node_modules') {
-          results = results.concat(findFile(filePath, filename));
-        }
-      } else if (file === filename) {
-        console.log(`Found ${filename} at ${filePath}`);
-        results.push(filePath);
+  // Try multiple ways to get the Redis URL
+  let redisUrl = process.env.REDIS_URL;
+  
+  // If not available directly, try using child_process
+  if (!redisUrl) {
+    console.log("REDIS_URL not found in process.env, trying child_process...");
+    try {
+      redisUrl = execSync('echo $REDIS_URL').toString().trim();
+      if (redisUrl) {
+        console.log("Retrieved REDIS_URL using child_process");
+      }
+    } catch (error) {
+      console.error("Failed to retrieve REDIS_URL using child_process:", error);
+    }
+  }
+  
+  if (!redisUrl) {
+    throw new Error("REDIS_URL environment variable is required but not found");
+  }
+  
+  // Log a sanitized version of the URL (hide credentials)
+  const sanitizedUrl = redisUrl.replace(/\/\/(.*):(.*)@/, '//***:***@');
+  console.log(`Using Redis URL: ${sanitizedUrl}`);
+  
+  const client = createClient({
+    url: redisUrl,
+    socket: {
+      reconnectStrategy: (retries) => {
+        console.log(`Redis connection retry attempt ${retries}`);
+        return Math.min(retries * 50, 2000);
       }
     }
-  } catch (err) {
-    console.error(`Error searching directory ${directory}:`, err);
-  }
+  });
   
-  return results;
-}
-
-// Find all occurrences of the file
-const rootDir = '/app'; // Docker container root
-const fileName = 'redis-session.server.js';
-console.log(`Searching for ${fileName} under ${rootDir}...`);
-const foundFiles = findFile(rootDir, fileName);
-
-let getRedis;
-
-if (foundFiles.length > 0) {
+  // Handle connection errors
+  client.on('error', (err) => {
+    console.error('Redis connection error:', err);
+    
+    // Provide more helpful messages for common errors
+    if (err.message && err.message.includes('WRONGPASS')) {
+      console.error('Authentication failed. Check your Redis credentials in REDIS_URL.');
+    } else if (err.message && err.message.includes('ECONNREFUSED')) {
+      console.error('Connection refused. Check if Redis server is running and accessible.');
+    }
+  });
+  
   try {
-    console.log(`Attempting to import from ${foundFiles[0]}...`);
-    const redisModule = await import(`file://${foundFiles[0]}`);
-    getRedis = redisModule.getRedis;
-    console.log('Successfully imported Redis module!');
+    await client.connect();
+    console.log("Successfully connected to Redis server");
+    return client;
   } catch (err) {
-    console.error('Failed to import Redis module:', err);
-    // Log error but don't fail the process
-    console.error('The server will continue, but Redis functionality will not work');
+    console.error("Failed to connect to Redis:", err);
+    throw err;
   }
-} else {
-  console.error(`Could not find ${fileName} in ${rootDir}`);
-  // Log error but don't fail the process
-  console.error('The server will continue, but Redis functionality will not work');
-}
+};
 
 // -----------------------------------------------------------------------------
 // Verifica se build do Remix existe
@@ -102,26 +111,20 @@ try {
 }
 
 // -----------------------------------------------------------------------------
-// Redis client setup using redis-session.server.js
+// Redis client setup
 let redisClient;
 let redisStore;
 
 try {
-  if (getRedis) {
-    console.log("Attempting to connect to Redis using redis-session module...");
-    // Use the existing Redis utility from redis-session.server.js
-    redisClient = await getRedis();
-    console.log("Redis client retrieved successfully");
-    
-    // Create Redis store
-    redisStore = new RedisStore({
-      client: redisClient,
-      prefix: "bolt:sess:",
-    });
-    console.log("Redis session store initialized");
-  } else {
-    console.warn("Redis module not found, session store will use memory instead");
-  }
+  console.log("Setting up Redis client and session store...");
+  redisClient = await getRedis();
+  
+  // Create Redis store for sessions
+  redisStore = new RedisStore({
+    client: redisClient,
+    prefix: "bolt:sess:",
+  });
+  console.log("Redis session store initialized successfully");
 } catch (error) {
   console.warn("Failed to connect to Redis:", error);
   console.warn("The application will run without Redis, some features may not work correctly");
