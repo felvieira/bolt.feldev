@@ -179,27 +179,24 @@ app.use((req, res, next) => {
 
 // -----------------------------------------------------------------------------
 // Serve arquivos estáticos
-app.use(
-  "/assets",
-  express.static(path.join(__dirname, "build", "client", "assets"), {
-    immutable: true,
-    maxAge: "1y"
-  })
-);
-
-console.log("Serving static files from:", staticDirs.map(dir => dir.dir));
-
-// Serve a pasta "public" na raiz
-app.use(
-  express.static(path.join(__dirname, "public"), {
-    maxAge: "1h",
+const staticDirs = [
+  { path: "/assets", dir: path.join(__dirname, "build", "client", "assets"), options: { immutable: true, maxAge: "1y" } },
+  { path: "/", dir: path.join(__dirname, "public"), options: { 
+    maxAge: "1h", 
     setHeaders: (res, filePath) => {
       if (filePath.endsWith(".html")) {
         res.setHeader("Cache-Control", "public, max-age=0");
       }
     }
-  })
-);
+  }}
+];
+
+// Configura as rotas para servir os arquivos estáticos
+staticDirs.forEach(({ path: routePath, dir, options }) => {
+  app.use(routePath, express.static(dir, options));
+});
+
+console.log("Serving static files from:", staticDirs.map(dir => dir.dir));
 
 // -----------------------------------------------------------------------------
 // Rota simples de health check
