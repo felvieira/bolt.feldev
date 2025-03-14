@@ -4,19 +4,10 @@ import pkg from '@remix-run/dev';
 async function runBuild() {
   try {
     process.env.NODE_NO_WARNINGS = '1';
-    console.log('🚀 Imported package:', pkg);
-    console.log('Package keys:', Object.keys(pkg));
+    console.log('🚀 Starting Remix build...');
     
-    // Try to find the build function
-    const buildFunction = pkg.build || pkg.default?.build;
-    
-    if (typeof buildFunction !== 'function') {
-      console.error('❌ Build function not found. Available exports:', Object.keys(pkg));
-      process.exit(1);
-    }
-
-    console.log('🔨 Starting Remix build...');
-    await buildFunction();
+    // Use the CLI run method
+    await pkg.cli.run(['build']);
     
     console.log('✅ Remix build completed successfully!');
     process.exit(0);
