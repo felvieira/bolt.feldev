@@ -15,7 +15,7 @@
   "scripts": {
     "deploy": "npm run build",
     "build": "node build-script.mjs",
-    "dev": "node pre-start.js && remix vite:dev",
+    "dev": "node pre-start.mjs && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint app",
