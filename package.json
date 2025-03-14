@@ -16,7 +16,8 @@
     "**/isomorphic-git/*",
     "**/framer-motion/*",
     "**/utils/env-bridge.server.js",
-    "**/utils/env-bridge.server.ts"
+    "**/utils/env-bridge.server.ts",
+    "app/styles/index.scss"
   ],
   "type": "module",
   "version": "0.0.6",
@@ -147,6 +148,7 @@
     "node-fetch": "^3.3.2",
     "pnpm": "^9.14.4",
     "prettier": "^3.4.1",
+    "sass": "^1.72.0",
     "sass-embedded": "^1.81.0",
     "typescript": "^5.7.2",
     "unified": "^11.0.5",
@@ -154,10 +156,10 @@
     "vite": "^5.4.11",
     "vite-plugin-node-polyfills": "^0.22.0",
     "vite-plugin-optimize-css-modules": "^1.1.0",
+    "vite-plugin-sass": "^0.1.0",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^2.1.7",
-    "zod": "^3.24.1",
-    "vite-plugin-sass": "^0.1.0"
+    "zod": "^3.24.1"
   },
   "resolutions": {
     "@typescript-eslint/utils": "^8.0.0-alpha.30"
