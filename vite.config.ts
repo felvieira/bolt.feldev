@@ -8,10 +8,7 @@ import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { createRequire } from 'module';
 import fs from 'fs';
-
-const require = createRequire(import.meta.url);
 
 dotenv.config();
 
@@ -29,18 +26,35 @@ const getGitHash = () => {
   }
 };
 
+// Verificar e instalar dependências necessárias
+function ensureDependencies() {
+  const dependencies = ['sass'];
+  const missingDeps = [];
+
+  dependencies.forEach(dep => {
+    try {
+      require.resolve(dep);
+    } catch (e) {
+      missingDeps.push(dep);
+    }
+  });
+
+  if (missingDeps.length > 0) {
+    console.error(`❌ Dependências necessárias não encontradas: ${missingDeps.join(', ')}`);
+    console.error(`📦 Instale com: pnpm add -D ${missingDeps.join(' ')}`);
+    process.exit(1);
+  }
+}
+
 export default defineConfig((config) => {
   const isProd = config.mode === 'production';
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  
+  // Verificar dependências necessárias
+  ensureDependencies();
 
-  // Verificar se temos sass instalado como dependência
-  try {
-    require.resolve('sass');
-    console.log('✅ Dependência sass encontrada.');
-  } catch (error) {
-    console.error('❌ Dependência sass não encontrada. Instale com: pnpm add -D sass');
-    process.exit(1);
-  }
+  // Importar sass dinamicamente depois da verificação para evitar erros
+  const sass = require('sass');
 
   return {
     define: {
@@ -53,16 +67,12 @@ export default defineConfig((config) => {
       rollupOptions: {
         external: ['@remix-run/node'],
         output: {
-          // Preserve original file names and structure for static assets
           assetFileNames: (assetInfo) => {
-            // Preserve logos, icons, and other static assets with their original path
             if (/\.(png|jpe?g|svg|gif|ico)$/.test(assetInfo.name)) {
               return `client/[name][extname]`;
             }
-            // For other assets, use the default naming
             return 'client/assets/[name]-[hash][extname]';
           },
-          // Preserve chunk names that make sense
           chunkFileNames: 'client/assets/[name]-[hash].js',
           entryFileNames: 'client/assets/[name]-[hash].js'
         },
@@ -84,24 +94,23 @@ export default defineConfig((config) => {
           v3_singleFetch: true,
         },
       }),
-      UnoCSS({
-        mode: 'global',
-      }),
+      // Configuração do UnoCSS
+      UnoCSS(),
       tsconfigPaths(),
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-      // Plugin personalizado para suporte a SCSS
+      
+      // Plugin personalizado para processar SCSS e UnoCSS
       {
-        name: 'scss-loader',
+        name: 'custom-css-loader',
         transform(code, id) {
-          // Se for um arquivo SCSS
+          // Processar arquivos SCSS
           if (id.endsWith('.scss')) {
-            const sass = require('sass');
-            
             try {
+              console.log(`🔄 Processando arquivo SCSS: ${id}`);
+              
               // Compilar SCSS para CSS
               const result = sass.compile(id, {
-                style: 'expanded',
                 loadPaths: [
                   path.dirname(id),
                   path.join(__dirname, 'app', 'styles'),
@@ -109,7 +118,15 @@ export default defineConfig((config) => {
                 ]
               });
               
-              // Retornar o CSS compilado
+              // Verificar se a compilação foi bem-sucedida
+              if (!result || !result.css) {
+                throw new Error('Erro ao compilar SCSS: resultado vazio');
+              }
+              
+              // Log para debug
+              console.log(`✅ SCSS compilado com sucesso: ${id}`);
+              
+              // Injetar o CSS como uma tag style
               return {
                 code: `
                   const styleSheet = document.createElement('style');
@@ -120,32 +137,35 @@ export default defineConfig((config) => {
                 map: null
               };
             } catch (error) {
-              console.error('Erro ao compilar SCSS:', error);
-              // Em caso de erro, retornar um CSS vazio
+              console.error(`❌ Erro ao processar SCSS (${id}):`, error);
+              
+              // Retornar código que não quebrará o build
               return {
                 code: `
-                  const styleSheet = document.createElement('style');
-                  styleSheet.textContent = '/* SCSS compilation error */';
-                  document.head.appendChild(styleSheet);
-                  export default styleSheet;
+                  console.error("Erro ao processar SCSS: ${id}", ${JSON.stringify(error.message)});
+                  export default null;
                 `,
                 map: null
               };
             }
           }
           
-          // Lidar com a importação virtual do UnoCSS
+          // Processar imports de UnoCSS
           if (id === 'uno.css' || id.includes('uno.css?')) {
+            console.log(`🔄 Processando import UnoCSS: ${id}`);
             return {
               code: `
-                // UnoCSS is injected by the plugin
-                export default {};
+                // UnoCSS é injetado pelo plugin, este é um import de placeholder
+                const styleSheet = document.createElement('style');
+                styleSheet.classList.add('unocss-placeholder');
+                document.head.appendChild(styleSheet);
+                export default styleSheet;
               `,
               map: null
             };
           }
           
-          // Garantir que env-bridge.server tenha efeitos colaterais
+          // Garantir que env-bridge.server seja processado corretamente
           if (id.includes('utils/env-bridge.server')) {
             return { code, moduleSideEffects: 'no-treeshake' };
           }
@@ -169,21 +189,22 @@ export default defineConfig((config) => {
     css: {
       preprocessorOptions: {
         scss: {
-          // Opções básicas para o processador SCSS
-          includePaths: [
-            path.join(__dirname, 'app', 'styles'),
-            path.join(__dirname, 'node_modules')
-          ]
+          // Opções para o pré-processador SCSS nativo do Vite
+          // (nosso plugin personalizado será usado primeiro)
+          importers: [{
+            findFileUrl(url) {
+              // Ajuda a resolver @imports em arquivos SCSS
+              return new URL(url, path.join('file://', __dirname, 'app', 'styles'));
+            }
+          }]
         },
       },
-      // Desativa a otimização de CSS em desenvolvimento para facilitar o debugging
       devSourcemap: true,
     },
     resolve: {
       alias: {
-        // Ajudar a resolver imports de CSS/SCSS
         '~': path.resolve(__dirname, 'app'),
-        // Alias para lidar com importações de uno.css
+        // Alias para UnoCSS
         'uno.css': path.resolve(__dirname, 'node_modules', 'unocss', 'dist', 'index.mjs'),
       }
     }
