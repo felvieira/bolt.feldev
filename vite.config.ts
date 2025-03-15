@@ -9,6 +9,7 @@ import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { createRequire } from 'module';
+import fs from 'fs';
 
 const require = createRequire(import.meta.url);
 
@@ -31,6 +32,15 @@ const getGitHash = () => {
 export default defineConfig((config) => {
   const isProd = config.mode === 'production';
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+  // Verificar se temos sass instalado como dependência
+  try {
+    require.resolve('sass');
+    console.log('✅ Dependência sass encontrada.');
+  } catch (error) {
+    console.error('❌ Dependência sass não encontrada. Instale com: pnpm add -D sass');
+    process.exit(1);
+  }
 
   return {
     define: {
@@ -80,19 +90,66 @@ export default defineConfig((config) => {
       tsconfigPaths(),
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-      // Garantir que arquivos importantes tenham efeitos colaterais
+      // Plugin personalizado para suporte a SCSS
       {
-        name: 'ensure-important-files-side-effects',
+        name: 'scss-loader',
         transform(code, id) {
-          // Verificar se o arquivo é um dos que precisamos marcar com efeitos colaterais
-          if (
-            id.includes('utils/env-bridge.server') ||
-            id.includes('uno.css') ||
-            id.endsWith('.scss') ||
-            id.endsWith('.css')
-          ) {
+          // Se for um arquivo SCSS
+          if (id.endsWith('.scss')) {
+            const sass = require('sass');
+            
+            try {
+              // Compilar SCSS para CSS
+              const result = sass.compile(id, {
+                style: 'expanded',
+                loadPaths: [
+                  path.dirname(id),
+                  path.join(__dirname, 'app', 'styles'),
+                  path.join(__dirname, 'node_modules')
+                ]
+              });
+              
+              // Retornar o CSS compilado
+              return {
+                code: `
+                  const styleSheet = document.createElement('style');
+                  styleSheet.textContent = ${JSON.stringify(result.css.toString())};
+                  document.head.appendChild(styleSheet);
+                  export default styleSheet;
+                `,
+                map: null
+              };
+            } catch (error) {
+              console.error('Erro ao compilar SCSS:', error);
+              // Em caso de erro, retornar um CSS vazio
+              return {
+                code: `
+                  const styleSheet = document.createElement('style');
+                  styleSheet.textContent = '/* SCSS compilation error */';
+                  document.head.appendChild(styleSheet);
+                  export default styleSheet;
+                `,
+                map: null
+              };
+            }
+          }
+          
+          // Lidar com a importação virtual do UnoCSS
+          if (id === 'uno.css' || id.includes('uno.css?')) {
+            return {
+              code: `
+                // UnoCSS is injected by the plugin
+                export default {};
+              `,
+              map: null
+            };
+          }
+          
+          // Garantir que env-bridge.server tenha efeitos colaterais
+          if (id.includes('utils/env-bridge.server')) {
             return { code, moduleSideEffects: 'no-treeshake' };
           }
+          
           return null;
         }
       }
@@ -110,12 +167,13 @@ export default defineConfig((config) => {
       'XAI_API_KEY',
     ],
     css: {
-      // Configuração explícita para SCSS
       preprocessorOptions: {
         scss: {
-          // Opções básicas sem configurações específicas que podem causar conflitos
-          outputStyle: 'expanded',
-          includePaths: ['node_modules', 'app/styles']
+          // Opções básicas para o processador SCSS
+          includePaths: [
+            path.join(__dirname, 'app', 'styles'),
+            path.join(__dirname, 'node_modules')
+          ]
         },
       },
       // Desativa a otimização de CSS em desenvolvimento para facilitar o debugging
@@ -125,6 +183,8 @@ export default defineConfig((config) => {
       alias: {
         // Ajudar a resolver imports de CSS/SCSS
         '~': path.resolve(__dirname, 'app'),
+        // Alias para lidar com importações de uno.css
+        'uno.css': path.resolve(__dirname, 'node_modules', 'unocss', 'dist', 'index.mjs'),
       }
     }
   };
