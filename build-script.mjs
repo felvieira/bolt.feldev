@@ -3,8 +3,30 @@ import pkg from '@remix-run/dev';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Verificar se as dependências necessárias estão instaladas
+function checkDependencies() {
+  console.log('🔍 Verificando dependências necessárias...');
+  
+  try {
+    // Verificar se o sass está instalado
+    require.resolve('sass');
+    console.log('✅ Dependência sass encontrada.');
+  } catch (e) {
+    console.warn('⚠️ Dependência sass não encontrada. Tentando instalar...');
+    
+    try {
+      execSync('pnpm add -D sass', { stdio: 'inherit' });
+      console.log('✅ Dependência sass instalada com sucesso.');
+    } catch (installError) {
+      console.error('❌ Falha ao instalar sass. Tente instalar manualmente: pnpm add -D sass');
+      process.exit(1);
+    }
+  }
+}
 
 // Garantir que os arquivos CSS necessários estejam copiados para a pasta assets
 function ensureCssAssets() {
@@ -18,7 +40,7 @@ function ensureCssAssets() {
     console.log('📁 Diretório public/assets criado com sucesso');
   }
   
-  // Lista de arquivos CSS para copiar
+  // Lista de arquivos CSS para copiar (como backup caso o processamento SCSS falhe)
   const cssFiles = [
     {
       src: path.join(__dirname, 'node_modules', '@xterm', 'xterm', 'css', 'xterm.css'),
@@ -55,10 +77,13 @@ async function runBuild() {
     process.env.NODE_NO_WARNINGS = '1';
     console.log('🚀 Iniciando processo de build...');
     
-    // Etapa 1: Garantir arquivos CSS
+    // Etapa 1: Verificar dependências
+    checkDependencies();
+    
+    // Etapa 2: Garantir arquivos CSS (como backup)
     ensureCssAssets();
     
-    // Etapa 2: Build do Remix
+    // Etapa 3: Build do Remix
     console.log('🔨 Iniciando build do Remix...');
     await pkg.cli.run(['build']);
     
