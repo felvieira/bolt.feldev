@@ -1,4 +1,5 @@
 FROM node:20.18.0-bookworm AS base
+# Definimos um único WORKDIR no estágio base
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 
@@ -17,20 +18,17 @@ RUN pnpm install
 
 # --- Início do estágio de Build ---
 FROM base AS builder
-WORKDIR /app
+# Não redefinimos o WORKDIR aqui para evitar criar /app/app
+# O WORKDIR vai ser herdado do estágio base como /app
 
-# Copiar explicitamente os node_modules do estágio base
-COPY --from=base /app/node_modules ./node_modules
-
-# Agora copiar o resto dos arquivos do projeto
+# Agora copiar todos os arquivos do projeto
 COPY . .
 
 # Ajusta permissões e corrige finais de linha (LF vs CRLF) para o script express-entrypoint.sh
 RUN chmod +x ./express-entrypoint.sh && \
     sed -i 's/\r$//' ./express-entrypoint.sh
 
-# IMPORTANTE: Instalar sass DIRETAMENTE no estágio builder
-# Isso garante que ele esteja disponível no ambiente correto durante o build
+# Instalar sass explicitamente
 RUN pnpm add -D sass
 
 # Executa o build durante a criação da imagem
@@ -49,7 +47,6 @@ RUN find /app -type f -iname "red*" | sort || echo "File not found"
 
 # --- Início do estágio de Production ---
 FROM node:20.18.0-bookworm-slim
-WORKDIR /app
 
 # Define argumentos de build para segredos e variáveis de ambiente
 ARG SESSION_SECRET
