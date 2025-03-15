@@ -15,16 +15,30 @@ RUN npm install -g npm@latest && \
 # Instala as dependências do projeto
 RUN pnpm install
 
+# Instala sass explicitamente para garantir que está disponível
 RUN pnpm add -D sass
 
 # --- Início do estágio de Build ---
 FROM base AS builder
 WORKDIR /app
+
+# Copiar explicitamente os node_modules do estágio base
+COPY --from=base /app/node_modules ./node_modules
+
+# Garantir que o ambiente do pnpm está configurado corretamente
+RUN npm install -g corepack@latest && \
+    corepack enable pnpm && \
+    corepack use pnpm@latest-10
+
+# Agora copiar o resto dos arquivos do projeto
 COPY . .
 
 # Ajusta permissões e corrige finais de linha (LF vs CRLF) para o script express-entrypoint.sh
 RUN chmod +x ./express-entrypoint.sh && \
     sed -i 's/\r$//' ./express-entrypoint.sh
+
+# Verificar se sass está instalado corretamente antes do build
+RUN node -e "try { require.resolve('sass'); console.log('✅ sass está instalado corretamente'); } catch(e) { console.error('❌ sass não está instalado!'); process.exit(1); }"
 
 # Executa o build durante a criação da imagem
 RUN pnpm run build
