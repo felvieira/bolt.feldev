@@ -3,7 +3,6 @@ import pkg from '@remix-run/dev';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,15 +15,15 @@ function checkDependencies() {
     require.resolve('sass');
     console.log('✅ Dependência sass encontrada.');
   } catch (e) {
-    console.warn('⚠️ Dependência sass não encontrada. Tentando instalar...');
-    
-    try {
-      execSync('pnpm add -D sass', { stdio: 'inherit' });
-      console.log('✅ Dependência sass instalada com sucesso.');
-    } catch (installError) {
-      console.error('❌ Falha ao instalar sass. Tente instalar manualmente: pnpm add -D sass');
-      process.exit(1);
-    }
+    // Falha com erro sem tentar contornar
+    console.error('❌ ERRO: Dependência sass não encontrada!');
+    console.error('Esta dependência é obrigatória para o build. Execute:');
+    console.error('pnpm add -D sass');
+    console.error('');
+    console.error('Ou atualize seu Dockerfile para instalar sass antes do build:');
+    console.error('RUN pnpm add -D sass');
+    // Encerra o processo com erro
+    process.exit(1);
   }
 }
 
@@ -40,7 +39,7 @@ function ensureCssAssets() {
     console.log('📁 Diretório public/assets criado com sucesso');
   }
   
-  // Lista de arquivos CSS para copiar (como backup caso o processamento SCSS falhe)
+  // Lista de arquivos CSS para copiar
   const cssFiles = [
     {
       src: path.join(__dirname, 'node_modules', '@xterm', 'xterm', 'css', 'xterm.css'),
@@ -77,10 +76,10 @@ async function runBuild() {
     process.env.NODE_NO_WARNINGS = '1';
     console.log('🚀 Iniciando processo de build...');
     
-    // Etapa 1: Verificar dependências
+    // Etapa 1: Verificar dependências (falha se não encontrar)
     checkDependencies();
     
-    // Etapa 2: Garantir arquivos CSS (como backup)
+    // Etapa 2: Garantir arquivos CSS
     ensureCssAssets();
     
     // Etapa 3: Build do Remix
