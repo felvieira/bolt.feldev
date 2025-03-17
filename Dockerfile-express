@@ -37,8 +37,8 @@ RUN echo "Verificando versão do SASS instalado:" && \
     echo "Verificando suporte a SCSS:" && \
     find ./app -name "*.scss" | wc -l
 
-# Executa o build durante a criação da imagem - com mais memória e tempo de execução
-RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm run build
+# Executa o build
+pnpm run build
 
 # Verifica se o build foi bem-sucedido
 RUN if [ ! -f "/app/build/server/index.js" ]; then \
