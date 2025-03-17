@@ -6,9 +6,6 @@ import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import fs from 'fs';
 
 dotenv.config();
 
@@ -26,60 +23,72 @@ const getGitHash = () => {
   }
 };
 
-// Verificar e instalar dependências necessárias
-function ensureDependencies() {
-  const dependencies = ['sass'];
-  const missingDeps = [];
-
-  dependencies.forEach(dep => {
-    try {
-      require.resolve(dep);
-    } catch (e) {
-      missingDeps.push(dep);
-    }
-  });
-
-  if (missingDeps.length > 0) {
-    console.error(`❌ Dependências necessárias não encontradas: ${missingDeps.join(', ')}`);
-    console.error(`📦 Instale com: pnpm add -D ${missingDeps.join(' ')}`);
-    process.exit(1);
-  }
-}
-
 export default defineConfig((config) => {
   const isProd = config.mode === 'production';
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  
-  // Verificar dependências necessárias
-  ensureDependencies();
-
-  // Importar sass dinamicamente depois da verificação para evitar erros
-  const sass = require('sass');
 
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
+
+      // Set NODE_ENV directly in Vite config instead of .env
       'process.env.NODE_ENV': JSON.stringify(config.mode),
     },
     build: {
       target: 'esnext',
       rollupOptions: {
         external: ['@remix-run/node'],
-        output: {
-          assetFileNames: (assetInfo) => {
-            if (/\.(png|jpe?g|svg|gif|ico)$/.test(assetInfo.name)) {
-              return `client/[name][extname]`;
+        output: isProd
+          ? {
+              manualChunks(id) {
+                // Vendor dependencies
+                if (id.includes('node_modules')) {
+                  if (id.includes('marked') || id.includes('prismjs')) {
+                    return 'vendor';
+                  }
+
+                  if (id.includes('emacs-lisp') || id.includes('cpp')) {
+                    return 'editor-core';
+                  }
+
+                  // Split editor languages into separate chunks
+                  if (id.includes('languages')) {
+                    return 'editor-languages';
+                  }
+                }
+
+                // Split UI components into smaller chunks
+                if (id.includes('app/components')) {
+                  if (id.includes('workbench')) {
+                    return 'ui-workbench';
+                  }
+
+                  if (id.includes('chat')) {
+                    return 'ui-chat';
+                  }
+
+                  return 'ui-core';
+                }
+
+                return undefined;
+              },
             }
-            return 'client/assets/[name]-[hash][extname]';
-          },
-          chunkFileNames: 'client/assets/[name]-[hash].js',
-          entryFileNames: 'client/assets/[name]-[hash].js'
-        },
+          : undefined,
       },
-      chunkSizeWarningLimit: 2500,
+      chunkSizeWarningLimit: 2500, // Increased to reduce warnings
       minify: isProd ? 'esbuild' : false,
-      sourcemap: !isProd,
+      sourcemap: !isProd, // Only enable source maps in development
+    },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          // We're not adding additionalData here to avoid conflicts,
+          // just ensuring the SCSS processor is properly configured
+          sourceMap: true,
+          // For Vite 6+, use the modern API
+          api: 'modern',
+        }
+      }
     },
     plugins: [
       nodePolyfills({
@@ -91,91 +100,17 @@ export default defineConfig((config) => {
           v3_relativeSplatPath: true,
           v3_throwAbortReason: true,
           v3_lazyRouteDiscovery: true,
-          v3_singleFetch: true,
+          v3_singleFetch: true, // Add support for React Router v7's single fetch
         },
       }),
-      // Configuração do UnoCSS
       UnoCSS(),
       tsconfigPaths(),
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-      
-      // Plugin personalizado para processar SCSS e UnoCSS
-      {
-        name: 'custom-css-loader',
-        transform(code, id) {
-          // Processar arquivos SCSS
-          if (id.endsWith('.scss')) {
-            try {
-              console.log(`🔄 Processando arquivo SCSS: ${id}`);
-              
-              // Compilar SCSS para CSS
-              const result = sass.compile(id, {
-                loadPaths: [
-                  path.dirname(id),
-                  path.join(__dirname, 'app', 'styles'),
-                  path.join(__dirname, 'node_modules')
-                ]
-              });
-              
-              // Verificar se a compilação foi bem-sucedida
-              if (!result || !result.css) {
-                throw new Error('Erro ao compilar SCSS: resultado vazio');
-              }
-              
-              // Log para debug
-              console.log(`✅ SCSS compilado com sucesso: ${id}`);
-              
-              // Injetar o CSS como uma tag style
-              return {
-                code: `
-                  const styleSheet = document.createElement('style');
-                  styleSheet.textContent = ${JSON.stringify(result.css.toString())};
-                  document.head.appendChild(styleSheet);
-                  export default styleSheet;
-                `,
-                map: null
-              };
-            } catch (error) {
-              console.error(`❌ Erro ao processar SCSS (${id}):`, error);
-              
-              // Retornar código que não quebrará o build
-              return {
-                code: `
-                  console.error("Erro ao processar SCSS: ${id}", ${JSON.stringify(error.message)});
-                  export default null;
-                `,
-                map: null
-              };
-            }
-          }
-          
-          // Processar imports de UnoCSS
-          if (id === 'uno.css' || id.includes('uno.css?')) {
-            console.log(`🔄 Processando import UnoCSS: ${id}`);
-            return {
-              code: `
-                // UnoCSS é injetado pelo plugin, este é um import de placeholder
-                const styleSheet = document.createElement('style');
-                styleSheet.classList.add('unocss-placeholder');
-                document.head.appendChild(styleSheet);
-                export default styleSheet;
-              `,
-              map: null
-            };
-          }
-          
-          // Garantir que env-bridge.server seja processado corretamente
-          if (id.includes('utils/env-bridge.server')) {
-            return { code, moduleSideEffects: 'no-treeshake' };
-          }
-          
-          return null;
-        }
-      }
     ],
     optimizeDeps: {
       include: ['marked', 'prismjs'],
+      exclude: ['uno.css'], // Exclude UnoCSS from optimization to prevent resolution issues
     },
     envPrefix: [
       'VITE_',
@@ -186,28 +121,6 @@ export default defineConfig((config) => {
       'SESSION_SECRET',
       'XAI_API_KEY',
     ],
-    css: {
-      preprocessorOptions: {
-        scss: {
-          // Opções para o pré-processador SCSS nativo do Vite
-          // (nosso plugin personalizado será usado primeiro)
-          importers: [{
-            findFileUrl(url) {
-              // Ajuda a resolver @imports em arquivos SCSS
-              return new URL(url, path.join('file://', __dirname, 'app', 'styles'));
-            }
-          }]
-        },
-      },
-      devSourcemap: true,
-    },
-    resolve: {
-      alias: {
-        '~': path.resolve(__dirname, 'app'),
-        // Alias para UnoCSS
-        'uno.css': path.resolve(__dirname, 'node_modules', 'unocss', 'dist', 'index.mjs'),
-      }
-    }
   };
 });
 
