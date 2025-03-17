@@ -2,21 +2,18 @@
 import { useStore } from '@nanostores/react';
 import { json, redirect, type LoaderFunction, type LinksFunction } from '@remix-run/node';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
-import tailwindReset from '@unocss/reset/tailwind-compat.css';
+import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
 
-// Importações CSS simplificadas (sem query params)
-import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css';
-import xtermStyles from '@xterm/xterm/css/xterm.css';
+import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
+import globalStyles from './styles/index.scss?url';
+import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
-// Importar o CSS global diretamente, sem ?url ou ?inline
-import './styles/index.scss';
-
-// Importar UnoCSS de forma direta
-import 'uno.css';
+// Import UnoCSS directly without the sideEffect tag
+import 'virtual:uno.css';
 
 import { requireAuth } from '~/utils/auth.server';
 import { logStore } from './lib/stores/logs';
@@ -27,18 +24,10 @@ export const links: LinksFunction = () => [
     href: '/favicon.svg',
     type: 'image/svg+xml',
   },
-  {
-    rel: 'stylesheet',
-    href: tailwindReset,
-  },
-  {
-    rel: 'stylesheet',
-    href: reactToastifyStyles,
-  },
-  {
-    rel: 'stylesheet',
-    href: xtermStyles,
-  },
+  { rel: 'stylesheet', href: reactToastifyStyles },
+  { rel: 'stylesheet', href: tailwindReset },
+  { rel: 'stylesheet', href: globalStyles },
+  { rel: 'stylesheet', href: xtermStyles },
   {
     rel: 'preconnect',
     href: 'https://fonts.googleapis.com',
