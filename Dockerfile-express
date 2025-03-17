@@ -13,8 +13,11 @@ RUN npm install -g npm@latest && \
     corepack use pnpm@latest-10 && \
     npm cache clean --force
 
-# Instala as dependências do projeto
-RUN pnpm install --frozen-lockfile
+# Instala as dependências do projeto E adiciona sass explicitamente
+RUN pnpm install --frozen-lockfile && \
+    pnpm add -D sass && \
+    pnpm add -D sass-embedded && \
+    pnpm list sass
 
 # --- Início do estágio de Build ---
 FROM base AS builder
@@ -33,8 +36,9 @@ RUN chmod +x ./express-entrypoint.sh && \
     chmod +x ./supabase-direct-config.sh && \
     sed -i 's/\r$//' ./supabase-direct-config.sh
 
-# Instalar sass explicitamente
-RUN pnpm add -D sass
+# Garantir que o sass está instalado antes do build
+RUN pnpm list sass && \
+    echo "Verificando se sass está instalado..."
 
 # Executa o build durante a criação da imagem
 RUN pnpm run build
@@ -131,6 +135,10 @@ RUN echo "### Criando arquivos de ambiente básicos ###" && \
 
 # Cria o diretório para sessão com permissões apropriadas
 RUN mkdir -p /app/session-data && chmod 777 /app/session-data
+
+# Configuração de healthcheck para monitorar a saúde do serviço
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:5173/health || exit 1
 
 # Definir usuário não-root para segurança
 RUN addgroup --system --gid 1001 nodejs \
