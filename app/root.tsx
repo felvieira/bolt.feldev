@@ -7,13 +7,10 @@ import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
 
-// Importar estilos diretamente sem o sufixo ?url
+// Importar estilos CSS
 import '@unocss/reset/tailwind-compat.css';
 import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css';
 import xtermStyles from '@xterm/xterm/css/xterm.css';
-
-// Importar o arquivo de estilo principal - não use ?url nem virtual:uno.css diretamente
-import './styles/global.scss';
 
 import { requireAuth } from '~/utils/auth.server';
 import { logStore } from './lib/stores/logs';
@@ -26,6 +23,11 @@ export const links: LinksFunction = () => [
   },
   { rel: 'stylesheet', href: reactToastifyStyles },
   { rel: 'stylesheet', href: xtermStyles },
+  // Incluir o arquivo global.css pré-compilado
+  {
+    rel: 'stylesheet',
+    href: '/styles/global.css',
+  },
   {
     rel: 'preconnect',
     href: 'https://fonts.googleapis.com',
