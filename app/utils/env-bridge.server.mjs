@@ -1,4 +1,4 @@
-// app/utils/env-bridge.server.js
+// app/utils/env-bridge.server.mjs
 
 /**
  * Environment variable bridge to make process.env available in the global scope
