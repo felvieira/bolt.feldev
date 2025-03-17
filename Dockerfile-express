@@ -14,17 +14,11 @@ RUN npm install -g npm@latest && \
     npm cache clean --force
 
 # Instala as dependências do projeto E adiciona sass explicitamente
-RUN pnpm install --frozen-lockfile && \
-    pnpm add -D sass && \
-    pnpm add -D sass-embedded && \
-    pnpm list sass
-
+RUN pnpm install
+    
 # --- Início do estágio de Build ---
 FROM base AS builder
-# Não redefinimos o WORKDIR aqui - usando o mesmo /app do estágio base
 
-# Copiar arquivos de configuração primeiro (melhor utilização de cache)
-# Corrigido: remix.config.js -> remix.config.mjs
 COPY tsconfig.json remix.config.mjs vite.config.ts uno.config.ts ./
 
 # Agora copiar todos os outros arquivos do projeto
@@ -35,11 +29,6 @@ RUN chmod +x ./express-entrypoint.sh && \
     sed -i 's/\r$//' ./express-entrypoint.sh && \
     chmod +x ./supabase-direct-config.sh && \
     sed -i 's/\r$//' ./supabase-direct-config.sh
-
-# Garantir que o sass está instalado antes do build
-RUN pnpm list sass && \
-    echo "Verificando se sass está instalado..." && \
-    echo "Versão do PNPM: $(pnpm --version)"
 
 # Executa o build durante a criação da imagem
 RUN pnpm run build
@@ -53,18 +42,7 @@ RUN if [ ! -f "/app/build/server/index.js" ]; then \
     fi
 
 # --- Início do estágio de Production ---
-FROM node:20.18.0-bookworm-slim
-
-# Instalação de dependências mínimas necessárias
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssl \
-    ca-certificates \
-    curl \
-    netcat-traditional \
-    && rm -rf /var/lib/apt/lists/*
-
-# Mantemos o mesmo WORKDIR em todos os estágios
-WORKDIR /app
+FROM builder AS production
 
 # Define argumentos de build para segredos e variáveis de ambiente
 ARG SESSION_SECRET
@@ -83,16 +61,6 @@ ENV NODE_ENV=${NODE_ENV:-production} \
     SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY} \
     SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
     REDIS_URL=${REDIS_URL}
-
-# Copia apenas os arquivos necessários do estágio de build
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/server.js ./
-COPY --from=builder /app/express-entrypoint.sh ./
-COPY --from=builder /app/supabase-direct-config.sh ./
-COPY --from=builder /app/utils/redis-session.server.ts ./utils/
 
 # Garantir que o script de entrypoint tenha permissão de execução
 RUN chmod +x ./express-entrypoint.sh ./supabase-direct-config.sh
