@@ -27,9 +27,10 @@ else
   echo "REDIS_URL definido. Tentando conectar ao Redis."
 fi
 
-# Removido o bloco de verificação e execução do build
-# O build agora é feito durante a criação da imagem Docker
+# Garantir que os estilos estejam compilados corretamente
+echo "Compilando CSS para o servidor..."
+node build-css.mjs
 
-# Iniciar o servidor Express diretamente
+# Iniciar o servidor Express
 echo "Iniciando servidor Express..."
 exec node server.js
