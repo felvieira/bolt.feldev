@@ -164,5 +164,5 @@
   "resolutions": {
     "@typescript-eslint/utils": "^8.0.0-alpha.30"
   },
-  "packageManager": "pnpm@latest"
+  "packageManager": "pnpm@10.6.4"
 }
