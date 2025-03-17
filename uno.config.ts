@@ -98,15 +98,25 @@ const COLOR_PRIMITIVES = {
 };
 
 export default defineConfig({
+  // Configuração para garantir que o UnoCSS funcione com Remix e ESM
+  mode: 'global',
+  
+  // Garantir que o CSS seja injetado da maneira certa para o build
+  injectReset: false, // Desabilita injeção automática do reset porque já importamos manualmente
+  
+  // Incluir classes usadas em SVGs personalizados
   safelist: [
     ...Object.keys(customIconCollection[collectionName]||{}).map(x=>`i-bolt:${x}`)    
   ],
+  
+  // Atalhos
   shortcuts: {
     'bolt-ease-cubic-bezier': 'ease-[cubic-bezier(0.4,0,0.2,1)]',
     'transition-theme': 'transition-[background-color,border-color,color] duration-150 bolt-ease-cubic-bezier',
     kdb: 'bg-bolt-elements-code-background text-bolt-elements-code-text py-1 px-1.5 rounded-md',
     'max-w-chat': 'max-w-[var(--chat-max-width)]',
   },
+  
   rules: [
     /**
      * This shorthand doesn't exist in Tailwind and we overwrite it to avoid
@@ -254,16 +264,6 @@ export default defineConfig({
  *
  * @param hex - The hex color code (without alpha) to generate the palette from.
  * @returns An object where keys are opacity percentages and values are hex colors with alpha.
- *
- * Example:
- *
- * ```
- * {
- *   '1': '#FFFFFF03',
- *   '2': '#FFFFFF05',
- *   '3': '#FFFFFF08',
- * }
- * ```
  */
 function generateAlphaPalette(hex: string) {
   return [1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].reduce(
