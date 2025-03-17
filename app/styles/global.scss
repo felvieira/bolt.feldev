@@ -1,0 +1,35 @@
+/**
+ * Arquivo principal de estilos globais
+ * Este arquivo importa e organiza todos os outros arquivos SCSS do projeto
+ */
+
+// Reset e estilos base
+@use './variables' as *;
+@use './z-index' as *;
+@use './animations' as *;
+
+// Componentes
+@use './components/terminal' as *;
+@use './components/resize-handle' as *;
+@use './components/code' as *;
+@use './components/editor' as *;
+@use './components/toast' as *;
+
+// Importação do UnoCSS (substituindo a importação virtual)
+@use './virtual-imports';
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Impede a rolagem global */
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --gradient-opacity: 0.8;
+  --primary-color: rgba(158, 117, 240, var(--gradient-opacity));
+  --secondary-color: rgba(138, 43, 226, var(--gradient-opacity));
+  --accent-color: rgba(128, 59, 239, var(--gradient-opacity));
+}
