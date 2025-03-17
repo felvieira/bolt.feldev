@@ -30,9 +30,9 @@
     "test:watch": "vitest",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint app",
     "lint:fix": "npm run lint -- --fix && prettier app --write",
-    "start": "NODE_ENV=production node server.js",
-    "dockerstart": "NODE_ENV=${BUILD_ENV} node server.js",
-    "dockerstart:fallback": "NODE_ENV=${BUILD_ENV} node server.js",
+    "start": "NODE_ENV=production node server.mjs",
+    "dockerstart": "NODE_ENV=${BUILD_ENV} node server.mjs",
+    "dockerstart:fallback": "NODE_ENV=${BUILD_ENV} node server.mjs",
     "dockerrun": "docker run -it -d --name bolt-ai-live -p 5173:5173 --env-file .env.local bolt-ai",
     "dockerbuild:prod": "docker build --build-arg BUILD_ENV=production -t bolt-ai:production -t bolt-ai:latest --target bolt-ai-production .",
     "dockerbuild": "docker build --build-arg BUILD_ENV=development -t bolt-ai:development -t bolt-ai:latest --target bolt-ai-development .",
@@ -40,7 +40,7 @@
     "preview": "pnpm run build && pnpm run start",
     "prepare": "husky",
     "docker:build": "npm run build:css && pnpm run build",
-    "docker:start": "NODE_ENV=production node server.js"
+    "docker:start": "NODE_ENV=production node server.mjs"
   },
   "engines": {
     "node": ">=18.18.0"
