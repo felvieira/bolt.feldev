@@ -20,9 +20,10 @@ RUN npm install -g npm@latest && \
     corepack use pnpm@10.6.4 && \
     npm cache clean --force
 
-# Instala as dependências do projeto E adiciona sass explicitamente
+# Instala as dependências do projeto E adiciona sass e path-browserify explicitamente
 RUN pnpm install && \
-    pnpm add -D sass sass-embedded
+    pnpm add -D sass sass-embedded && \
+    pnpm add path-browserify
     
 # --- Início do estágio de Build ---
 FROM base AS builder
