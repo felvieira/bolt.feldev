@@ -42,8 +42,12 @@ services:
     # Explicitamente executar o express-entrypoint.sh (sem o supabase-config.sh)
     command: bash /app/express-entrypoint.sh
     healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
       start_period: 40s
-    restart: no
+    restart: unless-stopped
     networks:
       - shared
     
