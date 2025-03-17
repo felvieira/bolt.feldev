@@ -7,10 +7,12 @@ import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
 
-// Importar estilos CSS
-import '@unocss/reset/tailwind-compat.css';
-import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css';
-import xtermStyles from '@xterm/xterm/css/xterm.css';
+// Importar estilos CSS com ?url para obter o URL do recurso
+import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
+import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
+import xtermStyles from '@xterm/xterm/css/xterm.css?url';
+// Importar estilo global pré-compilado
+import './styles/global.css';
 
 import { requireAuth } from '~/utils/auth.server';
 import { logStore } from './lib/stores/logs';
@@ -22,8 +24,9 @@ export const links: LinksFunction = () => [
     type: 'image/svg+xml',
   },
   { rel: 'stylesheet', href: reactToastifyStyles },
+  { rel: 'stylesheet', href: tailwindReset },
   { rel: 'stylesheet', href: xtermStyles },
-  // Incluir o arquivo global.css pré-compilado
+  // Incluir os estilos globais já pré-compilados
   {
     rel: 'stylesheet',
     href: '/styles/global.css',
