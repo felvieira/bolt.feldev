@@ -22,7 +22,7 @@
   "type": "module",
   "version": "0.0.6",
   "scripts": {
-    "deploy": "npm run build",
+    "deploy": "pnpm run build",
     "build": "remix build",
     "dev": "node pre-start.mjs && remix vite:dev",
     "test": "vitest --run",
