@@ -17,8 +17,6 @@
     "**/buffer/*",
     "**/isomorphic-git/*",
     "**/framer-motion/*",
-    "**/utils/env-bridge.server.js",
-    "**/utils/env-bridge.server.ts",
     "**/utils/env-bridge.server.mjs"
   ],
   "type": "module",
