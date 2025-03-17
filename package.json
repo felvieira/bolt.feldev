@@ -23,7 +23,7 @@
   "version": "0.0.6",
   "scripts": {
     "deploy": "npm run build",
-    "build": "node build-script.mjs",
+    "build": "remix build",
     "dev": "node pre-start.mjs && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
