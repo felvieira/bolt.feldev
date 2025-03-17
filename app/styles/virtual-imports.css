@@ -8,8 +8,8 @@
 
 :root {
   --uno-css-loaded: true;
-  // Este marcador nos ajuda a verificar se o arquivo foi carregado corretamente
+  /* Este marcador nos ajuda a verificar se o arquivo foi carregado corretamente */
 }
 
-// Espaço reservado para classes de utilitários geradas pelo UnoCSS
-// O UnoCSS injetará o CSS aqui como parte do processo de build
+/* Espaço reservado para classes de utilitários geradas pelo UnoCSS */
+/* O UnoCSS injetará o CSS aqui como parte do processo de build */
