@@ -1,4 +1,5 @@
 import { vitePlugin as remixVitePlugin } from '@remix-run/dev';
+import { installGlobals } from '@remix-run/node';
 import UnoCSS from 'unocss/vite';
 import { defineConfig, type ViteDevServer } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
@@ -6,6 +7,9 @@ import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
+
+// Instalar globais do Node.js conforme recomendado pela documentação do Remix
+installGlobals();
 
 dotenv.config();
 
@@ -33,6 +37,12 @@ export default defineConfig((config) => {
 
       // Set NODE_ENV directly in Vite config instead of .env
       'process.env.NODE_ENV': JSON.stringify(config.mode),
+    },
+    resolve: {
+      // Adicionar aliases para módulos Node
+      alias: {
+        path: 'path-browserify'
+      }
     },
     build: {
       target: 'esnext',
@@ -80,11 +90,20 @@ export default defineConfig((config) => {
       sourcemap: !isProd, // Only enable source maps in development
     },
     plugins: [
+      // Configurar polyfills para Node.js no browser
       nodePolyfills({
-        include: ['path', 'buffer', 'process'],
+        include: ['path', 'buffer', 'process', 'stream', 'util', 'fs', 'os', 'assert'],
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+        overrides: {
+          path: 'path-browserify',
+        }
       }),
       
-      // Configurar o plugin Remix com as opções necessárias para SCSS
+      // Configurar o plugin Remix
       remixVitePlugin({
         future: {
           v3_fetcherPersist: true,
@@ -95,7 +114,7 @@ export default defineConfig((config) => {
         },
       }),
       
-      // UnoCSS plugin com configuração para modo global
+      // UnoCSS plugin
       UnoCSS({
         mode: 'global'
       }),
@@ -107,9 +126,8 @@ export default defineConfig((config) => {
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
     
-    // Configuração de otimização 
     optimizeDeps: {
-      include: ['marked', 'prismjs'],
+      include: ['marked', 'prismjs', 'path-browserify'],
       force: true,
     },
     
@@ -122,6 +140,20 @@ export default defineConfig((config) => {
       'SESSION_SECRET',
       'XAI_API_KEY',
     ],
+    
+    css: {
+      // Configuração para processar .scss e .module.scss
+      modules: {
+        // Configuração para CSS modules
+        generateScopedName: '[name]__[local]___[hash:base64:5]',
+      },
+      preprocessorOptions: {
+        scss: {
+          // Configuração do SASS
+          outputStyle: 'compressed',
+        }
+      }
+    },
   };
 });
 
