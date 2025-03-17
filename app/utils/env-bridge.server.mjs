@@ -1,5 +1,4 @@
-// app/utils/env-bridge.server.mjs - Versão ESM explícita
-// Este arquivo garante que variáveis de ambiente sejam compartilhadas globalmente
+// app/utils/env-bridge.server.js
 
 /**
  * Environment variable bridge to make process.env available in the global scope
