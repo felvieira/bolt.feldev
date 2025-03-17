@@ -32,5 +32,5 @@ echo "Compilando CSS para o servidor..."
 node build-css.mjs
 
 # Iniciar o servidor Express
-echo "Iniciando servidor Express..."
-exec node server.js
+echo "Iniciando servidor Express (ESM)..."
+exec node server.mjs
