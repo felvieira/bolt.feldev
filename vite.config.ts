@@ -82,11 +82,13 @@ export default defineConfig((config) => {
     css: {
       preprocessorOptions: {
         scss: {
-          // We're not adding additionalData here to avoid conflicts,
-          // just ensuring the SCSS processor is properly configured
-          sourceMap: true,
-          // For Vite 6+, use the modern API
+          // Usar a API moderna do SASS (recomendado para Vite 6+)
           api: 'modern',
+          // Adicionar dados para todos os arquivos SCSS, tornando variáveis e mixins disponíveis globalmente
+          additionalData: `
+            @use "app/styles/variables" as *;
+            @use "app/styles/z-index" as *;
+          `
         }
       }
     },
@@ -103,14 +105,18 @@ export default defineConfig((config) => {
           v3_singleFetch: true, // Add support for React Router v7's single fetch
         },
       }),
-      UnoCSS(),
+      UnoCSS({
+        // Configurar UnoCSS para modo global, garantindo compatibilidade com Remix
+        mode: 'global'
+      }),
       tsconfigPaths(),
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
     optimizeDeps: {
       include: ['marked', 'prismjs'],
-      exclude: ['uno.css'], // Exclude UnoCSS from optimization to prevent resolution issues
+      // Adicionando sass como uma dependência incluída para otimização
+      force: true,
     },
     envPrefix: [
       'VITE_',
