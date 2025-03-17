@@ -4,7 +4,7 @@ WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 
 # Copia os arquivos de dependência para aproveitar cache
-COPY package.json ./
+COPY package.json pnpm-lock.yaml* ./
 
 # Atualiza npm, instala Corepack, configura pnpm
 RUN npm install -g npm@latest && \
@@ -14,19 +14,23 @@ RUN npm install -g npm@latest && \
     npm cache clean --force
 
 # Instala as dependências do projeto
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
 # --- Início do estágio de Build ---
 FROM base AS builder
-# Não redefinimos o WORKDIR aqui para evitar criar /app/app
-# O WORKDIR vai ser herdado do estágio base como /app
+# Não redefinimos o WORKDIR aqui - usando o mesmo /app do estágio base
 
-# Agora copiar todos os arquivos do projeto
+# Copiar arquivos de configuração primeiro (melhor utilização de cache)
+COPY tsconfig.json remix.config.js vite.config.ts uno.config.ts ./
+
+# Agora copiar todos os outros arquivos do projeto
 COPY . .
 
-# Ajusta permissões e corrige finais de linha (LF vs CRLF) para o script express-entrypoint.sh
+# Ajusta permissões e corrige finais de linha para os scripts
 RUN chmod +x ./express-entrypoint.sh && \
-    sed -i 's/\r$//' ./express-entrypoint.sh
+    sed -i 's/\r$//' ./express-entrypoint.sh && \
+    chmod +x ./supabase-direct-config.sh && \
+    sed -i 's/\r$//' ./supabase-direct-config.sh
 
 # Instalar sass explicitamente
 RUN pnpm add -D sass
@@ -34,7 +38,7 @@ RUN pnpm add -D sass
 # Executa o build durante a criação da imagem
 RUN pnpm run build
 
-# Verify build was successful
+# Verifica se o build foi bem-sucedido
 RUN if [ ! -f "/app/build/server/index.js" ]; then \
     echo "ERROR: Build failed, server file not found!" && \
     exit 1; \
@@ -42,11 +46,19 @@ RUN if [ ! -f "/app/build/server/index.js" ]; then \
     echo "Build completed successfully!"; \
     fi
 
-# Find files starting with "red" or "RED"
-RUN find /app -type f -iname "red*" | sort || echo "File not found"
-
 # --- Início do estágio de Production ---
 FROM node:20.18.0-bookworm-slim
+
+# Instalação de dependências mínimas necessárias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl \
+    ca-certificates \
+    curl \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Mantemos o mesmo WORKDIR em todos os estágios
+WORKDIR /app
 
 # Define argumentos de build para segredos e variáveis de ambiente
 ARG SESSION_SECRET
@@ -68,6 +80,7 @@ ENV NODE_ENV=${NODE_ENV:-production} \
 
 # Copia apenas os arquivos necessários do estágio de build
 COPY --from=builder /app/build ./build
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/server.js ./
@@ -117,6 +130,17 @@ RUN echo "### Criando arquivos de ambiente básicos ###" && \
 
 # Cria o diretório para sessão com permissões apropriadas
 RUN mkdir -p /app/session-data && chmod 777 /app/session-data
+
+# Configuração de healthcheck para monitorar a saúde do serviço
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:5173/health || exit 1
+
+# Definir usuário não-root para segurança
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 expressuser \
+    && chown -R expressuser:nodejs /app
+
+USER expressuser
 
 # Expõe a porta da aplicação
 EXPOSE 5173
