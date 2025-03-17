@@ -1,23 +1,20 @@
 /**
- * Arquivo principal de estilos globais
- * Este arquivo importa e organiza todos os outros arquivos SCSS do projeto
+ * Arquivo principal de estilos globais - compatível com Remix
  */
 
-// Reset e estilos base
-@use './variables' as *;
-@use './z-index' as *;
-@use './animations' as *;
+/* Importações básicas usando @import para compatibilidade máxima */
+@import './variables.scss';
+@import './z-index.scss';
+@import './animations.scss';
 
-// Componentes
-@use './components/terminal' as *;
-@use './components/resize-handle' as *;
-@use './components/code' as *;
-@use './components/editor' as *;
-@use './components/toast' as *;
+/* Componentes */
+@import './components/terminal.scss';
+@import './components/resize-handle.scss';
+@import './components/code.scss';
+@import './components/editor.scss';
+@import './components/toast.scss';
 
-// Importação do UnoCSS (substituindo a importação virtual)
-@use './virtual-imports';
-
+/* Estilos globais */
 html,
 body {
   height: 100%;
