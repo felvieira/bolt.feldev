@@ -79,45 +79,40 @@ export default defineConfig((config) => {
       minify: isProd ? 'esbuild' : false,
       sourcemap: !isProd, // Only enable source maps in development
     },
-    css: {
-      preprocessorOptions: {
-        scss: {
-          // Usar a API moderna do SASS (recomendado para Vite 6+)
-          api: 'modern',
-          // Adicionar dados para todos os arquivos SCSS, tornando variáveis e mixins disponíveis globalmente
-          additionalData: `
-            @use "app/styles/variables" as *;
-            @use "app/styles/z-index" as *;
-          `
-        }
-      }
-    },
     plugins: [
       nodePolyfills({
         include: ['path', 'buffer', 'process'],
       }),
+      
+      // Configurar o plugin Remix com as opções necessárias para SCSS
       remixVitePlugin({
         future: {
           v3_fetcherPersist: true,
           v3_relativeSplatPath: true,
           v3_throwAbortReason: true,
           v3_lazyRouteDiscovery: true,
-          v3_singleFetch: true, // Add support for React Router v7's single fetch
+          v3_singleFetch: true, 
         },
       }),
+      
+      // UnoCSS plugin com configuração para modo global
       UnoCSS({
-        // Configurar UnoCSS para modo global, garantindo compatibilidade com Remix
         mode: 'global'
       }),
+      
       tsconfigPaths(),
+      
       chrome129IssuePlugin(),
+      
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
+    
+    // Configuração de otimização 
     optimizeDeps: {
       include: ['marked', 'prismjs'],
-      // Adicionando sass como uma dependência incluída para otimização
       force: true,
     },
+    
     envPrefix: [
       'VITE_',
       'OPENAI_LIKE_API_BASE_URL',
