@@ -1,2 +1,15 @@
-/* This file exists to import virtual CSS modules correctly */
-@import 'virtual:uno.css';
+/**
+ * Este arquivo existe como um espaço reservado para importações virtuais
+ * do UnoCSS e outros sistemas que geram CSS durante o build.
+ * 
+ * Não tente importar 'virtual:uno.css' aqui, pois isso será
+ * feito automaticamente pelo plugin UnoCSS.
+ */
+
+:root {
+  --uno-css-loaded: true;
+  // Este marcador nos ajuda a verificar se o arquivo foi carregado corretamente
+}
+
+// Espaço reservado para classes de utilitários geradas pelo UnoCSS
+// O UnoCSS injetará o CSS aqui como parte do processo de build
