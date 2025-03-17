@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Log básico
-console.log("=== Starting Express server ===");
+console.log("=== Starting Express server (ESM version) ===");
 console.log("- Current directory:", process.cwd());
 console.log("- __dirname:", __dirname);
 console.log("- NODE_ENV:", process.env.NODE_ENV || "development");
@@ -26,7 +26,7 @@ console.log("- Expecting Remix build at:", path.join(__dirname, "build/server/in
 
 // -----------------------------------------------------------------------------
 // Direct Redis implementation
-// Redis client setup directly in server.js
+// Redis client setup directly in server.mjs
 const getRedis = async () => {
   console.log("=== REDIS CONNECTION SETUP ===");
   
@@ -96,7 +96,7 @@ if (!fs.existsSync(buildServerDir)) {
   process.exit(1);
 }
 if (!fs.existsSync(buildFilePath)) {
-  console.error("ERRO: Arquivo build/index.js não existe:", buildFilePath);
+  console.error("ERRO: Arquivo build/server/index.js não existe:", buildFilePath);
   process.exit(1);
 }
 
@@ -264,7 +264,7 @@ app.listen(port, () => {
   console.log(`
 ★═══════════════════════════════════════★
           B O L T . D I Y
-      Express Server Running
+      Express Server Running (ESM)
 ★═══════════════════════════════════════★
   `);
   console.log(`Server listening on port ${port}`);
