@@ -18,7 +18,8 @@
     "**/isomorphic-git/*",
     "**/framer-motion/*",
     "**/utils/env-bridge.server.js",
-    "**/utils/env-bridge.server.ts"
+    "**/utils/env-bridge.server.ts",
+    "**/utils/env-bridge.server.mjs"
   ],
   "type": "module",
   "version": "0.0.6",
@@ -42,11 +43,9 @@
     "docker:build": "pnpm run build",
     "docker:start": "NODE_ENV=production node server.js"
   },
-
   "engines": {
     "node": ">=18.18.0"
-  }
-},
+  },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "1.0.6",
     "@ai-sdk/anthropic": "^0.0.39",
