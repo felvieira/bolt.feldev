@@ -39,6 +39,10 @@ export default defineConfig((config) => {
       // Set NODE_ENV directly in Vite config instead of .env
       'process.env.NODE_ENV': JSON.stringify(config.mode),
     },
+    // Configurar a porta do servidor para corresponder à porta do remix-serve (3000)
+    server: {
+      port: 5173, // Defina aqui a mesma porta que você usava com remix-serve
+    },
     resolve: {
       // Adicionar aliases para módulos Node conforme recomendado no guia Remix + Vite
       alias: {
