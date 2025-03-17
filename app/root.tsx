@@ -2,18 +2,18 @@
 import { useStore } from '@nanostores/react';
 import { json, redirect, type LoaderFunction, type LinksFunction } from '@remix-run/node';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
-import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
 
-import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
-import globalStyles from './styles/index.scss?url';
-import xtermStyles from '@xterm/xterm/css/xterm.css?url';
+// Importar estilos diretamente sem o sufixo ?url
+import '@unocss/reset/tailwind-compat.css';
+import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css';
+import xtermStyles from '@xterm/xterm/css/xterm.css';
 
-// Import UnoCSS directly without the sideEffect tag
-import 'virtual:uno.css';
+// Importar o arquivo de estilo principal - não use ?url nem virtual:uno.css diretamente
+import './styles/global.scss';
 
 import { requireAuth } from '~/utils/auth.server';
 import { logStore } from './lib/stores/logs';
@@ -25,8 +25,6 @@ export const links: LinksFunction = () => [
     type: 'image/svg+xml',
   },
   { rel: 'stylesheet', href: reactToastifyStyles },
-  { rel: 'stylesheet', href: tailwindReset },
-  { rel: 'stylesheet', href: globalStyles },
   { rel: 'stylesheet', href: xtermStyles },
   {
     rel: 'preconnect',
