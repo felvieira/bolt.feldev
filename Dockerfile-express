@@ -49,12 +49,13 @@ RUN echo "Verificando versão do SASS instalado:" && \
 RUN echo "Compilando CSS..." && \
     node build-css.mjs
 
-# Executa o build durante a criação da imagem
+# Executa o build durante a criação da imagem usando o comando Vite
 RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm run build
 
-# Verifica se o build foi bem-sucedido
+# Verifica se o build foi bem-sucedido seguindo os novos caminhos do Vite
 RUN if [ ! -f "/app/build/server/index.js" ]; then \
-    echo "ERROR: Build failed, server file not found!" && \
+    echo "ERROR: Build failed, server file not found at /app/build/server/index.js!" && \
+    ls -la /app/build/ || echo "build directory does not exist" && \
     exit 1; \
     else \
     echo "Build completed successfully!"; \
