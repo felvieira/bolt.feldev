@@ -4,14 +4,10 @@
 export default {
   appDirectory: "app",
 
-  // Gere a saída do frontend em "build/client/assets"
+  // Novos caminhos de build para o Vite conforme documentação:
+  // https://remix.run/docs/en/main/guides/vite#migrating-from-remix-app-server
   assetsBuildDirectory: "build/client/assets",
-
-  // Quando o navegador requisita "/assets/algumArquivo.js", 
-  // o Remix gerará esse "algumArquivo.js" dentro de "build/client/assets/"
   publicPath: "/assets/",
-
-  // Onde sairão os arquivos do backend
   serverBuildPath: "build/server/index.js",
   serverBuildTarget: "node",
 
