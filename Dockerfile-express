@@ -21,7 +21,8 @@ FROM base AS builder
 # Não redefinimos o WORKDIR aqui - usando o mesmo /app do estágio base
 
 # Copiar arquivos de configuração primeiro (melhor utilização de cache)
-COPY tsconfig.json remix.config.js vite.config.ts uno.config.ts ./
+# Corrigido: remix.config.js -> remix.config.mjs
+COPY tsconfig.json remix.config.mjs vite.config.ts uno.config.ts ./
 
 # Agora copiar todos os outros arquivos do projeto
 COPY . .
@@ -130,10 +131,6 @@ RUN echo "### Criando arquivos de ambiente básicos ###" && \
 
 # Cria o diretório para sessão com permissões apropriadas
 RUN mkdir -p /app/session-data && chmod 777 /app/session-data
-
-# Configuração de healthcheck para monitorar a saúde do serviço
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:5173/health || exit 1
 
 # Definir usuário não-root para segurança
 RUN addgroup --system --gid 1001 nodejs \
