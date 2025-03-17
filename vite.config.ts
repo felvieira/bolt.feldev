@@ -8,7 +8,8 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 
-// Instalar globais do Node.js conforme recomendado pelo guia Remix + Vite
+// Instala os globais do Node conforme recomendado na seção 
+// "Migrating from Remix App Server" da documentação oficial
 installGlobals();
 
 dotenv.config();
