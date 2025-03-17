@@ -97,46 +97,6 @@ COPY --from=builder /app/utils/redis-session.server.ts ./utils/
 # Garantir que o script de entrypoint tenha permissão de execução
 RUN chmod +x ./express-entrypoint.sh ./supabase-direct-config.sh
 
-# Cria uma versão básica dos arquivos de ambiente
-RUN echo "### Criando arquivos de ambiente básicos ###" && \
-    { \
-      echo "# .env.local - para o runtime da aplicação"; \
-      echo "SESSION_SECRET=${SESSION_SECRET}"; \
-      echo "SUPABASE_URL=${SUPABASE_URL}"; \
-      echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"; \
-      echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}"; \
-      echo "REDIS_URL=${REDIS_URL}"; \
-      echo "DATABASE_URL=${DATABASE_URL}"; \
-      echo "NODE_ENV=${NODE_ENV:-production}"; \
-      echo "RUNNING_IN_DOCKER=true"; \
-      echo "DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX}"; \
-      echo "GROQ_API_KEY=${GROQ_API_KEY}"; \
-      echo "HuggingFace_API_KEY=${HuggingFace_API_KEY}"; \
-      echo "OPENAI_API_KEY=${OPENAI_API_KEY}"; \
-      echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"; \
-      echo "OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}"; \
-      echo "GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}"; \
-      echo "OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL}"; \
-      echo "OPENAI_LIKE_API_BASE_URL=${OPENAI_LIKE_API_BASE_URL}"; \
-      echo "OPENAI_LIKE_API_KEY=${OPENAI_LIKE_API_KEY}"; \
-      echo "TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL}"; \
-      echo "TOGETHER_API_KEY=${TOGETHER_API_KEY}"; \
-      echo "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}"; \
-      echo "HYPERBOLIC_API_KEY=${HYPERBOLIC_API_KEY}"; \
-      echo "HYPERBOLIC_API_BASE_URL=${HYPERBOLIC_API_BASE_URL}"; \
-      echo "MISTRAL_API_KEY=${MISTRAL_API_KEY}"; \
-      echo "COHERE_API_KEY=${COHERE_API_KEY}"; \
-      echo "LMSTUDIO_API_BASE_URL=${LMSTUDIO_API_BASE_URL}"; \
-      echo "XAI_API_KEY=${XAI_API_KEY}"; \
-      echo "PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}"; \
-      echo "AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}"; \
-      echo "VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}"; \
-    } > .env.local && \
-    cp .env.local .env
-
-# Cria o diretório para sessão com permissões apropriadas
-RUN mkdir -p /app/session-data && chmod 777 /app/session-data
-
 # Definir usuário não-root para segurança
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 expressuser \
