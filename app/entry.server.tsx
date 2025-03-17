@@ -1,6 +1,7 @@
 // app/entry.server.tsx
-// Import environment bridge - ajustado para .mjs (se necessário)
-import './utils/env-bridge.server'; 
+// Import environment bridge - ajustado para .js sendo que estamos usando ESM
+import './utils/env-bridge.server';
+
 import { RemixServer } from '@remix-run/react';
 import { isbot } from 'isbot';
 import * as ReactDOMServer from 'react-dom/server';
