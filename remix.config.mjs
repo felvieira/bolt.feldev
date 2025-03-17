@@ -27,9 +27,9 @@ export default {
   serverDependenciesToBundle: "all",
   watchPaths: ["./public"],
   serverMinify: false,
-  serverModuleFormat: "esm", // Alterado de "cjs" para "esm"
-  tailwind: true,  // Mantido habilitado para preservar a aparência
-  postcss: true,   // Mantido habilitado para preservar a aparência
+  serverModuleFormat: "esm", // Formato ESM para o servidor
+  tailwind: false, // Desabilitamos já que estamos usando UnoCSS
+  postcss: true,
   sourcemap: true,
   devServerPort: 8002,
   server: "./app/entry.server.tsx"
