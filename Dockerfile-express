@@ -10,7 +10,7 @@ COPY package.json pnpm-lock.yaml* ./
 RUN npm install -g npm@latest && \
     npm install -g corepack@latest && \
     corepack enable pnpm && \
-    corepack use pnpm@latest-10 && \
+    corepack use pnpm@latest && \
     npm cache clean --force
 
 # Instala as dependências do projeto E adiciona sass explicitamente
