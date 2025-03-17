@@ -10,14 +10,15 @@
     "**/*.css",
     "**/*.scss",
     "**/*.sass",
-    "uno.css",
-    "virtual:*",
+    "app/styles/**/*",
+    "app/styles/global.scss",
+    "app/styles/index.scss",
+    "app/styles/virtual-imports.scss",
     "**/buffer/*",
     "**/isomorphic-git/*",
     "**/framer-motion/*",
     "**/utils/env-bridge.server.js",
-    "**/utils/env-bridge.server.ts",
-    "app/styles/index.scss"
+    "**/utils/env-bridge.server.ts"
   ],
   "type": "module",
   "version": "0.0.6",
@@ -41,6 +42,7 @@
     "docker:build": "pnpm run build",
     "docker:start": "NODE_ENV=production node server.js"
   },
+
   "engines": {
     "node": ">=18.18.0"
   },
