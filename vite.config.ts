@@ -103,6 +103,7 @@ export default defineConfig((config) => {
           global: true,
           process: true,
         },
+        // Especificar explicitamente path-browserify para o path
         overrides: {
           path: 'path-browserify',
         }
