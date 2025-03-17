@@ -1,0 +1,2 @@
+/* This file exists to import virtual CSS modules correctly */
+@import 'virtual:uno.css';
