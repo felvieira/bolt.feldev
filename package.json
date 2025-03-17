@@ -26,7 +26,7 @@
   "scripts": {
     "deploy": "pnpm run build",
     "build:css": "node build-css.mjs",
-    "build": "npm run build:css && remix build",
+    "build": "npm run build:css && remix vite:build",
     "dev": "node pre-start.mjs && npm run build:css && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
