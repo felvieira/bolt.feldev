@@ -6,11 +6,10 @@ SHELL ["/bin/bash", "-c"]
 # Copia os arquivos de dependência para aproveitar cache
 COPY package.json pnpm-lock.yaml* ./
 
-# Atualiza npm, instala Corepack, configura pnpm
 RUN npm install -g npm@latest && \
     npm install -g corepack@latest && \
     corepack enable pnpm && \
-    corepack use pnpm@latest && \
+    corepack use pnpm@10.6.4 && \
     npm cache clean --force
 
 # Instala as dependências do projeto E adiciona sass explicitamente
