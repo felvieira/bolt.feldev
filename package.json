@@ -25,8 +25,9 @@
   "version": "0.0.6",
   "scripts": {
     "deploy": "pnpm run build",
-    "build": "remix build",
-    "dev": "node pre-start.mjs && remix vite:dev",
+    "build:css": "node build-css.mjs",
+    "build": "npm run build:css && remix build",
+    "dev": "node pre-start.mjs && npm run build:css && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint app",
@@ -40,7 +41,7 @@
     "typecheck": "tsc",
     "preview": "pnpm run build && pnpm run start",
     "prepare": "husky",
-    "docker:build": "pnpm run build",
+    "docker:build": "npm run build:css && pnpm run build",
     "docker:start": "NODE_ENV=production node server.js"
   },
   "engines": {
