@@ -17,7 +17,7 @@
     "target": "ESNext",
     "strict": true,
     "allowJs": true,
-    "skipLibCheck": true,
+    "skipLibCheck": true, // Importante para compatibilidade Vite + Remix
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
