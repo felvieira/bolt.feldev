@@ -8,7 +8,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 
-// Instalar globais do Node.js conforme recomendado pela documentação do Remix
+// Instalar globais do Node.js conforme recomendado pelo guia Remix + Vite
 installGlobals();
 
 dotenv.config();
@@ -39,7 +39,7 @@ export default defineConfig((config) => {
       'process.env.NODE_ENV': JSON.stringify(config.mode),
     },
     resolve: {
-      // Adicionar aliases para módulos Node
+      // Adicionar aliases para módulos Node conforme recomendado no guia Remix + Vite
       alias: {
         path: 'path-browserify'
       }
@@ -85,12 +85,12 @@ export default defineConfig((config) => {
             }
           : undefined,
       },
-      chunkSizeWarningLimit: 2500, // Increased to reduce warnings
+      chunkSizeWarningLimit: 2500,
       minify: isProd ? 'esbuild' : false,
-      sourcemap: !isProd, // Only enable source maps in development
+      sourcemap: !isProd,
     },
     plugins: [
-      // Configurar polyfills para Node.js no browser
+      // Configurar polyfills para Node.js no browser (recomendado no guia Remix + Vite)
       nodePolyfills({
         include: ['path', 'buffer', 'process', 'stream', 'util', 'fs', 'os', 'assert'],
         globals: {
@@ -103,7 +103,7 @@ export default defineConfig((config) => {
         }
       }),
       
-      // Configurar o plugin Remix
+      // Plugin Remix para Vite
       remixVitePlugin({
         future: {
           v3_fetcherPersist: true,
@@ -149,7 +149,7 @@ export default defineConfig((config) => {
       },
       preprocessorOptions: {
         scss: {
-          // Configuração do SASS
+          // Configuração do SASS - seguindo o guia Remix + Vite
           outputStyle: 'compressed',
         }
       }
