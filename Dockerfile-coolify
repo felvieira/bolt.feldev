@@ -9,10 +9,16 @@ RUN corepack enable pnpm && \
 # Copiar arquivos de dependências
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependências
+# --- INICIO DE LA MODIFICACIÓN PARA PNPM ---
+# Intenta actualizar pnpm a través de corepack antes de instalar
+RUN corepack prepare pnpm@latest --activate
+RUN pnpm --version # Opcional: para ver la versión de pnpm en los logs de build
+# --- FIN DE LA MODIFICACIÓN PARA PNPM ---
+
+# Instalar dependências (Esta es la línea que estaba fallando)
 RUN pnpm install
 
-# Copiar código  fonte e scripts
+# Copiar código fonte e scripts
 COPY . .
 
 # Garantir que o bindings.sh tem permissões de execução e formato correto
