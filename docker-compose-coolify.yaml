@@ -22,7 +22,14 @@ services:
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
     restart: unless-stopped
-
+    # --- INICIO DE LA MODIFICACIÓN HEALTHCHECK ---
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5173/ || exit 1"] # Verifica la raíz en el puerto INTERNO 5173
+      interval: 30s    # Comprueba cada 30 segundos
+      timeout: 10s     # Espera 10 segundos por una respuesta
+      retries: 3       # Intenta 3 veces antes de marcar como no saludable
+      start_period: 60s # Dale 60 segundos a la app para que inicie antes de que comiencen los health checks
+    # --- FIN DE LA MODIFICACIÓN HEALTHCHECK ---
   app-dev:
     image: bolt-ai:development
     build:
