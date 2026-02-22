@@ -32,6 +32,9 @@ RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm run build
 # ---- production dependencies stage ----
 FROM build AS prod-deps
 
+# Install wrangler globally before pruning dev deps so it's available at runtime
+RUN npm install -g wrangler
+
 # Keep only production deps for runtime
 RUN pnpm prune --prod --ignore-scripts
 
