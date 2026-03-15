@@ -207,10 +207,12 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           // logger.debug('Code Files Selected');
         }
 
+        const mcpTools = mcpService.toolsWithoutExecute;
+        const hasMcpTools = mcpTools && Object.keys(mcpTools).length > 0;
+
         const options: StreamingOptions = {
           supabaseConnection: supabase,
-          toolChoice: 'auto',
-          tools: mcpService.toolsWithoutExecute,
+          ...(hasMcpTools ? { toolChoice: 'auto', tools: mcpTools } : {}),
           maxSteps: maxLLMSteps,
           onStepFinish: ({ toolCalls }) => {
             // add tool call annotations for frontend processing
