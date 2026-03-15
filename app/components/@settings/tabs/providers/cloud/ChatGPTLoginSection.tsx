@@ -97,16 +97,25 @@ const ChatGPTLoginSection: React.FC = () => {
       if (token) {
         try {
           const accountRes = await fetch('/api/codex/account');
+
+          if (!accountRes.ok && accountRes.status >= 500) {
+            // Server error (5xx) — proxy may be restarting, don't clear the cookie
+            console.warn('[ChatGPT] Proxy returned server error, keeping session cookie');
+            return;
+          }
+
           const accountData = await accountRes.json();
 
           if (accountData.authenticated && accountData.account) {
             setAccount(accountData.account);
             setLoginStatus('authenticated');
           } else {
+            // Server explicitly says not authenticated — clear cookie
             clearSessionToken();
           }
         } catch {
-          clearSessionToken();
+          // Network error / timeout — proxy is unreachable, don't clear cookie
+          console.warn('[ChatGPT] Could not reach proxy, keeping session cookie');
         }
       }
     } catch {

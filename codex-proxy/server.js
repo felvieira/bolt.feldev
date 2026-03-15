@@ -54,6 +54,7 @@ function loadSessionToken() {
 }
 
 let activeSessionToken = null;
+let tokenRefreshInterval = null;
 
 // Restore session on startup
 async function restoreSession() {
@@ -63,7 +64,25 @@ async function restoreSession() {
   console.log('[session] Found saved session token, verifying with sidecar...');
   try {
     await codex.ensureRunning();
-    const account = await codex.getAccount(false);
+
+    // Try a full refresh first to extend token lifetime
+    let account = null;
+    try {
+      console.log('[session] Attempting token refresh (getAccount(true))...');
+      account = await codex.getAccount(true);
+    } catch (refreshErr) {
+      console.warn(`[session] Refresh failed, trying cached read: ${refreshErr.message}`);
+    }
+
+    // Fall back to cached read if refresh failed
+    if (!account) {
+      try {
+        account = await codex.getAccount(false);
+      } catch (cachedErr) {
+        console.warn(`[session] Cached read also failed: ${cachedErr.message}`);
+      }
+    }
+
     if (account) {
       activeSessionToken = saved;
       console.log(`[session] Session restored for ${account.email || 'unknown'}`);
@@ -74,6 +93,32 @@ async function restoreSession() {
   } catch (err) {
     console.warn(`[session] Could not restore session: ${err.message}`);
   }
+}
+
+// Periodically refresh the sidecar token to prevent expiry
+function startTokenRefreshInterval() {
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+  }
+
+  const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+  tokenRefreshInterval = setInterval(async () => {
+    if (!activeSessionToken) return;
+
+    try {
+      const account = await codex.getAccount(true);
+      if (account) {
+        console.log(`[session] Token refreshed successfully for ${account.email || 'unknown'}`);
+      } else {
+        console.warn('[session] Periodic refresh returned no account — session may have expired');
+      }
+    } catch (err) {
+      console.warn(`[session] Periodic token refresh failed: ${err.message}`);
+    }
+  }, REFRESH_INTERVAL_MS);
+
+  console.log(`[session] Token refresh interval started (every ${REFRESH_INTERVAL_MS / 60000} minutes)`);
 }
 
 function requireSession(req, res, next) {
@@ -229,6 +274,11 @@ app.get('/codex/account', async (req, res) => {
 
       // Only return account details if this is the session owner
       if (token === activeSessionToken) {
+        // Trigger a background refresh to extend token lifetime (non-blocking)
+        codex.getAccount(true).catch((err) => {
+          console.warn(`[codex/account] Background token refresh failed: ${err.message}`);
+        });
+
         return res.json({ account, authenticated: true });
       }
 
@@ -392,8 +442,22 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
         'X-Accel-Buffering': 'no',
       });
 
+      // SSE heartbeat: send comment lines every 15s to prevent Cloudflare 524 timeouts.
+      // Reasoning models (o3, gpt-5.1, Kimi K2.5) can think silently for >100s before
+      // emitting tokens. SSE comments (`: heartbeat\n\n`) are ignored by clients.
+      const heartbeatInterval = setInterval(() => {
+        try {
+          res.write(': heartbeat\n\n');
+        } catch (_) {
+          // Connection already closed — clearInterval will happen in finally
+        }
+      }, 15_000);
+
       const sendChunk = (content) => {
         if (firstDelta) {
+          // First real data received — stop heartbeats
+          clearInterval(heartbeatInterval);
+
           // Send role chunk first
           res.write(`data: ${JSON.stringify({
             id, object: 'chat.completion.chunk', created, model,
@@ -432,6 +496,9 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
             }
           })}\n\n`);
         }
+      } finally {
+        // Ensure heartbeat is always stopped, even if cleared earlier (clearInterval is idempotent)
+        clearInterval(heartbeatInterval);
       }
 
       // Final chunk + DONE
@@ -489,18 +556,22 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
 
 process.on('SIGINT', async () => {
   console.log('Shutting down codex-proxy...');
+  if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
   await codex.kill();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('Shutting down codex-proxy...');
+  if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
   await codex.kill();
   process.exit(0);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Codex proxy server running on port ${PORT}`);
   // Attempt to restore session from previous run (survives container restarts)
-  restoreSession();
+  await restoreSession();
+  // Start periodic token refresh to keep the session alive
+  startTokenRefreshInterval();
 });
