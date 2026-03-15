@@ -103,7 +103,7 @@ export const AssistantMessage = memo(
     ) as ToolCallAnnotation[];
 
     return (
-      <div className="overflow-hidden w-full">
+      <div className="overflow-hidden w-full group">
         <>
           <div className=" flex gap-2 items-center text-sm text-bolt-elements-textSecondary mb-2">
             {(codeContext || chatSummary) && (
@@ -147,8 +147,11 @@ export const AssistantMessage = memo(
             )}
             <div className="flex w-full items-center justify-between">
               {usage && (
-                <div>
-                  Tokens: {usage.totalTokens} (prompt: {usage.promptTokens}, completion: {usage.completionTokens})
+                <div
+                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-bolt-elements-textTertiary"
+                  title={`Prompt: ${usage.promptTokens} tokens, Completion: ${usage.completionTokens} tokens`}
+                >
+                  {usage.totalTokens} tokens
                 </div>
               )}
               {(onRewind || onFork) && messageId && (

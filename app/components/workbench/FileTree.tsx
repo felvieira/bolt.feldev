@@ -14,6 +14,27 @@ const logger = createScopedLogger('FileTree');
 const NODE_PADDING_LEFT = 8;
 const DEFAULT_HIDDEN_FILES = [/\/node_modules\//, /\/\.next/, /\/\.astro/];
 
+function getFileTypeColor(fileName: string): string | undefined {
+  const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+
+  switch (ext) {
+    case '.ts':
+    case '.tsx':
+      return 'bg-blue-400';
+    case '.css':
+    case '.scss':
+    case '.sass':
+      return 'bg-purple-400';
+    case '.json':
+      return 'bg-yellow-400';
+    case '.md':
+    case '.mdx':
+      return 'bg-gray-400';
+    default:
+      return undefined;
+  }
+}
+
 interface Props {
   files?: FileMap;
   selectedFile?: string;
@@ -702,6 +723,9 @@ function File({
             'group-hover:text-bolt-elements-item-contentActive': !selected,
           })}
         >
+          {getFileTypeColor(name) && (
+            <span className={classNames('shrink-0 w-1.5 h-1.5 rounded-full mr-1.5', getFileTypeColor(name)!)} />
+          )}
           <div className="flex-1 truncate pr-2">{name}</div>
           <div className="flex items-center gap-1">
             {showStats && (

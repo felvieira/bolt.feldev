@@ -1,19 +1,19 @@
 import React from 'react';
 
 const EXAMPLE_PROMPTS = [
-  { text: 'Create a mobile app about bolt.diy' },
-  { text: 'Build a todo app in React using Tailwind' },
-  { text: 'Build a simple blog using Astro' },
-  { text: 'Create a cookie consent form using Material UI' },
-  { text: 'Make a space invaders game' },
-  { text: 'Make a Tic Tac Toe game in html, css and js only' },
+  { text: 'Build a SaaS landing page with pricing and features', emoji: '🚀' },
+  { text: 'Create a portfolio site with project gallery', emoji: '🎨' },
+  { text: 'Build an e-commerce product page with cart', emoji: '🛍️' },
+  { text: 'Create a dashboard with charts and stats', emoji: '📊' },
+  { text: 'Build a blog with article grid and newsletter', emoji: '📝' },
+  { text: 'Create an agency website with services and team', emoji: '🏢' },
 ];
 
 export function ExamplePrompts(sendMessage?: { (event: React.UIEvent, messageInput?: string): void | undefined }) {
   return (
-    <div id="examples" className="relative flex flex-col gap-9 w-full max-w-3xl mx-auto flex justify-center mt-6">
+    <div id="examples" className="relative w-full max-w-3xl mx-auto mt-6 px-2">
       <div
-        className="flex flex-wrap justify-center gap-2"
+        className="grid grid-cols-2 lg:grid-cols-3 gap-2"
         style={{
           animation: '.25s ease-out 0s 1 _fade-and-move-in_g2ptj_1 forwards',
         }}
@@ -25,9 +25,10 @@ export function ExamplePrompts(sendMessage?: { (event: React.UIEvent, messageInp
               onClick={(event) => {
                 sendMessage?.(event, examplePrompt.text);
               }}
-              className="border border-bolt-elements-borderColor rounded-full bg-gray-50 hover:bg-gray-100 dark:bg-gray-950 dark:hover:bg-gray-900 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary px-3 py-1 text-xs transition-theme"
+              className="flex items-start gap-2 border border-bolt-elements-borderColor rounded-lg bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary px-3 py-2.5 text-xs text-left transition-theme"
             >
-              {examplePrompt.text}
+              <span className="text-base shrink-0 leading-tight">{examplePrompt.emoji}</span>
+              <span className="leading-snug">{examplePrompt.text}</span>
             </button>
           );
         })}
