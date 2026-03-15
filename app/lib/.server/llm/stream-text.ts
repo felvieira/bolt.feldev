@@ -288,6 +288,9 @@ export async function streamText(props: {
 
     // Set temperature to 1 for reasoning models (required by OpenAI API)
     ...(isReasoning ? { temperature: 1 } : {}),
+
+    // Abort hung fetches before Cloudflare's 100s proxy timeout (prevents silent 524 errors)
+    abortSignal: AbortSignal.timeout(90_000),
   };
 
   // DEBUG: Log final streaming parameters

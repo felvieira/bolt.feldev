@@ -370,6 +370,11 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
         const errorMessage = error.message || 'Unknown error';
 
+        // AbortError from AbortSignal.timeout() — the LLM API call hung and was cancelled
+        if (error.name === 'AbortError' || errorMessage.includes('AbortError') || errorMessage.includes('aborted')) {
+          return 'Custom error: The AI provider did not respond in time (90s timeout). This usually means the provider API is unreachable or very slow. Please try again or select a different model.';
+        }
+
         if (errorMessage.includes('model') && errorMessage.includes('not found')) {
           return 'Custom error: Invalid model selected. Please check that the model name is correct and available.';
         }
