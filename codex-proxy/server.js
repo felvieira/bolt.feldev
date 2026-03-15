@@ -95,7 +95,7 @@ app.get('/codex/diag', async (_req, res) => {
     result.spawnTest = { success: true, note: 'already running' };
   }
 
-  // Check port 1455
+  // Check port 1455 (might only open after account/login/start)
   try {
     const probe = await fetch('http://127.0.0.1:1455/auth/callback?code=diag_probe&state=diag_probe', {
       redirect: 'manual',
@@ -104,6 +104,26 @@ app.get('/codex/diag', async (_req, res) => {
     result.sidecar1455 = { reachable: true, status: probe.status };
   } catch (err) {
     result.sidecar1455 = { reachable: false, error: err.message };
+  }
+
+  // If port 1455 not reachable, test if it opens after account/login/start
+  if (!result.sidecar1455.reachable) {
+    try {
+      const loginResult = await codex.startLogin();
+      result.loginStartResult = { success: true, hasAuthUrl: !!loginResult.authUrl, authUrlPrefix: loginResult.authUrl?.substring(0, 60) };
+
+      // Wait a moment for the HTTP server to bind
+      await new Promise((r) => setTimeout(r, 1000));
+
+      const probe2 = await fetch('http://127.0.0.1:1455/auth/callback?code=diag_probe&state=diag_probe', {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(3000),
+      });
+      result.sidecar1455AfterLogin = { reachable: true, status: probe2.status };
+    } catch (err) {
+      result.loginStartResult = result.loginStartResult ?? { success: false, error: err.message };
+      result.sidecar1455AfterLogin = { reachable: false, error: err.message };
+    }
   }
 
   res.json(result);
