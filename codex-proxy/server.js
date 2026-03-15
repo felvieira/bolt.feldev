@@ -209,12 +209,53 @@ app.get('/auth/callback', async (req, res) => {
 
     console.log(`[codex-proxy] Sidecar at 1455 responded with status: ${response.status}`);
 
-    // The codex sidecar usually responds with HTML or a redirect
+    // The codex sidecar usually responds with a redirect after processing the OAuth code
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
       console.log(`[codex-proxy] Sidecar redirect location: ${location}`);
 
       if (location) {
+        // If the sidecar redirects to its own /success endpoint (localhost:1455/success?...),
+        // we MUST follow that redirect internally. The /success handler is where the sidecar
+        // finalizes token storage. Without calling it, account/read returns requiresOpenaiAuth:true
+        const isSidecarSuccess =
+          location.includes('localhost:1455/success') ||
+          location.includes('127.0.0.1:1455/success');
+
+        if (isSidecarSuccess) {
+          const successUrl = location
+            .replace('http://localhost:1455', 'http://127.0.0.1:1455')
+            .replace('https://localhost:1455', 'http://127.0.0.1:1455');
+
+          console.log(`[codex-proxy] Following sidecar success redirect: ${successUrl.substring(0, 100)}...`);
+
+          try {
+            const successResp = await fetch(successUrl, {
+              redirect: 'follow',
+              signal: AbortSignal.timeout(10000),
+            });
+            console.log(`[codex-proxy] Sidecar /success responded: ${successResp.status}`);
+          } catch (err) {
+            console.warn(`[codex-proxy] Sidecar /success call failed (non-fatal): ${err.message}`);
+          }
+
+          // Return success page — auth is now finalized in the sidecar
+          res.set('Content-Type', 'text/html');
+          return res.send(`
+            <!DOCTYPE html>
+            <html>
+              <head><title>Authentication Complete</title></head>
+              <body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#1a1a2e;color:#fff;">
+                <div style="text-align:center">
+                  <h2 style="color:#22c55e">Authentication Successful</h2>
+                  <p>You can close this tab and return to Bolt.</p>
+                  <script>setTimeout(()=>window.close(),2000)</script>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+
         return res.redirect(location);
       }
     }
