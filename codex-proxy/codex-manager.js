@@ -297,14 +297,16 @@ export class CodexManager extends EventEmitter {
       throw new Error('ChatGPT Free does not support Codex. Use Plus/Pro/Team.');
     }
 
-    // Extract system prompt and last user message
+    // Extract system prompt and user messages
     const systemPrompt = messages
       .filter((m) => m.role === 'system')
       .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
       .join('\n');
 
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
-    const userInput = typeof lastUserMsg === 'string' ? lastUserMsg : JSON.stringify(lastUserMsg);
+    const userMessages = messages
+      .filter((m) => m.role === 'user')
+      .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)));
+    const lastUserMsg = userMessages[userMessages.length - 1] || '';
 
     // --- Thread reuse logic ---
     this._evictStaleThreads();
@@ -313,6 +315,7 @@ export class CodexManager extends EventEmitter {
     const canReuse = cached && cached.model === model;
 
     let threadId;
+    let isNewThread = false;
 
     if (canReuse) {
       // Reuse existing thread — just send a new turn
@@ -321,6 +324,7 @@ export class CodexManager extends EventEmitter {
       console.log(`[threads] reusing thread ${threadId} for key=${convKey}`);
     } else {
       // Create a new thread
+      isNewThread = true;
       const threadParams = { model };
       if (systemPrompt) {
         threadParams.developerInstructions = systemPrompt;
@@ -350,10 +354,28 @@ export class CodexManager extends EventEmitter {
       }
     }
 
-    // Start turn — only the latest user message (Codex thread keeps history)
+    // Build the turn input.
+    // For a NEW thread with multiple user messages, include ALL of them so the model
+    // has the full context. This is critical because bolt sends the original user request
+    // via llmcall (template selection) and then sends a follow-up "continue with my
+    // original request" message via the main chat — without including the original request.
+    // If we only send the last message, the model has no idea what the original request was.
+    let turnInput;
+
+    if (canReuse) {
+      // Thread already has context from previous turns — just send latest message
+      turnInput = lastUserMsg;
+    } else if (userMessages.length > 1) {
+      // New thread with multiple user messages — include all for context
+      turnInput = userMessages.join('\n\n---\n\n');
+      console.log(`[threads] new thread: including ${userMessages.length} user messages in first turn`);
+    } else {
+      turnInput = lastUserMsg;
+    }
+
     const turnParams = {
       threadId,
-      input: [{ type: 'text', text: userInput }],
+      input: [{ type: 'text', text: turnInput }],
       model,
     };
     if (reasoningEffort) {
