@@ -15,10 +15,25 @@ export default class NvidiaProvider extends BaseProvider {
 
   staticModels: ModelInfo[] = [
     {
+      // Thinking model — needs large completion budget for reasoning + answer
       name: 'moonshotai/kimi-k2.5',
       label: 'Kimi K2.5 (NVIDIA)',
       provider: 'NvidiaNim',
-      maxTokenAllowed: 200000,
+      maxTokenAllowed: 131072,
+      maxCompletionTokens: 32768,
+    },
+    {
+      name: 'moonshotai/kimi-k2-thinking',
+      label: 'Kimi K2 Thinking (NVIDIA)',
+      provider: 'NvidiaNim',
+      maxTokenAllowed: 131072,
+      maxCompletionTokens: 32768,
+    },
+    {
+      name: 'moonshotai/kimi-k2-instruct',
+      label: 'Kimi K2 Instruct (NVIDIA)',
+      provider: 'NvidiaNim',
+      maxTokenAllowed: 131072,
       maxCompletionTokens: 16384,
     },
     {
@@ -43,11 +58,12 @@ export default class NvidiaProvider extends BaseProvider {
       maxCompletionTokens: 8192,
     },
     {
+      // Thinking model — needs large completion budget for reasoning + answer
       name: 'deepseek-ai/deepseek-r1',
       label: 'DeepSeek R1 (NVIDIA)',
       provider: 'NvidiaNim',
       maxTokenAllowed: 64000,
-      maxCompletionTokens: 8192,
+      maxCompletionTokens: 32768,
     },
     {
       name: 'qwen/qwen2.5-72b-instruct',

@@ -33,16 +33,16 @@ export const PROVIDER_COMPLETION_LIMITS: Record<string, number> = {
 };
 
 /*
- * Reasoning models that require maxCompletionTokens instead of maxTokens
- * These models use internal reasoning tokens and have different API parameter requirements
+ * Reasoning/thinking models that require maxCompletionTokens instead of maxTokens.
+ * These models use internal reasoning tokens before emitting the final answer.
+ * - OpenAI o1/o3/o4/gpt-5 series
+ * - Moonshot Kimi K2.5 / Kimi K2 thinking (NVIDIA NIM) — returns content via reasoning_content
+ * - DeepSeek R1 variants
  */
 export function isReasoningModel(modelName: string): boolean {
-  const result = /^(o1|o3|o4|gpt-5)/i.test(modelName);
-
-  // DEBUG: Test regex matching
-  console.log(`REGEX TEST: "${modelName}" matches reasoning pattern: ${result}`);
-
-  return result;
+  return /^(o1|o3|o4|gpt-5)/i.test(modelName) ||
+    /kimi-k2/i.test(modelName) ||
+    /deepseek-r1/i.test(modelName);
 }
 
 // limits the number of model responses that can be returned in a single request
