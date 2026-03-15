@@ -62,6 +62,28 @@ app.get('/codex/status', (_req, res) => {
   }
 });
 
+// Diagnostic: check if sidecar HTTP server at 1455 is reachable
+app.get('/codex/diag', async (_req, res) => {
+  const result = {
+    codexInitialized: codex.initialized,
+    hasPendingToken: !!codex._pendingSessionToken,
+    hasActiveSession: !!activeSessionToken,
+    sidecar1455: null,
+  };
+
+  try {
+    const probe = await fetch('http://127.0.0.1:1455/auth/callback?code=diag_probe&state=diag_probe', {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(3000),
+    });
+    result.sidecar1455 = { reachable: true, status: probe.status };
+  } catch (err) {
+    result.sidecar1455 = { reachable: false, error: err.message };
+  }
+
+  res.json(result);
+});
+
 // Start OAuth login flow (public — anyone can initiate login)
 // If someone else was logged in, their session is invalidated.
 app.post('/codex/login', async (_req, res) => {
@@ -143,6 +165,12 @@ app.get('/auth/callback', async (req, res) => {
 
     const body = await response.text();
 
+    // Propagate non-success responses from the sidecar
+    if (!response.ok) {
+      console.error(`[codex-proxy] Sidecar returned ${response.status}: ${body.substring(0, 200)}`);
+      return res.status(response.status).json({ error: `Sidecar error ${response.status}: ${body.substring(0, 200)}` });
+    }
+
     // Return a success page
     res.set('Content-Type', 'text/html');
     res.send(`
@@ -160,20 +188,7 @@ app.get('/auth/callback', async (req, res) => {
     `);
   } catch (err) {
     console.error('[codex-proxy] OAuth callback proxy error:', err);
-    res.set('Content-Type', 'text/html');
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head><title>Authentication Error</title></head>
-        <body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#1a1a2e;color:#fff;">
-          <div style="text-align:center">
-            <h2 style="color:#ef4444">Authentication Error</h2>
-            <p>${err.message}</p>
-            <p>The Codex sidecar may not be ready. Please try logging in again.</p>
-          </div>
-        </body>
-      </html>
-    `);
+    res.status(502).json({ error: `Codex sidecar unreachable: ${err.message}` });
   }
 });
 

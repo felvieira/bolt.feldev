@@ -218,24 +218,33 @@ const ChatGPTLoginSection: React.FC = () => {
       setCallbackUrl('');
       toast.success('Callback received! Checking authentication...');
 
-      // Give the codex sidecar a moment to process the token exchange
-      setTimeout(async () => {
+      // Keep polling until authenticated or timeout (30 seconds)
+      let callbackAttempts = 0;
+      const maxCallbackAttempts = 15;
+
+      const callbackPollInterval = setInterval(async () => {
+        callbackAttempts++;
+
+        if (callbackAttempts >= maxCallbackAttempts) {
+          clearInterval(callbackPollInterval);
+          setError('Authentication timed out after callback. Please try logging in again.');
+          return;
+        }
+
         try {
           const accountRes = await fetch('/api/codex/account');
           const accountData = await accountRes.json();
 
           if (accountData.authenticated && accountData.account) {
+            clearInterval(callbackPollInterval);
             setAccount(accountData.account);
             setLoginStatus('authenticated');
             toast.success('ChatGPT connected successfully!');
-          } else {
-            // Keep polling
-            setError('Authentication pending. The token exchange may still be processing.');
           }
         } catch {
-          setError('Failed to verify authentication.');
+          // Keep polling
         }
-      }, 3000);
+      }, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to process callback';
       toast.error(message);
