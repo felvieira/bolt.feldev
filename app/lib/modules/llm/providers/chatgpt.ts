@@ -157,7 +157,8 @@ export default class ChatGPTProvider extends BaseProvider {
     const codexProxyUrl = getCodexProxyUrl(serverEnv as unknown as Record<string, string>);
 
     const openai = createOpenAI({
-      baseURL: `${codexProxyUrl}/codex/chat`,
+      // baseURL must not include /chat — the AI SDK appends /chat/completions automatically
+      baseURL: `${codexProxyUrl}/codex`,
       apiKey: sessionToken || 'no-session',
       headers: {
         'x-codex-session': sessionToken,

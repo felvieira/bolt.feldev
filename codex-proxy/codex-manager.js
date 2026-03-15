@@ -191,7 +191,9 @@ export class CodexManager extends EventEmitter {
     await this.ensureRunning();
 
     try {
+      console.log(`[getAccount] calling account/read refreshToken=${refreshToken}`);
       const result = await this.rpcRequest('account/read', { refreshToken }, 30_000);
+      console.log(`[getAccount] account/read response: ${JSON.stringify(result)}`);
       this.account = this._parseAccount(result);
       return this.account;
     } catch (err) {
@@ -200,9 +202,11 @@ export class CodexManager extends EventEmitter {
         console.warn(`account/read with refreshToken=true failed, falling back: ${err.message}`);
         try {
           const result = await this.rpcRequest('account/read', { refreshToken: false }, 10_000);
+          console.log(`[getAccount] account/read fallback response: ${JSON.stringify(result)}`);
           this.account = this._parseAccount(result);
           return this.account;
         } catch (err2) {
+          console.error(`[getAccount] fallback also failed: ${err2.message}`);
           return null;
         }
       }
@@ -445,6 +449,8 @@ export class CodexManager extends EventEmitter {
 
   /** Parse account info from Codex response */
   _parseAccount(result) {
+    console.log(`[_parseAccount] raw result: ${JSON.stringify(result)}`);
+
     if (!result || typeof result !== 'object') return null;
 
     // Could be nested: { account: { type, email, plan } } or direct
@@ -453,15 +459,22 @@ export class CodexManager extends EventEmitter {
     const email = acc.email || '';
     const plan = (acc.plan || '').toLowerCase();
 
-    if (!email && !plan && type === 'chatgpt') {
+    // If explicitly marked as authenticated, trust it even without email/plan
+    const isAuthenticated = acc.authenticated === true || result.authenticated === true;
+
+    if (!email && !plan && type === 'chatgpt' && !isAuthenticated) {
+      console.log(`[_parseAccount] returning null — no email, plan, or authenticated flag`);
       return null; // Not authenticated
     }
 
-    return {
+    const parsed = {
       type: type === 'apikey' ? 'apiKey' : 'chatgpt',
       ...(email ? { email } : {}),
       ...(plan ? { plan } : {}),
     };
+
+    console.log(`[_parseAccount] parsed: ${JSON.stringify(parsed)}`);
+    return parsed;
   }
 
   /** Parse model list from Codex response */

@@ -159,12 +159,17 @@ app.post('/codex/login', async (_req, res) => {
 app.get('/codex/account', async (req, res) => {
   const token = req.headers['x-codex-session'];
 
+  console.log(`[codex/account] token=${token ? token.substring(0, 8) + '...' : 'none'} pendingToken=${codex._pendingSessionToken ? codex._pendingSessionToken.substring(0, 8) + '...' : 'none'} activeToken=${activeSessionToken ? activeSessionToken.substring(0, 8) + '...' : 'none'}`);
+
   try {
     const account = await codex.getAccount(true);
+
+    console.log(`[codex/account] getAccount result: ${JSON.stringify(account)}`);
 
     if (account) {
       // If there's a pending token from login, activate it now
       if (codex._pendingSessionToken && token === codex._pendingSessionToken) {
+        console.log(`[codex/account] activating session token`);
         activeSessionToken = codex._pendingSessionToken;
         codex._pendingSessionToken = null;
       }
@@ -175,6 +180,7 @@ app.get('/codex/account', async (req, res) => {
       }
 
       // Someone else is logged in
+      console.log(`[codex/account] token mismatch — activeToken=${activeSessionToken ? activeSessionToken.substring(0, 8) + '...' : 'none'}`);
       return res.json({
         account: null,
         authenticated: false,
@@ -182,8 +188,10 @@ app.get('/codex/account', async (req, res) => {
       });
     }
 
+    console.log(`[codex/account] no account returned from getAccount`);
     res.json({ account: null, authenticated: false });
   } catch (err) {
+    console.error(`[codex/account] error: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -199,9 +207,12 @@ app.get('/auth/callback', async (req, res) => {
   try {
     const response = await fetch(internalUrl, { redirect: 'manual' });
 
+    console.log(`[codex-proxy] Sidecar at 1455 responded with status: ${response.status}`);
+
     // The codex sidecar usually responds with HTML or a redirect
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
+      console.log(`[codex-proxy] Sidecar redirect location: ${location}`);
 
       if (location) {
         return res.redirect(location);
