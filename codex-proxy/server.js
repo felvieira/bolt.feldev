@@ -69,8 +69,33 @@ app.get('/codex/diag', async (_req, res) => {
     hasPendingToken: !!codex._pendingSessionToken,
     hasActiveSession: !!activeSessionToken,
     sidecar1455: null,
+    codexBinary: null,
+    spawnTest: null,
   };
 
+  // Check if codex binary exists
+  try {
+    const { execSync } = await import('child_process');
+    const which = execSync('which codex || where codex 2>/dev/null || echo NOT_FOUND', { encoding: 'utf8', timeout: 3000 }).trim();
+    const version = execSync('codex --version 2>&1 || echo VERSION_FAILED', { encoding: 'utf8', timeout: 5000 }).trim();
+    result.codexBinary = { found: !which.includes('NOT_FOUND'), path: which, version };
+  } catch (err) {
+    result.codexBinary = { found: false, error: err.message };
+  }
+
+  // Try spawning sidecar if not running
+  if (!codex.initialized) {
+    try {
+      await codex.ensureRunning();
+      result.spawnTest = { success: true };
+    } catch (err) {
+      result.spawnTest = { success: false, error: err.message };
+    }
+  } else {
+    result.spawnTest = { success: true, note: 'already running' };
+  }
+
+  // Check port 1455
   try {
     const probe = await fetch('http://127.0.0.1:1455/auth/callback?code=diag_probe&state=diag_probe', {
       redirect: 'manual',
