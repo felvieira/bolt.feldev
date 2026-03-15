@@ -261,12 +261,33 @@ export class CodexManager extends EventEmitter {
       throw new Error('ChatGPT Free does not support Codex. Use Plus/Pro/Team.');
     }
 
-    // Extract system prompt and last user message
+    // Extract system prompt and conversation messages
     const systemPrompt = messages
       .filter((m) => m.role === 'system')
-      .map((m) => m.content)
+      .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
       .join('\n');
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+
+    const conversationMsgs = messages.filter((m) => m.role !== 'system');
+    const lastUserMsg = [...conversationMsgs].reverse().find((m) => m.role === 'user')?.content || '';
+
+    // Build the full conversation input so the model has context from prior turns.
+    // Codex creates a fresh thread per call, so we embed the history in the user turn.
+    let fullInput;
+    if (conversationMsgs.length > 1) {
+      const history = conversationMsgs.slice(0, -1);
+      const historyText = history
+        .map((m) => {
+          const prefix = m.role === 'user' ? 'Human' : 'Assistant';
+          const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+          // Truncate very long assistant messages (bolt artifacts) to avoid token overload
+          const truncated = content.length > 4000 ? content.substring(0, 4000) + '\n...[truncated]' : content;
+          return `${prefix}: ${truncated}`;
+        })
+        .join('\n\n');
+      fullInput = `[Conversation history]\n${historyText}\n\n[Current request]\n${typeof lastUserMsg === 'string' ? lastUserMsg : JSON.stringify(lastUserMsg)}`;
+    } else {
+      fullInput = typeof lastUserMsg === 'string' ? lastUserMsg : JSON.stringify(lastUserMsg);
+    }
 
     // Start thread
     const threadParams = { model };
@@ -291,10 +312,10 @@ export class CodexManager extends EventEmitter {
       throw new Error('Failed to get thread ID from Codex');
     }
 
-    // Start turn
+    // Start turn with full conversation context
     const turnParams = {
       threadId,
-      input: [{ type: 'text', text: lastUserMsg }],
+      input: [{ type: 'text', text: fullInput }],
       model,
     };
     if (reasoningEffort) {
