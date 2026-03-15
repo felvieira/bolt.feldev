@@ -13,41 +13,101 @@ export default class OpenAIProvider extends BaseProvider {
   };
 
   staticModels: ModelInfo[] = [
-    /*
-     * Essential fallback models - only the most stable/reliable ones
-     * GPT-4o: 128k context, 4k standard output (64k with long output mode)
-     */
-    { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', maxTokenAllowed: 128000, maxCompletionTokens: 4096 },
-
-    // GPT-4o Mini: 128k context, cost-effective alternative
+    // GPT-5 series (flagship)
+    {
+      name: 'gpt-5.4',
+      label: 'GPT-5.4',
+      provider: 'OpenAI',
+      maxTokenAllowed: 1050000,
+      maxCompletionTokens: 128000,
+    },
+    {
+      name: 'gpt-5.4-pro',
+      label: 'GPT-5.4 Pro',
+      provider: 'OpenAI',
+      maxTokenAllowed: 1050000,
+      maxCompletionTokens: 128000,
+    },
+    {
+      name: 'gpt-5.2',
+      label: 'GPT-5.2',
+      provider: 'OpenAI',
+      maxTokenAllowed: 400000,
+      maxCompletionTokens: 128000,
+    },
+    {
+      name: 'gpt-5.1',
+      label: 'GPT-5.1',
+      provider: 'OpenAI',
+      maxTokenAllowed: 400000,
+      maxCompletionTokens: 128000,
+    },
+    {
+      name: 'gpt-5-mini',
+      label: 'GPT-5 Mini',
+      provider: 'OpenAI',
+      maxTokenAllowed: 400000,
+      maxCompletionTokens: 128000,
+    },
+    {
+      name: 'gpt-5-nano',
+      label: 'GPT-5 Nano',
+      provider: 'OpenAI',
+      maxTokenAllowed: 400000,
+      maxCompletionTokens: 128000,
+    },
+    // o-series (reasoning)
+    {
+      name: 'o3',
+      label: 'O3',
+      provider: 'OpenAI',
+      maxTokenAllowed: 200000,
+      maxCompletionTokens: 100000,
+    },
+    {
+      name: 'o3-pro',
+      label: 'O3 Pro',
+      provider: 'OpenAI',
+      maxTokenAllowed: 200000,
+      maxCompletionTokens: 100000,
+    },
+    {
+      name: 'o4-mini',
+      label: 'O4 Mini',
+      provider: 'OpenAI',
+      maxTokenAllowed: 200000,
+      maxCompletionTokens: 100000,
+    },
+    // GPT-4.1 (non-reasoning, large context)
+    {
+      name: 'gpt-4.1',
+      label: 'GPT-4.1',
+      provider: 'OpenAI',
+      maxTokenAllowed: 1047576,
+      maxCompletionTokens: 32768,
+    },
+    {
+      name: 'gpt-4.1-mini',
+      label: 'GPT-4.1 Mini',
+      provider: 'OpenAI',
+      maxTokenAllowed: 1047576,
+      maxCompletionTokens: 32768,
+    },
+    // Legacy (still available via API)
+    {
+      name: 'gpt-4o',
+      label: 'GPT-4o',
+      provider: 'OpenAI',
+      maxTokenAllowed: 128000,
+      maxCompletionTokens: 16384,
+    },
     {
       name: 'gpt-4o-mini',
       label: 'GPT-4o Mini',
       provider: 'OpenAI',
       maxTokenAllowed: 128000,
-      maxCompletionTokens: 4096,
+      maxCompletionTokens: 16384,
     },
-
-    // GPT-3.5-turbo: 16k context, fast and cost-effective
-    {
-      name: 'gpt-3.5-turbo',
-      label: 'GPT-3.5 Turbo',
-      provider: 'OpenAI',
-      maxTokenAllowed: 16000,
-      maxCompletionTokens: 4096,
-    },
-
-    // o1-preview: 128k context, 32k output limit (reasoning model)
-    {
-      name: 'o1-preview',
-      label: 'o1-preview',
-      provider: 'OpenAI',
-      maxTokenAllowed: 128000,
-      maxCompletionTokens: 32000,
-    },
-
-    // o1-mini: 128k context, 65k output limit (reasoning model)
-    { name: 'o1-mini', label: 'o1-mini', provider: 'OpenAI', maxTokenAllowed: 128000, maxCompletionTokens: 65000 },
   ];
 
   async getDynamicModels(
@@ -84,46 +144,39 @@ export default class OpenAIProvider extends BaseProvider {
     );
 
     return data.map((m: any) => {
-      // Get accurate context window from OpenAI API
-      let contextWindow = 32000; // default fallback
+      let contextWindow = 128000; // default fallback
 
-      // OpenAI provides context_length in their API response
       if (m.context_length) {
         contextWindow = m.context_length;
-      } else if (m.id?.includes('gpt-4o')) {
-        contextWindow = 128000; // GPT-4o has 128k context
-      } else if (m.id?.includes('gpt-4-turbo') || m.id?.includes('gpt-4-1106')) {
-        contextWindow = 128000; // GPT-4 Turbo has 128k context
-      } else if (m.id?.includes('gpt-4')) {
-        contextWindow = 8192; // Standard GPT-4 has 8k context
+      } else if (m.id?.includes('gpt-5.4') || m.id?.includes('gpt-4.1')) {
+        contextWindow = 1050000;
+      } else if (m.id?.includes('gpt-5')) {
+        contextWindow = 400000;
+      } else if (m.id?.startsWith('o3') || m.id?.startsWith('o4')) {
+        contextWindow = 200000;
+      } else if (m.id?.includes('gpt-4o') || m.id?.includes('gpt-4-turbo')) {
+        contextWindow = 128000;
       } else if (m.id?.includes('gpt-3.5-turbo')) {
-        contextWindow = 16385; // GPT-3.5-turbo has 16k context
+        contextWindow = 16385;
       }
 
-      // Determine completion token limits based on model type (accurate 2025 limits)
-      let maxCompletionTokens = 4096; // default for most models
+      let maxCompletionTokens = 16384; // default
 
-      if (m.id?.startsWith('o1-preview')) {
-        maxCompletionTokens = 32000; // o1-preview: 32K output limit
-      } else if (m.id?.startsWith('o1-mini')) {
-        maxCompletionTokens = 65000; // o1-mini: 65K output limit
-      } else if (m.id?.startsWith('o1')) {
-        maxCompletionTokens = 32000; // Other o1 models: 32K limit
-      } else if (m.id?.includes('o3') || m.id?.includes('o4')) {
-        maxCompletionTokens = 100000; // o3/o4 models: 100K output limit
+      if (m.id?.includes('gpt-5')) {
+        maxCompletionTokens = 128000;
+      } else if (m.id?.startsWith('o3') || m.id?.startsWith('o4')) {
+        maxCompletionTokens = 100000;
+      } else if (m.id?.includes('gpt-4.1')) {
+        maxCompletionTokens = 32768;
       } else if (m.id?.includes('gpt-4o')) {
-        maxCompletionTokens = 4096; // GPT-4o standard: 4K (64K with long output mode)
-      } else if (m.id?.includes('gpt-4')) {
-        maxCompletionTokens = 8192; // Standard GPT-4: 8K output limit
-      } else if (m.id?.includes('gpt-3.5-turbo')) {
-        maxCompletionTokens = 4096; // GPT-3.5-turbo: 4K output limit
+        maxCompletionTokens = 16384;
       }
 
       return {
         name: m.id,
-        label: `${m.id} (${Math.floor(contextWindow / 1000)}k context)`,
+        label: `${m.id} (${contextWindow >= 1000000 ? `${(contextWindow / 1000000).toFixed(0)}M` : `${Math.floor(contextWindow / 1000)}k`} context)`,
         provider: this.name,
-        maxTokenAllowed: Math.min(contextWindow, 128000), // Cap at 128k for safety
+        maxTokenAllowed: contextWindow,
         maxCompletionTokens,
       };
     });

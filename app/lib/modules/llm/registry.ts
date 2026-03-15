@@ -1,4 +1,5 @@
 import AnthropicProvider from './providers/anthropic';
+import ChatGPTProvider from './providers/chatgpt';
 import CerebrasProvider from './providers/cerebras';
 import CohereProvider from './providers/cohere';
 import DeepseekProvider from './providers/deepseek';
@@ -19,10 +20,12 @@ import HyperbolicProvider from './providers/hyperbolic';
 import AmazonBedrockProvider from './providers/amazon-bedrock';
 import GithubProvider from './providers/github';
 import MoonshotProvider from './providers/moonshot';
+import NvidiaProvider from './providers/nvidia';
 import ZaiProvider from './providers/z-ai';
 
 export {
   AnthropicProvider,
+  ChatGPTProvider,
   CerebrasProvider,
   CohereProvider,
   DeepseekProvider,
@@ -33,6 +36,7 @@ export {
   HyperbolicProvider,
   MistralProvider,
   MoonshotProvider,
+  NvidiaProvider,
   OllamaProvider,
   OpenAIProvider,
   OpenRouterProvider,

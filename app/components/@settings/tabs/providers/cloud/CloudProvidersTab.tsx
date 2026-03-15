@@ -8,7 +8,9 @@ import { motion } from 'framer-motion';
 import { classNames } from '~/utils/classNames';
 import { toast } from 'react-toastify';
 import { providerBaseUrlEnvKeys } from '~/utils/constants';
-import { SiAmazon, SiGoogle, SiGithub, SiHuggingface, SiPerplexity, SiOpenai } from 'react-icons/si';
+import { SiAmazon, SiGoogle, SiGithub, SiHuggingface, SiNvidia, SiOpenai, SiPerplexity } from 'react-icons/si';
+import { IoChatbubbleEllipses } from 'react-icons/io5';
+import ChatGPTLoginSection from './ChatGPTLoginSection';
 import { BsRobot, BsCloud } from 'react-icons/bs';
 import { TbBrain, TbCloudComputing } from 'react-icons/tb';
 import { BiCodeBlock, BiChip } from 'react-icons/bi';
@@ -19,6 +21,7 @@ import type { IconType } from 'react-icons';
 type ProviderName =
   | 'AmazonBedrock'
   | 'Anthropic'
+  | 'ChatGPT'
   | 'Cohere'
   | 'Deepseek'
   | 'Github'
@@ -27,6 +30,7 @@ type ProviderName =
   | 'HuggingFace'
   | 'Hyperbolic'
   | 'Mistral'
+  | 'NvidiaNim'
   | 'OpenAI'
   | 'OpenRouter'
   | 'Perplexity'
@@ -37,6 +41,7 @@ type ProviderName =
 const PROVIDER_ICONS: Record<ProviderName, IconType> = {
   AmazonBedrock: SiAmazon,
   Anthropic: FaBrain,
+  ChatGPT: IoChatbubbleEllipses,
   Cohere: BiChip,
   Deepseek: BiCodeBlock,
   Github: SiGithub,
@@ -45,6 +50,7 @@ const PROVIDER_ICONS: Record<ProviderName, IconType> = {
   HuggingFace: SiHuggingface,
   Hyperbolic: TbCloudComputing,
   Mistral: TbBrain,
+  NvidiaNim: SiNvidia,
   OpenAI: SiOpenai,
   OpenRouter: FaCloud,
   Perplexity: SiPerplexity,
@@ -56,6 +62,8 @@ const PROVIDER_ICONS: Record<ProviderName, IconType> = {
 const PROVIDER_DESCRIPTIONS: Partial<Record<ProviderName, string>> = {
   Anthropic: 'Access Claude and other Anthropic models',
   Github: 'Use OpenAI models hosted through GitHub infrastructure',
+  ChatGPT: 'Use your ChatGPT Plus/Pro/Team subscription via OAuth login',
+  NvidiaNim: 'Access LLMs via NVIDIA NIM inference microservices',
   OpenAI: 'Use GPT-4, GPT-3.5, and other OpenAI models',
 };
 
@@ -163,6 +171,8 @@ const CloudProvidersTab = () => {
             <Switch checked={categoryEnabled} onCheckedChange={handleToggleCategory} />
           </div>
         </div>
+
+        <ChatGPTLoginSection />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredProviders.map((provider, index) => (

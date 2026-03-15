@@ -29,8 +29,11 @@ services:
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
+      - CODEX_PROXY_URL=http://codex-proxy:3100
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+    depends_on:
+      - codex-proxy
     command: pnpm run dockerstart
     profiles:
       - production
@@ -66,8 +69,11 @@ services:
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
+      - CODEX_PROXY_URL=http://codex-proxy:3100
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+    depends_on:
+      - codex-proxy
     volumes:
       - type: bind
         source: .
@@ -96,3 +102,15 @@ services:
     command: pnpm run dockerstart
     profiles:
       - prebuilt
+
+  codex-proxy:
+    image: bolt-codex-proxy:latest
+    build:
+      context: ./codex-proxy
+      dockerfile: Dockerfile
+    ports:
+      - '3100:3100'
+    environment:
+      - CODEX_PROXY_PORT=3100
+    restart: unless-stopped
+    profiles: ['production', 'development', 'default']
