@@ -52,6 +52,8 @@ const ChatGPTLoginSection: React.FC = () => {
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [codexAvailable, setCodexAvailable] = useState<boolean | null>(null);
+  const [callbackUrl, setCallbackUrl] = useState('');
+  const [submittingCallback, setSubmittingCallback] = useState(false);
 
   // Check if codex-proxy is available and if we have a stored session
   useEffect(() => {
@@ -80,19 +82,16 @@ const ChatGPTLoginSection: React.FC = () => {
       try {
         data = await res.json();
       } catch {
-        // Response wasn't JSON (e.g. HTML error page)
-        setCodexAvailable(true); // Still show login UI
+        setCodexAvailable(true);
         return;
       }
 
       setCodexAvailable(true);
 
-      // If codex-proxy reports not running, still show the UI
       if (data.available === false) {
         return;
       }
 
-      // If we have a stored session token, check if it's still valid
       const token = getSessionToken();
 
       if (token) {
@@ -104,16 +103,13 @@ const ChatGPTLoginSection: React.FC = () => {
             setAccount(accountData.account);
             setLoginStatus('authenticated');
           } else {
-            // Token expired or another user took over
             clearSessionToken();
           }
         } catch {
-          // Account check failed, clear stale token
           clearSessionToken();
         }
       }
     } catch {
-      // Even if codex-proxy is not available, still show the login UI
       setCodexAvailable(true);
     }
   }, []);
@@ -127,7 +123,6 @@ const ChatGPTLoginSection: React.FC = () => {
         setAccount(data.account);
         setLoginStatus('authenticated');
       } else {
-        // Session was invalidated (another user logged in)
         clearSessionToken();
         setAccount(null);
         setLoginStatus('idle');
@@ -161,7 +156,7 @@ const ChatGPTLoginSection: React.FC = () => {
       // Open the auth URL in a new tab
       window.open(data.authUrl, '_blank');
 
-      // Poll for authentication
+      // Poll for authentication (works when bolt runs locally)
       let attempts = 0;
       const maxAttempts = 150; // 5 minutes
 
@@ -199,6 +194,57 @@ const ChatGPTLoginSection: React.FC = () => {
     }
   }, []);
 
+  const handleSubmitCallback = useCallback(async () => {
+    if (!callbackUrl.trim()) {
+      return;
+    }
+
+    setSubmittingCallback(true);
+
+    try {
+      const res = await fetch('/api/codex/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callbackUrl: callbackUrl.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Callback failed');
+      }
+
+      // Callback processed — now poll for account
+      setCallbackUrl('');
+      toast.success('Callback received! Checking authentication...');
+
+      // Give the codex sidecar a moment to process the token exchange
+      setTimeout(async () => {
+        try {
+          const accountRes = await fetch('/api/codex/account');
+          const accountData = await accountRes.json();
+
+          if (accountData.authenticated && accountData.account) {
+            setAccount(accountData.account);
+            setLoginStatus('authenticated');
+            toast.success('ChatGPT connected successfully!');
+          } else {
+            // Keep polling
+            setError('Authentication pending. The token exchange may still be processing.');
+          }
+        } catch {
+          setError('Failed to verify authentication.');
+        }
+      }, 3000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to process callback';
+      toast.error(message);
+      setError(message);
+    } finally {
+      setSubmittingCallback(false);
+    }
+  }, [callbackUrl]);
+
   const handleLogout = useCallback(async () => {
     try {
       await fetch('/api/codex/logout', { method: 'POST' });
@@ -214,11 +260,11 @@ const ChatGPTLoginSection: React.FC = () => {
   }, []);
 
   if (codexAvailable === false) {
-    return null; // Don't show if codex-proxy is not available
+    return null;
   }
 
   if (codexAvailable === null) {
-    return null; // Loading
+    return null;
   }
 
   const planColor =
@@ -286,11 +332,12 @@ const ChatGPTLoginSection: React.FC = () => {
           )}
 
           {loginStatus === 'pending' && (
-            <div className="mt-2">
-              <div className="flex items-center gap-2 text-sm text-yellow-500 mb-2">
+            <div className="mt-2 space-y-3">
+              <div className="flex items-center gap-2 text-sm text-yellow-500">
                 <div className="animate-pulse w-2 h-2 rounded-full bg-yellow-500" />
                 <span>Waiting for authentication...</span>
               </div>
+
               {authUrl && (
                 <p className="text-xs text-bolt-elements-textSecondary">
                   A new tab should have opened. If not,{' '}
@@ -305,6 +352,47 @@ const ChatGPTLoginSection: React.FC = () => {
                   .
                 </p>
               )}
+
+              {/* Remote deployment: paste callback URL */}
+              <div className="bg-bolt-elements-background-depth-3 rounded-lg p-3 space-y-2">
+                <p className="text-xs text-bolt-elements-textSecondary">
+                  <strong>Remote access?</strong> After authenticating, your browser will show an error page
+                  at <code className="text-purple-400">localhost:1455</code>. Copy the full URL from the
+                  address bar and paste it below:
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={callbackUrl}
+                    onChange={(e) => setCallbackUrl(e.target.value)}
+                    placeholder="Paste the localhost:1455/auth/callback?code=... URL here"
+                    className={classNames(
+                      'flex-1 px-3 py-1.5 text-xs rounded border',
+                      'border-bolt-elements-borderColor bg-bolt-elements-background-depth-2',
+                      'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
+                      'focus:outline-none focus:ring-2 focus:ring-purple-500/30',
+                    )}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSubmitCallback();
+                      }
+                    }}
+                  />
+                  <motion.button
+                    onClick={handleSubmitCallback}
+                    disabled={submittingCallback || !callbackUrl.trim()}
+                    className={classNames(
+                      'px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap',
+                      'bg-purple-500 hover:bg-purple-600 text-white',
+                      'disabled:opacity-50 disabled:cursor-not-allowed',
+                      'transition-colors duration-200',
+                    )}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {submittingCallback ? 'Processing...' : 'Submit'}
+                  </motion.button>
+                </div>
+              </div>
             </div>
           )}
 
