@@ -55,6 +55,7 @@ function loadSessionToken() {
 
 let activeSessionToken = null;
 let tokenRefreshInterval = null;
+let lastTokenRefresh = null;
 
 // Restore session on startup
 async function restoreSession() {
@@ -109,6 +110,7 @@ function startTokenRefreshInterval() {
     try {
       const account = await codex.getAccount(true);
       if (account) {
+        lastTokenRefresh = new Date().toISOString();
         console.log(`[session] Token refreshed successfully for ${account.email || 'unknown'}`);
       } else {
         console.warn('[session] Periodic refresh returned no account — session may have expired');
@@ -156,6 +158,30 @@ app.get('/codex/status', (_req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Session health — called by the frontend heartbeat to verify session is still alive
+app.get('/codex/session-health', async (_req, res) => {
+  const authenticated = !!activeSessionToken;
+  let sessionOwner = null;
+
+  if (authenticated) {
+    try {
+      const account = await codex.getAccount(false);
+      sessionOwner = account?.email || null;
+    } catch {
+      // Non-fatal — sidecar may be temporarily busy
+    }
+  }
+
+  const codexRunning = !!(codex.process && !codex.process.killed);
+
+  res.json({
+    authenticated,
+    sessionOwner,
+    lastRefresh: lastTokenRefresh,
+    codexRunning,
+  });
 });
 
 // Diagnostic: check if sidecar HTTP server at 1455 is reachable

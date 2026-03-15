@@ -54,6 +54,7 @@ const ChatGPTLoginSection: React.FC = () => {
   const [codexAvailable, setCodexAvailable] = useState<boolean | null>(null);
   const [callbackUrl, setCallbackUrl] = useState('');
   const [submittingCallback, setSubmittingCallback] = useState(false);
+  const [sessionOwner, setSessionOwner] = useState<string | null>(null);
 
   // Check if codex-proxy is available and if we have a stored session
   useEffect(() => {
@@ -69,6 +70,45 @@ const ChatGPTLoginSection: React.FC = () => {
     const interval = setInterval(() => {
       refreshAccount();
     }, 60_000);
+
+    return () => clearInterval(interval);
+  }, [loginStatus]);
+
+  // Periodic heartbeat — check /codex/session-health every 60 seconds while mounted
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch('/api/codex/session-health', {
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!res.ok) {
+          // Server error — do not clear cookie, just log
+          console.warn(`[ChatGPT] session-health returned ${res.status}, keeping session cookie`);
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.sessionOwner) {
+          setSessionOwner(data.sessionOwner);
+        }
+
+        if (data.authenticated === false && loginStatus === 'authenticated') {
+          // Server explicitly says not authenticated — clear and show login
+          console.warn('[ChatGPT] session-health reports unauthenticated — clearing session');
+          clearSessionToken();
+          setAccount(null);
+          setSessionOwner(null);
+          setLoginStatus('idle');
+        }
+      } catch (err) {
+        // Network error / timeout — do NOT clear cookie
+        console.warn('[ChatGPT] session-health fetch failed (network), keeping session cookie');
+      }
+    };
+
+    const interval = setInterval(checkHealth, 60_000);
 
     return () => clearInterval(interval);
   }, [loginStatus]);
@@ -422,8 +462,8 @@ const ChatGPTLoginSection: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-4 text-xs">
-                {account.email && (
-                  <span className="text-bolt-elements-textSecondary">{account.email}</span>
+                {(account.email || sessionOwner) && (
+                  <span className="text-bolt-elements-textSecondary">{account.email || sessionOwner}</span>
                 )}
                 {account.plan && (
                   <span className={classNames('font-medium uppercase', planColor)}>
