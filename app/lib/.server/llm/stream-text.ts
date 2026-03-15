@@ -149,6 +149,15 @@ export async function streamText(props: {
     `Token limits for model ${modelDetails.name}: maxTokens=${safeMaxTokens}, maxTokenAllowed=${modelDetails.maxTokenAllowed}, maxCompletionTokens=${modelDetails.maxCompletionTokens}`,
   );
 
+  // Detect whether mobile/Supabase instructions should be injected
+  const allMessageText = processedMessages
+    .filter((m) => m.role === 'user')
+    .map((m) => (typeof m.content === 'string' ? m.content : ''))
+    .join(' ')
+    .toLowerCase();
+  const isMobile = /\b(react.native|expo|mobile.app|ios.app|android.app)\b/i.test(allMessageText);
+  const hasSupabase = !!(options?.supabaseConnection?.isConnected);
+
   let systemPrompt =
     PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
       cwd: WORK_DIR,
@@ -160,6 +169,8 @@ export async function streamText(props: {
         hasSelectedProject: options?.supabaseConnection?.hasSelectedProject || false,
         credentials: options?.supabaseConnection?.credentials || undefined,
       },
+      isMobile,
+      hasSupabase,
     }) ?? getSystemPrompt();
 
   if (chatMode === 'build' && contextFiles && contextOptimization) {

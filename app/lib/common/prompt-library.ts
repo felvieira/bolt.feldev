@@ -16,6 +16,8 @@ export interface PromptOptions {
       supabaseUrl?: string;
     };
   };
+  isMobile?: boolean;
+  hasSupabase?: boolean;
 }
 
 export class PromptLibrary {
@@ -35,7 +37,10 @@ export class PromptLibrary {
     original: {
       label: 'Old Default Prompt',
       description: 'The OG battle tested default system Prompt',
-      get: (options) => getSystemPrompt(options.cwd, options.supabase, options.designScheme),
+      get: (options) => getSystemPrompt(options.cwd, options.supabase, options.designScheme, {
+        isMobile: options.isMobile,
+        hasSupabase: options.hasSupabase,
+      }),
     },
     optimized: {
       label: 'Optimized Prompt (experimental)',
