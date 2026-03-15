@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { createInterface } from 'readline';
+import { createHash } from 'crypto';
 import { EventEmitter } from 'events';
 
 /**
@@ -14,6 +15,8 @@ export class CodexManager extends EventEmitter {
     this.requestId = 0;
     this.pending = new Map(); // id -> { resolve, reject, timer }
     this.account = null;
+    // Thread reuse: conversationKey -> { threadId, model, lastUsed }
+    this.threads = new Map();
   }
 
   /** Send a JSON-RPC request and wait for a response */
@@ -162,6 +165,7 @@ export class CodexManager extends EventEmitter {
     }
     this.initialized = false;
     this.account = null;
+    this.threads.clear();
     for (const [id, { reject, timer }] of this.pending) {
       clearTimeout(timer);
       reject(new Error('Codex process killed'));
@@ -246,8 +250,40 @@ export class CodexManager extends EventEmitter {
     return this._parseModels(result);
   }
 
-  /** Chat completion via Codex threads */
-  async chatCompletion(model, messages, reasoningEffort, deltaCallback = null) {
+  /**
+   * Derive a stable conversation key from the messages.
+   * Uses a hash of the first user message + session context so that
+   * the same bolt conversation always maps to the same Codex thread.
+   */
+  _conversationKey(messages, sessionToken) {
+    const firstUser = messages.find((m) => m.role === 'user');
+    if (!firstUser) return null;
+
+    const content = typeof firstUser.content === 'string'
+      ? firstUser.content
+      : JSON.stringify(firstUser.content);
+
+    return createHash('sha256')
+      .update((sessionToken || '') + ':' + content.substring(0, 500))
+      .digest('hex')
+      .substring(0, 16);
+  }
+
+  /** Evict threads not used for over 30 minutes */
+  _evictStaleThreads() {
+    const maxAge = 30 * 60 * 1000;
+    const now = Date.now();
+
+    for (const [key, entry] of this.threads) {
+      if (now - entry.lastUsed > maxAge) {
+        console.log(`[threads] evicting stale thread ${entry.threadId} (key=${key})`);
+        this.threads.delete(key);
+      }
+    }
+  }
+
+  /** Chat completion via Codex threads — reuses threads for the same conversation */
+  async chatCompletion(model, messages, reasoningEffort, deltaCallback = null, sessionToken = null) {
     await this.ensureRunning();
 
     // Validate account
@@ -261,61 +297,63 @@ export class CodexManager extends EventEmitter {
       throw new Error('ChatGPT Free does not support Codex. Use Plus/Pro/Team.');
     }
 
-    // Extract system prompt and conversation messages
+    // Extract system prompt and last user message
     const systemPrompt = messages
       .filter((m) => m.role === 'system')
       .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
       .join('\n');
 
-    const conversationMsgs = messages.filter((m) => m.role !== 'system');
-    const lastUserMsg = [...conversationMsgs].reverse().find((m) => m.role === 'user')?.content || '';
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+    const userInput = typeof lastUserMsg === 'string' ? lastUserMsg : JSON.stringify(lastUserMsg);
 
-    // Build the full conversation input so the model has context from prior turns.
-    // Codex creates a fresh thread per call, so we embed the history in the user turn.
-    let fullInput;
-    if (conversationMsgs.length > 1) {
-      const history = conversationMsgs.slice(0, -1);
-      const historyText = history
-        .map((m) => {
-          const prefix = m.role === 'user' ? 'Human' : 'Assistant';
-          const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-          // Truncate very long assistant messages (bolt artifacts) to avoid token overload
-          const truncated = content.length > 4000 ? content.substring(0, 4000) + '\n...[truncated]' : content;
-          return `${prefix}: ${truncated}`;
-        })
-        .join('\n\n');
-      fullInput = `[Conversation history]\n${historyText}\n\n[Current request]\n${typeof lastUserMsg === 'string' ? lastUserMsg : JSON.stringify(lastUserMsg)}`;
+    // --- Thread reuse logic ---
+    this._evictStaleThreads();
+    const convKey = this._conversationKey(messages, sessionToken);
+    const cached = convKey ? this.threads.get(convKey) : null;
+    const canReuse = cached && cached.model === model;
+
+    let threadId;
+
+    if (canReuse) {
+      // Reuse existing thread — just send a new turn
+      threadId = cached.threadId;
+      cached.lastUsed = Date.now();
+      console.log(`[threads] reusing thread ${threadId} for key=${convKey}`);
     } else {
-      fullInput = typeof lastUserMsg === 'string' ? lastUserMsg : JSON.stringify(lastUserMsg);
-    }
+      // Create a new thread
+      const threadParams = { model };
+      if (systemPrompt) {
+        threadParams.developerInstructions = systemPrompt;
+      }
 
-    // Start thread
-    const threadParams = { model };
-    if (systemPrompt) {
-      threadParams.developerInstructions = systemPrompt;
-    }
-
-    let threadResult;
-    try {
-      threadResult = await this.rpcRequest('thread/start', threadParams);
-    } catch (err) {
-      if (err.message.toLowerCase().includes('missing field model')) {
-        threadParams.model = 'o3';
+      let threadResult;
+      try {
         threadResult = await this.rpcRequest('thread/start', threadParams);
-      } else {
-        throw err;
+      } catch (err) {
+        if (err.message.toLowerCase().includes('missing field model')) {
+          threadParams.model = 'o3';
+          threadResult = await this.rpcRequest('thread/start', threadParams);
+        } else {
+          throw err;
+        }
+      }
+
+      threadId = threadResult?.thread?.id || '';
+      if (!threadId) {
+        throw new Error('Failed to get thread ID from Codex');
+      }
+
+      // Store for reuse
+      if (convKey) {
+        this.threads.set(convKey, { threadId, model, lastUsed: Date.now() });
+        console.log(`[threads] created thread ${threadId} for key=${convKey} model=${model}`);
       }
     }
 
-    const threadId = threadResult?.thread?.id || '';
-    if (!threadId) {
-      throw new Error('Failed to get thread ID from Codex');
-    }
-
-    // Start turn with full conversation context
+    // Start turn — only the latest user message (Codex thread keeps history)
     const turnParams = {
       threadId,
-      input: [{ type: 'text', text: fullInput }],
+      input: [{ type: 'text', text: userInput }],
       model,
     };
     if (reasoningEffort) {
@@ -326,6 +364,12 @@ export class CodexManager extends EventEmitter {
     try {
       turnResult = await this.rpcRequest('turn/start', turnParams);
     } catch (err) {
+      // If the thread is stale or invalid, create a new one and retry
+      if (canReuse && (err.message.includes('not found') || err.message.includes('invalid'))) {
+        console.warn(`[threads] cached thread ${threadId} is invalid, creating new one`);
+        this.threads.delete(convKey);
+        return this.chatCompletion(model, messages, reasoningEffort, deltaCallback, sessionToken);
+      }
       if (err.message.toLowerCase().includes('missing field model')) {
         turnParams.model = 'o3';
         turnResult = await this.rpcRequest('turn/start', turnParams);

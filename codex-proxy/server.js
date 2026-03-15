@@ -376,6 +376,7 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
       return res.status(400).json({ error: 'model and messages[] are required' });
     }
 
+    const sessionToken = req.headers['x-codex-session'] || null;
     console.log(`[chat/completions] model=${model} stream=${!!stream}`);
 
     if (stream) {
@@ -409,7 +410,7 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
       try {
         const text = await codex.chatCompletion(model, messages, reasoningEffort, (delta) => {
           sendChunk(delta);
-        });
+        }, sessionToken);
 
         // If no deltas were streamed (e.g. sidecar returned full text at end), send now
         if (firstDelta && text) {
@@ -444,7 +445,7 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
       res.end();
     } else {
       // Non-streaming mode (used by /api/llmcall template selector)
-      const text = await codex.chatCompletion(model, messages, reasoningEffort);
+      const text = await codex.chatCompletion(model, messages, reasoningEffort, null, sessionToken);
 
       res.json({
         id: `codex-${Date.now()}`,
