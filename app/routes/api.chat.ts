@@ -73,6 +73,18 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     parseCookies(cookieHeader || '').providers || '{}',
   );
 
+  // Log which provider/model is being used and whether API key is present
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+  if (lastUserMsg) {
+    const msgContent = typeof lastUserMsg.content === 'string' ? lastUserMsg.content : '';
+    const providerMatch = msgContent.match(/\[Provider:\s*([^\]]+)\]/);
+    const modelMatch = msgContent.match(/\[Model:\s*([^\]]+)\]/);
+    const detectedProvider = providerMatch?.[1]?.trim() ?? 'unknown';
+    const detectedModel = modelMatch?.[1]?.trim() ?? 'unknown';
+    const hasKey = !!(apiKeys[detectedProvider]);
+    console.log(`[chat] provider=${detectedProvider} model=${detectedModel} hasApiKey=${hasKey} chatMode=${chatMode} contextOpt=${contextOptimization} files=${Object.keys(files || {}).length}`);
+  }
+
   const stream = new SwitchableStream();
 
   const cumulativeUsage = {
@@ -349,7 +361,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         result.mergeIntoDataStream(dataStream);
       },
       onError: (error: any) => {
-        // Provide more specific error messages for common issues
+        // Always log full error to server console for debugging
+        console.error('[chat:onError] Full error:', error);
+        console.error('[chat:onError] Type:', error?.constructor?.name);
+        console.error('[chat:onError] Message:', error?.message);
+        console.error('[chat:onError] Status:', error?.statusCode ?? error?.status);
+        console.error('[chat:onError] Body:', JSON.stringify(error?.responseBody ?? error?.data ?? ''));
+
         const errorMessage = error.message || 'Unknown error';
 
         if (errorMessage.includes('model') && errorMessage.includes('not found')) {
@@ -430,13 +448,18 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
       },
     });
   } catch (error: any) {
+    console.error('[chat:catch] Unhandled error:', error);
+    console.error('[chat:catch] Message:', error?.message);
+    console.error('[chat:catch] Stack:', error?.stack);
+    console.error('[chat:catch] Status:', error?.statusCode ?? error?.status);
+    console.error('[chat:catch] Body:', JSON.stringify(error?.responseBody ?? error?.data ?? ''));
     logger.error(error);
 
     const errorResponse = {
       error: true,
       message: error.message || 'An unexpected error occurred',
       statusCode: error.statusCode || 500,
-      isRetryable: error.isRetryable !== false, // Default to retryable unless explicitly false
+      isRetryable: error.isRetryable !== false,
       provider: error.provider || 'unknown',
     };
 

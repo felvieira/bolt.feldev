@@ -220,6 +220,7 @@ export async function streamText(props: {
   }
 
   logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
+  console.log(`[stream-text] provider=${provider.name} model=${modelDetails.name} maxTokens=${safeMaxTokens} isReasoning=${isReasoningModel(modelDetails.name)} chatMode=${chatMode}`);
 
   // Log reasoning model detection and token parameters
   const isReasoning = isReasoningModel(modelDetails.name);
