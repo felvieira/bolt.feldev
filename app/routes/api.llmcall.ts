@@ -229,7 +229,10 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         ),
       );
 
-      const result = await generateText(finalParams);
+      const result = await generateText({
+        ...finalParams,
+        abortSignal: AbortSignal.timeout(isReasoning ? 300_000 : 90_000),
+      });
       logger.info(`Generated response`);
 
       return new Response(JSON.stringify(result), {

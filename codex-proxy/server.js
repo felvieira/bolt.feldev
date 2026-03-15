@@ -420,8 +420,16 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
       } catch (err) {
         console.error('[chat/completions] streaming error:', err.message);
         if (firstDelta) {
-          // Nothing sent yet — send error as SSE event
-          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+          // Send error in OpenAI-compatible format so AI SDK can parse it (not a plain string)
+          const isModelNotSupported = err.message.includes('not supported');
+          res.write(`data: ${JSON.stringify({
+            error: {
+              message: err.message,
+              type: isModelNotSupported ? 'invalid_request_error' : 'server_error',
+              code: isModelNotSupported ? 'model_not_supported' : 'internal_server_error',
+              param: null,
+            }
+          })}\n\n`);
         }
       }
 
@@ -463,7 +471,15 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
   } catch (err) {
     console.error('Chat completion error:', err);
     if (!res.headersSent) {
-      res.status(500).json({ error: err.message });
+      const isModelNotSupported = err.message && err.message.includes('not supported');
+      res.status(isModelNotSupported ? 400 : 500).json({
+        error: {
+          message: err.message,
+          type: isModelNotSupported ? 'invalid_request_error' : 'server_error',
+          code: isModelNotSupported ? 'model_not_supported' : 'internal_server_error',
+          param: null,
+        }
+      });
     }
   }
 });

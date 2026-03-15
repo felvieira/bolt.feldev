@@ -375,6 +375,11 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           return 'Custom error: The AI provider did not respond in time. Reasoning models (Kimi K2, DeepSeek R1, o3) may need longer — try again. If this keeps happening, try a faster model like Llama 3.3 70B.';
         }
 
+        // Model not supported with the current account type (e.g. gpt-5.3-codex-spark requires API key, not ChatGPT OAuth)
+        if (errorMessage.includes('not supported when using Codex') || errorMessage.includes('model_not_supported')) {
+          return 'Custom error: This model is not available with your ChatGPT account login. Please select a different model (e.g. o3, o4-mini) or use an OpenAI API key instead.';
+        }
+
         if (errorMessage.includes('model') && errorMessage.includes('not found')) {
           return 'Custom error: Invalid model selected. Please check that the model name is correct and available.';
         }
