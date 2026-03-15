@@ -344,14 +344,18 @@ export class CodexManager extends EventEmitter {
         if (turnId && evtTurnId && evtTurnId !== turnId) return;
 
         const status = turnObj.status || '';
+        console.log(`[_awaitTurnCompletion] turn/completed event: status=${status} turnId=${evtTurnId}`);
+
         if (status === 'failed') {
           cleanup();
           const errorMsg = turnObj.error?.message || 'Unknown error';
+          console.error(`[_awaitTurnCompletion] turn FAILED: ${errorMsg}`);
           reject(new Error(`Codex turn failed: ${errorMsg}`));
           return;
         }
         if (status === 'interrupted') {
           cleanup();
+          console.error(`[_awaitTurnCompletion] turn INTERRUPTED`);
           reject(new Error('Codex turn interrupted'));
           return;
         }
@@ -359,10 +363,13 @@ export class CodexManager extends EventEmitter {
         const text = this._extractTextFromTurn(turnObj);
         cleanup();
         if (text) {
+          console.log(`[_awaitTurnCompletion] turn completed via event, text length=${text.length}`);
           resolve(text);
         } else if (streamedText) {
+          console.log(`[_awaitTurnCompletion] turn completed via stream, text length=${streamedText.length}`);
           resolve(streamedText);
         } else if (status === 'completed') {
+          console.error(`[_awaitTurnCompletion] turn completed but no text found. turnObj keys: ${Object.keys(turnObj).join(',')}`);
           reject(new Error('Codex turn completed but no response text found'));
         }
       };
@@ -381,6 +388,7 @@ export class CodexManager extends EventEmitter {
         attempts++;
         if (attempts >= maxAttempts) {
           cleanup();
+          console.error(`[_awaitTurnCompletion] TIMEOUT after ${maxAttempts} attempts (5 min)`);
           reject(new Error('Codex completion timed out (5 min)'));
           return;
         }
@@ -395,15 +403,21 @@ export class CodexManager extends EventEmitter {
           for (const turn of turns) {
             const status = turn.status || '';
             if (status === 'completed' || status === 'failed' || status === 'interrupted') {
+              console.log(`[_awaitTurnCompletion] poll found turn status=${status} attempt=${attempts}`);
               const text = this._extractTextFromTurn(turn);
               cleanup();
               if (text) {
+                console.log(`[_awaitTurnCompletion] resolved via poll, text length=${text.length}`);
                 resolve(text);
               } else if (streamedText) {
+                console.log(`[_awaitTurnCompletion] resolved via stream, text length=${streamedText.length}`);
                 resolve(streamedText);
               } else if (status === 'failed') {
-                reject(new Error(`Codex turn failed: ${turn.error?.message || 'Unknown'}`));
+                const errMsg = turn.error?.message || 'Unknown';
+                console.error(`[_awaitTurnCompletion] poll turn FAILED: ${errMsg}`);
+                reject(new Error(`Codex turn failed: ${errMsg}`));
               } else {
+                console.error(`[_awaitTurnCompletion] poll turn completed but no text. turn keys: ${Object.keys(turn).join(',')}`);
                 reject(new Error('Codex turn completed but no response text found'));
               }
               return;
@@ -457,7 +471,7 @@ export class CodexManager extends EventEmitter {
     const acc = result.account || result;
     const type = (acc.type || acc.account_type || 'chatgpt').toLowerCase();
     const email = acc.email || '';
-    const plan = (acc.plan || '').toLowerCase();
+    const plan = (acc.plan || acc.planType || '').toLowerCase();
 
     // If explicitly marked as authenticated, trust it even without email/plan
     const isAuthenticated = acc.authenticated === true || result.authenticated === true;
