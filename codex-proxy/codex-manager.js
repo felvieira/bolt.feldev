@@ -252,21 +252,32 @@ export class CodexManager extends EventEmitter {
 
   /**
    * Derive a stable conversation key from the messages.
-   * Uses a hash of the first user message + session context so that
-   * the same bolt conversation always maps to the same Codex thread.
+   * Uses a hash of ALL user message contents + session context so that
+   * the same bolt conversation always maps to the same Codex thread,
+   * even when message arrays differ (e.g., llmcall vs main chat).
    */
   _conversationKey(messages, sessionToken) {
-    const firstUser = messages.find((m) => m.role === 'user');
-    if (!firstUser) return null;
+    const userMessages = messages.filter((m) => m.role === 'user');
+    if (!userMessages.length) return null;
 
-    const content = typeof firstUser.content === 'string'
-      ? firstUser.content
-      : JSON.stringify(firstUser.content);
+    // Normalize each user message: strip [Model: ...], [Provider: ...] prefixes
+    // and template boilerplate to find the actual user intent
+    const normalized = userMessages.map((m) => {
+      let content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+      // Strip common prefixes injected by bolt
+      content = content.replace(/^\[Model:\s*[^\]]*\]\s*/i, '');
+      content = content.replace(/^\[Provider:\s*[^\]]*\]\s*/i, '');
+      return content.trim();
+    });
 
-    return createHash('sha256')
-      .update((sessionToken || '') + ':' + content.substring(0, 500))
-      .digest('hex')
-      .substring(0, 16);
+    // Hash all user messages together for a stable key
+    const hash = createHash('sha256');
+    hash.update(sessionToken || '');
+    for (const content of normalized) {
+      hash.update(':' + content.substring(0, 500));
+    }
+
+    return hash.digest('hex').substring(0, 16);
   }
 
   /** Evict threads not used for over 30 minutes */
@@ -355,20 +366,66 @@ export class CodexManager extends EventEmitter {
     }
 
     // Build the turn input.
-    // For a NEW thread with multiple user messages, include ALL of them so the model
-    // has the full context. This is critical because bolt sends the original user request
-    // via llmcall (template selection) and then sends a follow-up "continue with my
-    // original request" message via the main chat — without including the original request.
-    // If we only send the last message, the model has no idea what the original request was.
+    // For a NEW thread with multiple messages, include context from ALL messages
+    // (user + assistant) but use smart truncation to stay within token limits.
+    // This is critical because bolt sends the original user request via llmcall
+    // (template selection) and then sends follow-up messages via the main chat.
+    const MAX_CONTEXT_CHARS = 12000; // ~3000 tokens
     let turnInput;
 
     if (canReuse) {
       // Thread already has context from previous turns — just send latest message
       turnInput = lastUserMsg;
-    } else if (userMessages.length > 1) {
-      // New thread with multiple user messages — include all for context
-      turnInput = userMessages.join('\n\n---\n\n');
-      console.log(`[threads] new thread: including ${userMessages.length} user messages in first turn`);
+    } else if (isNewThread) {
+      const nonSystemMsgs = messages.filter((m) => m.role !== 'system');
+
+      if (nonSystemMsgs.length > 1) {
+        // Smart compaction: keep first + last in full, truncate middle messages
+        const first = nonSystemMsgs[0];
+        const last = nonSystemMsgs[nonSystemMsgs.length - 1];
+        const middle = nonSystemMsgs.slice(1, -1);
+
+        const contextParts = [];
+
+        // First message (original request) - always include in full
+        const firstContent = typeof first.content === 'string' ? first.content : JSON.stringify(first.content);
+        contextParts.push(`[Original request]\n${firstContent}`);
+
+        // Middle messages - truncated, newest messages get priority
+        let middleChars = 0;
+        const middleParts = [];
+
+        for (let i = middle.length - 1; i >= 0; i--) {
+          const m = middle[i];
+          const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+          const prefix = m.role === 'user' ? 'User' : 'Assistant';
+          const truncated = content.length > 500 ? content.substring(0, 500) + '...[truncated]' : content;
+
+          if (middleChars + truncated.length > MAX_CONTEXT_CHARS) break;
+          middleParts.unshift(`${prefix}: ${truncated}`);
+          middleChars += truncated.length;
+        }
+
+        if (middleParts.length > 0) {
+          const skipped = middle.length - middleParts.length;
+
+          if (skipped > 0) {
+            contextParts.push(`[...${skipped} earlier messages omitted...]`);
+          }
+
+          contextParts.push('[Conversation history]');
+          contextParts.push(middleParts.join('\n\n'));
+        }
+
+        // Last message (current request) - always include in full
+        const lastContent = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
+        contextParts.push(`[Current request]\n${lastContent}`);
+
+        turnInput = contextParts.join('\n\n---\n\n');
+        console.log(`[threads] new thread: compacted ${nonSystemMsgs.length} messages into ${turnInput.length} chars`);
+      } else {
+        turnInput = lastUserMsg;
+      }
     } else {
       turnInput = lastUserMsg;
     }

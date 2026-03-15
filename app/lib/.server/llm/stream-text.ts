@@ -290,8 +290,9 @@ export async function streamText(props: {
     ...(isReasoning ? { temperature: 1 } : {}),
 
     // Reasoning models (o3, Kimi K2, DeepSeek R1) think silently before emitting tokens —
-    // give them 5 min. Regular models get 90s to prevent silent hangs (Cloudflare 524).
-    abortSignal: AbortSignal.timeout(isReasoning ? 300_000 : 90_000),
+    // give them 10 min (SSE heartbeat in codex-proxy prevents Cloudflare 524 timeouts).
+    // Regular models get 2 min to detect silent hangs.
+    abortSignal: AbortSignal.timeout(isReasoning ? 600_000 : 120_000),
   };
 
   // DEBUG: Log final streaming parameters
