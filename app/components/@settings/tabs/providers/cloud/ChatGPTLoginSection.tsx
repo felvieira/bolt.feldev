@@ -74,27 +74,47 @@ const ChatGPTLoginSection: React.FC = () => {
   const checkStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/codex/status');
-      const data = await res.json();
+
+      let data: any = {};
+
+      try {
+        data = await res.json();
+      } catch {
+        // Response wasn't JSON (e.g. HTML error page)
+        setCodexAvailable(true); // Still show login UI
+        return;
+      }
 
       setCodexAvailable(true);
+
+      // If codex-proxy reports not running, still show the UI
+      if (data.available === false) {
+        return;
+      }
 
       // If we have a stored session token, check if it's still valid
       const token = getSessionToken();
 
       if (token) {
-        const accountRes = await fetch('/api/codex/account');
-        const accountData = await accountRes.json();
+        try {
+          const accountRes = await fetch('/api/codex/account');
+          const accountData = await accountRes.json();
 
-        if (accountData.authenticated && accountData.account) {
-          setAccount(accountData.account);
-          setLoginStatus('authenticated');
-        } else {
-          // Token expired or another user took over
+          if (accountData.authenticated && accountData.account) {
+            setAccount(accountData.account);
+            setLoginStatus('authenticated');
+          } else {
+            // Token expired or another user took over
+            clearSessionToken();
+          }
+        } catch {
+          // Account check failed, clear stale token
           clearSessionToken();
         }
       }
     } catch {
-      setCodexAvailable(false);
+      // Even if codex-proxy is not available, still show the login UI
+      setCodexAvailable(true);
     }
   }, []);
 

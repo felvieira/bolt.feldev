@@ -1,19 +1,27 @@
 import type { ActionFunctionArgs } from '@remix-run/cloudflare';
 import { parseCookies } from '~/lib/api/cookies';
 
-const CODEX_PROXY_URL = process.env.CODEX_PROXY_URL || 'http://localhost:3100';
+function getCodexProxyUrl(context: any): string {
+  return (
+    process.env.CODEX_PROXY_URL ||
+    (context?.cloudflare?.env as Record<string, string>)?.CODEX_PROXY_URL ||
+    'http://localhost:3100'
+  );
+}
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
+
+  const codexProxyUrl = getCodexProxyUrl(context);
 
   try {
     const cookieHeader = request.headers.get('Cookie') || '';
     const cookies = parseCookies(cookieHeader);
     const sessionToken = cookies.codexSession || '';
 
-    const response = await fetch(`${CODEX_PROXY_URL}/codex/logout`, {
+    const response = await fetch(`${codexProxyUrl}/codex/logout`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

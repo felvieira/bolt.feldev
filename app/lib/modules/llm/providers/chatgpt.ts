@@ -4,12 +4,17 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-const CODEX_PROXY_URL = process.env.CODEX_PROXY_URL || 'http://localhost:3100';
+function getCodexProxyUrl(serverEnv?: Record<string, string>): string {
+  return (
+    process.env.CODEX_PROXY_URL ||
+    serverEnv?.CODEX_PROXY_URL ||
+    'http://localhost:3100'
+  );
+}
 
 export default class ChatGPTProvider extends BaseProvider {
   name = 'ChatGPT';
-  getApiKeyLink = 'https://chatgpt.com';
-  labelForGetApiKey = 'Login with ChatGPT';
+  // No getApiKeyLink — login is handled by ChatGPTLoginSection OAuth flow
 
   config = {
     // The "API key" for ChatGPT is actually the Codex session token
@@ -97,7 +102,7 @@ export default class ChatGPTProvider extends BaseProvider {
   async getDynamicModels(
     apiKeys?: Record<string, string>,
     _settings?: IProviderSetting,
-    _serverEnv?: Record<string, string>,
+    serverEnv?: Record<string, string>,
   ): Promise<ModelInfo[]> {
     // The session token comes from the browser cookie via apiKeys
     const sessionToken = apiKeys?.[this.name] || '';
@@ -106,8 +111,10 @@ export default class ChatGPTProvider extends BaseProvider {
       return [];
     }
 
+    const codexProxyUrl = getCodexProxyUrl(serverEnv);
+
     try {
-      const response = await fetch(`${CODEX_PROXY_URL}/codex/models`, {
+      const response = await fetch(`${codexProxyUrl}/codex/models`, {
         headers: {
           'x-codex-session': sessionToken,
         },
@@ -143,18 +150,14 @@ export default class ChatGPTProvider extends BaseProvider {
     apiKeys?: Record<string, string>;
     providerSettings?: Record<string, IProviderSetting>;
   }): LanguageModelV1 {
-    const { model, apiKeys } = options;
+    const { model, apiKeys, serverEnv } = options;
 
     // Session token from the browser cookie
     const sessionToken = apiKeys?.[this.name] || '';
+    const codexProxyUrl = getCodexProxyUrl(serverEnv as unknown as Record<string, string>);
 
-    // Use the codex-proxy as an OpenAI-compatible endpoint
-    // Pass the session token as the API key — the codex-proxy
-    // validates it via the x-codex-session header. Since createOpenAI
-    // sends it as Authorization: Bearer <token>, we also need the
-    // codex-proxy to accept it. For now, use fetch-based headers.
     const openai = createOpenAI({
-      baseURL: `${CODEX_PROXY_URL}/codex/chat`,
+      baseURL: `${codexProxyUrl}/codex/chat`,
       apiKey: sessionToken || 'no-session',
       headers: {
         'x-codex-session': sessionToken,

@@ -4,6 +4,7 @@ import { classNames } from '~/utils/classNames';
 import { PROVIDER_LIST } from '~/utils/constants';
 import { ModelSelector } from '~/components/chat/ModelSelector';
 import { APIKeyManager } from './APIKeyManager';
+import ChatGPTLoginSection from '~/components/@settings/tabs/providers/cloud/ChatGPTLoginSection';
 import { LOCAL_PROVIDERS } from '~/lib/stores/settings';
 import FilePreview from './FilePreview';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
@@ -121,7 +122,10 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
               />
               {(props.providerList || []).length > 0 &&
                 props.provider &&
-                !LOCAL_PROVIDERS.includes(props.provider.name) && (
+                !LOCAL_PROVIDERS.includes(props.provider.name) &&
+                (props.provider.name === 'ChatGPT' ? (
+                  <ChatGPTLoginSection />
+                ) : (
                   <APIKeyManager
                     provider={props.provider}
                     apiKey={props.apiKeys[props.provider.name] || ''}
@@ -129,7 +133,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
                       props.onApiKeysChange(props.provider.name, key);
                     }}
                   />
-                )}
+                ))}
             </div>
           )}
         </ClientOnly>

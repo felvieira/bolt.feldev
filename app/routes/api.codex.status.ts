@@ -1,10 +1,18 @@
 import type { LoaderFunctionArgs } from '@remix-run/cloudflare';
 
-const CODEX_PROXY_URL = process.env.CODEX_PROXY_URL || 'http://localhost:3100';
+function getCodexProxyUrl(context: any): string {
+  return (
+    process.env.CODEX_PROXY_URL ||
+    (context?.cloudflare?.env as Record<string, string>)?.CODEX_PROXY_URL ||
+    'http://localhost:3100'
+  );
+}
 
-export async function loader({ request: _request }: LoaderFunctionArgs) {
+export async function loader({ request: _request, context }: LoaderFunctionArgs) {
+  const codexProxyUrl = getCodexProxyUrl(context);
+
   try {
-    const response = await fetch(`${CODEX_PROXY_URL}/codex/status`);
+    const response = await fetch(`${codexProxyUrl}/codex/status`);
     const data = await response.json();
 
     if (!response.ok) {
