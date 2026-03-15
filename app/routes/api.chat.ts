@@ -370,9 +370,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
         const errorMessage = error.message || 'Unknown error';
 
-        // AbortError from AbortSignal.timeout() — the LLM API call hung and was cancelled
-        if (error.name === 'AbortError' || errorMessage.includes('AbortError') || errorMessage.includes('aborted')) {
-          return 'Custom error: The AI provider did not respond in time (90s timeout). This usually means the provider API is unreachable or very slow. Please try again or select a different model.';
+        // TimeoutError/AbortError from AbortSignal.timeout() — LLM fetch timed out
+        if (error.name === 'TimeoutError' || error.name === 'AbortError' || errorMessage.includes('aborted due to timeout')) {
+          return 'Custom error: The AI provider did not respond in time. Reasoning models (Kimi K2, DeepSeek R1, o3) may need longer — try again. If this keeps happening, try a faster model like Llama 3.3 70B.';
         }
 
         if (errorMessage.includes('model') && errorMessage.includes('not found')) {
