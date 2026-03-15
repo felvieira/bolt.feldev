@@ -121,6 +121,62 @@ app.get('/codex/account', async (req, res) => {
   }
 });
 
+// OAuth callback proxy — receives the callback from Auth0 and forwards
+// it to the Codex sidecar's internal HTTP server (port 1455).
+app.get('/auth/callback', async (req, res) => {
+  const queryString = new URLSearchParams(req.query).toString();
+  const internalUrl = `http://127.0.0.1:1455/auth/callback?${queryString}`;
+
+  console.log(`[codex-proxy] Proxying OAuth callback to: ${internalUrl}`);
+
+  try {
+    const response = await fetch(internalUrl, { redirect: 'manual' });
+
+    // The codex sidecar usually responds with HTML or a redirect
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+
+      if (location) {
+        return res.redirect(location);
+      }
+    }
+
+    const body = await response.text();
+
+    // Return a success page
+    res.set('Content-Type', 'text/html');
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>Authentication Complete</title></head>
+        <body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#1a1a2e;color:#fff;">
+          <div style="text-align:center">
+            <h2 style="color:#22c55e">Authentication Successful</h2>
+            <p>You can close this tab and return to Bolt.</p>
+            <script>setTimeout(()=>window.close(),2000)</script>
+          </div>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error('[codex-proxy] OAuth callback proxy error:', err);
+    res.set('Content-Type', 'text/html');
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>Authentication Error</title></head>
+        <body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#1a1a2e;color:#fff;">
+          <div style="text-align:center">
+            <h2 style="color:#ef4444">Authentication Error</h2>
+            <p>${err.message}</p>
+            <p>The Codex sidecar may not be ready. Please try logging in again.</p>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+});
+
 // ─── Protected endpoints (session required) ─────────────────────────
 
 // Logout
