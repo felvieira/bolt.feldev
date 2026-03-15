@@ -247,7 +247,7 @@ export class CodexManager extends EventEmitter {
   }
 
   /** Chat completion via Codex threads */
-  async chatCompletion(model, messages, reasoningEffort) {
+  async chatCompletion(model, messages, reasoningEffort, deltaCallback = null) {
     await this.ensureRunning();
 
     // Validate account
@@ -316,11 +316,11 @@ export class CodexManager extends EventEmitter {
     const turnId = turnResult?.turn?.id || '';
 
     // Wait for turn completion
-    return this._awaitTurnCompletion(threadId, turnId);
+    return this._awaitTurnCompletion(threadId, turnId, deltaCallback);
   }
 
   /** Wait for a turn to complete, collecting streamed text */
-  async _awaitTurnCompletion(threadId, turnId) {
+  async _awaitTurnCompletion(threadId, turnId, deltaCallback = null) {
     let streamedText = '';
     const maxAttempts = 300;
 
@@ -333,6 +333,7 @@ export class CodexManager extends EventEmitter {
         if (!turnId || !evtTurnId || evtTurnId === turnId) {
           if (params.delta) {
             streamedText += params.delta;
+            if (deltaCallback) deltaCallback(params.delta);
           }
         }
       };

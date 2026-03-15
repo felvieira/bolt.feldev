@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { CodexManager } from './codex-manager.js';
 
 const app = express();
@@ -23,13 +25,62 @@ const codex = new CodexManager();
  * - Other users on the same bolt instance cannot piggyback on someone
  *   else's ChatGPT subscription
  * - A new login invalidates the previous session token
+ *
+ * The token is persisted to disk so container restarts don't force re-login.
  */
+const SESSION_FILE = path.join('/app', '.session_token');
+
+function saveSessionToken(token) {
+  try {
+    if (token) {
+      fs.writeFileSync(SESSION_FILE, token, 'utf8');
+    } else {
+      fs.rmSync(SESSION_FILE, { force: true });
+    }
+  } catch (err) {
+    console.warn(`[session] Failed to persist session token: ${err.message}`);
+  }
+}
+
+function loadSessionToken() {
+  try {
+    if (fs.existsSync(SESSION_FILE)) {
+      return fs.readFileSync(SESSION_FILE, 'utf8').trim();
+    }
+  } catch (err) {
+    console.warn(`[session] Failed to load session token: ${err.message}`);
+  }
+  return null;
+}
+
 let activeSessionToken = null;
+
+// Restore session on startup
+async function restoreSession() {
+  const saved = loadSessionToken();
+  if (!saved) return;
+
+  console.log('[session] Found saved session token, verifying with sidecar...');
+  try {
+    await codex.ensureRunning();
+    const account = await codex.getAccount(false);
+    if (account) {
+      activeSessionToken = saved;
+      console.log(`[session] Session restored for ${account.email || 'unknown'}`);
+    } else {
+      console.log('[session] Saved token found but sidecar not authenticated — clearing');
+      saveSessionToken(null);
+    }
+  } catch (err) {
+    console.warn(`[session] Could not restore session: ${err.message}`);
+  }
+}
 
 function requireSession(req, res, next) {
   const token = req.headers['x-codex-session'];
 
   if (!activeSessionToken || token !== activeSessionToken) {
+    console.log(`[requireSession] REJECTED ${req.method} ${req.path} token=${token ? token.substring(0, 8) + '...' : 'none'} active=${activeSessionToken ? activeSessionToken.substring(0, 8) + '...' : 'none'}`);
     return res.status(401).json({
       error: 'No active Codex session. Login with ChatGPT first.',
       authenticated: false,
@@ -135,6 +186,7 @@ app.post('/codex/login', async (_req, res) => {
   try {
     // Invalidate previous session
     activeSessionToken = null;
+    saveSessionToken(null);
 
     const result = await codex.startLogin();
 
@@ -171,6 +223,7 @@ app.get('/codex/account', async (req, res) => {
       if (codex._pendingSessionToken && token === codex._pendingSessionToken) {
         console.log(`[codex/account] activating session token`);
         activeSessionToken = codex._pendingSessionToken;
+        saveSessionToken(activeSessionToken);
         codex._pendingSessionToken = null;
       }
 
@@ -295,6 +348,7 @@ app.get('/auth/callback', async (req, res) => {
 app.post('/codex/logout', requireSession, async (_req, res) => {
   try {
     activeSessionToken = null;
+    saveSessionToken(null);
     codex._pendingSessionToken = null;
     await codex.logout();
     res.json({ success: true });
@@ -313,42 +367,104 @@ app.get('/codex/models', requireSession, async (_req, res) => {
   }
 });
 
-// Chat completion (non-streaming, returns full text)
+// Chat completion — supports both streaming (SSE) and non-streaming modes
 app.post('/codex/chat/completions', requireSession, async (req, res) => {
   try {
-    const { model, messages, reasoningEffort } = req.body;
+    const { model, messages, reasoningEffort, stream } = req.body;
 
     if (!model || !messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'model and messages[] are required' });
     }
 
-    const text = await codex.chatCompletion(model, messages, reasoningEffort);
+    console.log(`[chat/completions] model=${model} stream=${!!stream}`);
 
-    // Return in OpenAI-compatible format
-    res.json({
-      id: `codex-${Date.now()}`,
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model,
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: text,
+    if (stream) {
+      // SSE streaming mode — required by AI SDK's streamText
+      const id = `codex-${Date.now()}`;
+      const created = Math.floor(Date.now() / 1000);
+      let firstDelta = true;
+
+      res.set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+
+      const sendChunk = (content) => {
+        if (firstDelta) {
+          // Send role chunk first
+          res.write(`data: ${JSON.stringify({
+            id, object: 'chat.completion.chunk', created, model,
+            choices: [{ index: 0, delta: { role: 'assistant', content: '' }, finish_reason: null }],
+          })}\n\n`);
+          firstDelta = false;
+        }
+        res.write(`data: ${JSON.stringify({
+          id, object: 'chat.completion.chunk', created, model,
+          choices: [{ index: 0, delta: { content }, finish_reason: null }],
+        })}\n\n`);
+      };
+
+      try {
+        const text = await codex.chatCompletion(model, messages, reasoningEffort, (delta) => {
+          sendChunk(delta);
+        });
+
+        // If no deltas were streamed (e.g. sidecar returned full text at end), send now
+        if (firstDelta && text) {
+          sendChunk(text);
+        }
+
+        console.log(`[chat/completions] streaming done, firstDelta=${firstDelta}`);
+      } catch (err) {
+        console.error('[chat/completions] streaming error:', err.message);
+        if (firstDelta) {
+          // Nothing sent yet — send error as SSE event
+          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        }
+      }
+
+      // Final chunk + DONE
+      if (!firstDelta) {
+        res.write(`data: ${JSON.stringify({
+          id, object: 'chat.completion.chunk', created, model,
+          choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+        })}\n\n`);
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } else {
+      // Non-streaming mode (used by /api/llmcall template selector)
+      const text = await codex.chatCompletion(model, messages, reasoningEffort);
+
+      res.json({
+        id: `codex-${Date.now()}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: text,
+            },
+            finish_reason: 'stop',
           },
-          finish_reason: 'stop',
+        ],
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
         },
-      ],
-      usage: {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0,
-      },
-    });
+      });
+    }
   } catch (err) {
     console.error('Chat completion error:', err);
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
   }
 });
 
@@ -368,4 +484,6 @@ process.on('SIGTERM', async () => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Codex proxy server running on port ${PORT}`);
+  // Attempt to restore session from previous run (survives container restarts)
+  restoreSession();
 });
