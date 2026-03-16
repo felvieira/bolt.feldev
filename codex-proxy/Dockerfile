@@ -17,6 +17,11 @@ COPY . .
 
 ENV CODEX_PROXY_PORT=3100
 
+# Store codex sidecar config + data inside /app so auth tokens survive
+# container restarts when /app is mounted as a persistent volume in Coolify.
+ENV XDG_CONFIG_HOME=/app/.config
+ENV XDG_DATA_HOME=/app/.local/share
+
 EXPOSE 3100
 
 CMD ["node", "server.js"]

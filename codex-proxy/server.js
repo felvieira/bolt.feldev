@@ -616,9 +616,12 @@ async function restoreSession(userId) {
       session.activeSessionToken = saved;
       console.log(`[session:${userId}] Session restored for ${account.email || 'unknown'}`);
     } else {
-      console.log(`[session:${userId}] Saved token found but sidecar not authenticated — clearing`);
-      saveSessionToken(userId, null);
-      userSessions.delete(userId);
+      // Sidecar not authenticated yet — this can happen right after a container
+      // restart if the sidecar takes time to initialize, or if XDG_CONFIG_HOME
+      // wasn't persisted across restarts. Keep the token so the user's next
+      // request can still try — if it fails there, they'll be prompted to re-login
+      // rather than being silently logged out at startup.
+      console.warn(`[session:${userId}] Saved token found but sidecar not authenticated at startup — keeping token, will re-verify on next request`);
     }
   } catch (err) {
     console.warn(`[session:${userId}] Could not restore session: ${err.message}`);
@@ -671,8 +674,42 @@ process.on('SIGTERM', shutdownAll);
 
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Codex proxy server running on port ${PORT}`);
-  // Restore the default session from previous run (backwards compat)
-  await restoreSession('default');
+
+  // Restore ALL persisted sessions at startup (not just 'default').
+  // This ensures users don't have to re-login after a container restart
+  // as long as the Codex sidecar config dir is on a persistent volume.
+  const sessionsToRestore = new Set(['default']);
+
+  // Scan .sessions/ dir for additional user session files
+  try {
+    ensureSessionDir();
+    const files = fs.readdirSync(SESSION_DIR);
+    for (const f of files) {
+      const m = f.match(/^\.session_(.+)$/);
+      if (m) sessionsToRestore.add(m[1]);
+    }
+  } catch {
+    // Non-fatal — will fall back to 'default' only
+  }
+
+  // Also check for per-user thread caches (even if session token file is missing)
+  try {
+    const files = fs.readdirSync(SESSION_DIR);
+    for (const f of files) {
+      const m = f.match(/^\.threads_(.+)\.json$/);
+      if (m) sessionsToRestore.add(m[1]);
+    }
+  } catch {}
+
+  console.log(`[startup] Restoring sessions for: ${[...sessionsToRestore].join(', ')}`);
+  for (const userId of sessionsToRestore) {
+    try {
+      await restoreSession(userId);
+    } catch (err) {
+      console.warn(`[startup] Failed to restore session for ${userId}: ${err.message}`);
+    }
+  }
+
   // Start periodic token refresh to keep sessions alive
   startTokenRefreshInterval();
 });
