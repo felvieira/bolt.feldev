@@ -275,7 +275,7 @@ export function GitLabDeploymentDialog({ isOpen, onClose, projectName, files }: 
               className="w-[90vw] md:w-[600px] max-h-[85vh] overflow-y-auto"
             >
               <Dialog.Content
-                className="bg-white dark:bg-bolt-elements-background-depth-1 rounded-lg border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark shadow-xl"
+                className="bg-bolt-elements-background-depth-1 rounded-lg border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark shadow-xl"
                 aria-describedby="success-dialog-description"
               >
                 <Dialog.Title className="sr-only">Successfully pushed to GitLab</Dialog.Title>
@@ -412,7 +412,7 @@ export function GitLabDeploymentDialog({ isOpen, onClose, projectName, files }: 
               className="w-[90vw] md:w-[500px]"
             >
               <Dialog.Content
-                className="bg-white dark:bg-bolt-elements-background-depth-1 rounded-lg p-6 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark shadow-xl"
+                className="bg-bolt-elements-background-depth-1 rounded-lg p-6 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark shadow-xl"
                 aria-describedby="connection-required-description"
               >
                 <Dialog.Title className="sr-only">GitLab Connection Required</Dialog.Title>
@@ -487,7 +487,7 @@ export function GitLabDeploymentDialog({ isOpen, onClose, projectName, files }: 
             className="w-[90vw] md:w-[500px]"
           >
             <Dialog.Content
-              className="bg-white dark:bg-bolt-elements-background-depth-1 rounded-lg border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark shadow-xl"
+              className="bg-bolt-elements-background-depth-1 rounded-lg border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark shadow-xl"
               aria-describedby="push-dialog-description"
             >
               <div className="p-6">

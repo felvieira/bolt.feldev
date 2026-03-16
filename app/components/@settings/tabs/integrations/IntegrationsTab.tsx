@@ -268,7 +268,7 @@ function IntegrationCard({
                   placeholder={field.placeholder}
                   className={classNames(
                     'w-full px-3 py-1.5 rounded-lg text-sm',
-                    'bg-[#F8F8F8] dark:bg-[#1A1A1A]',
+                    'bg-[#1A1A1A]',
                     'border border-[#E5E5E5] dark:border-[#333333]',
                     'text-bolt-elements-textPrimary',
                     'focus:outline-none focus:ring-1 focus:ring-bolt-elements-focus',

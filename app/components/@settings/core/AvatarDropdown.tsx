@@ -29,7 +29,7 @@ export const AvatarDropdown = ({ onSelectTab }: AvatarDropdownProps) => {
               decoding="sync"
             />
           ) : (
-            <div className="w-full h-full rounded-full flex items-center justify-center bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500">
+            <div className="w-full h-full rounded-full flex items-center justify-center bg-gray-800 text-gray-400 dark:text-gray-500">
               <div className="i-ph:user w-6 h-6" />
             </div>
           )}
@@ -40,9 +40,9 @@ export const AvatarDropdown = ({ onSelectTab }: AvatarDropdownProps) => {
         <DropdownMenu.Content
           className={classNames(
             'min-w-[240px] z-[250]',
-            'bg-white dark:bg-[#141414]',
+            'bg-[#141414]',
             'rounded-lg shadow-lg',
-            'border border-gray-200/50 dark:border-gray-800/50',
+            'border border-gray-800/50',
             'animate-in fade-in-0 zoom-in-95',
             'py-1',
           )}
@@ -52,10 +52,10 @@ export const AvatarDropdown = ({ onSelectTab }: AvatarDropdownProps) => {
           <div
             className={classNames(
               'px-4 py-3 flex items-center gap-3',
-              'border-b border-gray-200/50 dark:border-gray-800/50',
+              'border-b border-gray-800/50',
             )}
           >
-            <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm">
+            <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800 shadow-sm">
               {profile?.avatar ? (
                 <img
                   src={profile.avatar}
@@ -74,7 +74,7 @@ export const AvatarDropdown = ({ onSelectTab }: AvatarDropdownProps) => {
               <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
                 {profile?.username || 'Guest User'}
               </div>
-              {profile?.bio && <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{profile.bio}</div>}
+              {profile?.bio && <div className="text-xs text-gray-400 truncate">{profile.bio}</div>}
             </div>
           </div>
 
@@ -110,7 +110,7 @@ export const AvatarDropdown = ({ onSelectTab }: AvatarDropdownProps) => {
             Settings
           </DropdownMenu.Item>
 
-          <div className="my-1 border-t border-gray-200/50 dark:border-gray-800/50" />
+          <div className="my-1 border-t border-gray-800/50" />
 
           <DropdownMenu.Item
             className={classNames(

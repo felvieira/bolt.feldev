@@ -384,7 +384,7 @@ export default function SupabaseTab() {
                                   ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                                   : project.status === 'INACTIVE'
                                     ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400',
+                                    : 'bg-gray-900/20 text-gray-400 dark:text-gray-400',
                             )}
                           >
                             <div
@@ -721,7 +721,7 @@ export default function SupabaseTab() {
                   placeholder="Enter your Supabase access token"
                   className={classNames(
                     'w-full px-3 py-2 rounded-lg text-sm',
-                    'bg-[#F8F8F8] dark:bg-[#1A1A1A]',
+                    'bg-[#1A1A1A]',
                     'border border-[#E5E5E5] dark:border-[#333333]',
                     'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
                     'focus:outline-none focus:ring-1 focus:ring-bolt-elements-borderColorActive',

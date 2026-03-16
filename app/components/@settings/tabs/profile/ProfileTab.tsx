@@ -69,7 +69,7 @@ export default function ProfileTab() {
             <div
               className={classNames(
                 'w-24 h-24 rounded-full overflow-hidden',
-                'bg-gray-100 dark:bg-gray-800/50',
+                'bg-gray-800/50',
                 'flex items-center justify-center',
                 'ring-1 ring-gray-200 dark:ring-gray-700',
                 'relative group',
@@ -117,16 +117,16 @@ export default function ProfileTab() {
             </div>
 
             <div className="flex-1 pt-1">
-              <label className="block text-base font-medium text-gray-900 dark:text-gray-100 mb-1">
+              <label className="block text-base font-medium text-gray-100 mb-1">
                 Profile Picture
               </label>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Upload a profile picture or avatar</p>
+              <p className="text-sm text-gray-400">Upload a profile picture or avatar</p>
             </div>
           </div>
 
           {/* Username Input */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Username</label>
+            <label className="block text-sm font-medium text-gray-100 mb-2">Username</label>
             <div className="relative group">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
                 <div className="i-ph:user-circle-fill w-5 h-5 text-gray-400 dark:text-gray-500 transition-colors group-focus-within:text-[var(--accent)]" />
@@ -137,7 +137,7 @@ export default function ProfileTab() {
                 onChange={(e) => handleProfileUpdate('username', e.target.value)}
                 className={classNames(
                   'w-full pl-11 pr-4 py-2.5 rounded-xl',
-                  'bg-white dark:bg-gray-800/50',
+                  'bg-gray-800/50',
                   'border border-gray-200 dark:border-gray-700/50',
                   'text-gray-900 dark:text-white',
                   'placeholder-gray-400 dark:placeholder-gray-500',
@@ -151,7 +151,7 @@ export default function ProfileTab() {
 
           {/* Bio Input */}
           <div className="mb-8">
-            <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Bio</label>
+            <label className="block text-sm font-medium text-gray-100 mb-2">Bio</label>
             <div className="relative group">
               <div className="absolute left-3.5 top-3">
                 <div className="i-ph:text-aa w-5 h-5 text-gray-400 dark:text-gray-500 transition-colors group-focus-within:text-[var(--accent)]" />
@@ -161,7 +161,7 @@ export default function ProfileTab() {
                 onChange={(e) => handleProfileUpdate('bio', e.target.value)}
                 className={classNames(
                   'w-full pl-11 pr-4 py-2.5 rounded-xl',
-                  'bg-white dark:bg-gray-800/50',
+                  'bg-gray-800/50',
                   'border border-gray-200 dark:border-gray-700/50',
                   'text-gray-900 dark:text-white',
                   'placeholder-gray-400 dark:placeholder-gray-500',

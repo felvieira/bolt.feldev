@@ -235,7 +235,7 @@ export function ConnectionTestIndicator({ status, message, timestamp, className 
       case 'testing':
         return <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-400" />;
       default:
-        return <Info className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
+        return <Info className="w-5 h-5 text-gray-400" />;
     }
   };
 
@@ -248,7 +248,7 @@ export function ConnectionTestIndicator({ status, message, timestamp, className 
       case 'testing':
         return 'text-blue-800 dark:text-blue-200';
       default:
-        return 'text-gray-800 dark:text-gray-200';
+        return 'text-gray-200';
     }
   };
 
