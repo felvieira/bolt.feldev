@@ -200,6 +200,19 @@ export const ChatImpl = memo(
       chatStore.setKey('started', initialMessages.length > 0);
     }, []);
 
+    // Watch for "Fix with AI" messages from the preview panel
+    const pendingFixMessage = useStore(workbenchStore.pendingFixMessage);
+    useEffect(() => {
+      if (pendingFixMessage) {
+        workbenchStore.pendingFixMessage.set(undefined);
+        runAnimation();
+        append({
+          role: 'user',
+          content: pendingFixMessage,
+        });
+      }
+    }, [pendingFixMessage]);
+
     useEffect(() => {
       processSampledMessages({
         messages,

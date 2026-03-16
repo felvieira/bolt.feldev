@@ -8,6 +8,9 @@ import { expoUrlAtom } from '~/lib/stores/qrCodeStore';
 import { ExpoQrModal } from '~/components/workbench/ExpoQrModal';
 import type { ElementInfo } from './Inspector';
 
+type QuickDeviceMode = 'desktop' | 'tablet' | 'mobile';
+type ZoomLevel = 75 | 100 | 125;
+
 type ResizeSide = 'left' | 'right' | null;
 
 interface PreviewProps {
@@ -89,6 +92,14 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
   const [showDeviceFrameInPreview, setShowDeviceFrameInPreview] = useState(false);
   const expoUrl = useStore(expoUrlAtom);
   const [isExpoQrModalOpen, setIsExpoQrModalOpen] = useState(false);
+
+  // Sprint 2: Device frame quick-toggle + zoom
+  const [quickDeviceMode, setQuickDeviceMode] = useState<QuickDeviceMode>('desktop');
+  const [zoom, setZoom] = useState<ZoomLevel>(100);
+
+  // Sprint 2: Fix with AI error banner
+  const [previewError, setPreviewError] = useState<string | undefined>();
+  const [errorBannerDismissed, setErrorBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (!activePreview) {
@@ -619,6 +630,21 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
     };
   }, [showDeviceFrameInPreview]);
 
+  // Listen for error messages from iframe (webcontainer apps may postMessage errors)
+  useEffect(() => {
+    const handleIframeError = (event: MessageEvent) => {
+      if (event.data?.type === 'PREVIEW_ERROR' || event.data?.type === 'UNHANDLED_ERROR') {
+        const msg = event.data?.message || event.data?.error || 'Unknown error';
+        setPreviewError(String(msg));
+        setErrorBannerDismissed(false);
+      }
+    };
+
+    window.addEventListener('message', handleIframeError);
+
+    return () => window.removeEventListener('message', handleIframeError);
+  }, []);
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'INSPECTOR_READY') {
@@ -897,7 +923,96 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
         </div>
       </div>
 
-      <div className="flex-1 border-t border-bolt-elements-borderColor flex justify-center items-center overflow-auto">
+      {/* Sprint 2: Device frame toolbar */}
+      <div className="bg-bolt-elements-background-depth-2 border-t border-bolt-elements-borderColor px-2 py-1 flex items-center gap-3">
+        {/* Quick device mode buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setQuickDeviceMode('desktop')}
+            title="Desktop (full width)"
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              quickDeviceMode === 'desktop'
+                ? 'bg-bolt-elements-background-depth-4 text-bolt-elements-textPrimary'
+                : 'text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3'
+            }`}
+          >
+            <div className="i-ph:monitor w-3.5 h-3.5" />
+            <span>Desktop</span>
+          </button>
+          <button
+            onClick={() => setQuickDeviceMode('tablet')}
+            title="Tablet (768px)"
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              quickDeviceMode === 'tablet'
+                ? 'bg-bolt-elements-background-depth-4 text-bolt-elements-textPrimary'
+                : 'text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3'
+            }`}
+          >
+            <div className="i-ph:device-tablet w-3.5 h-3.5" />
+            <span>Tablet</span>
+          </button>
+          <button
+            onClick={() => setQuickDeviceMode('mobile')}
+            title="Mobile (390px)"
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              quickDeviceMode === 'mobile'
+                ? 'bg-bolt-elements-background-depth-4 text-bolt-elements-textPrimary'
+                : 'text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3'
+            }`}
+          >
+            <div className="i-ph:device-mobile w-3.5 h-3.5" />
+            <span>Mobile</span>
+          </button>
+        </div>
+
+        <div className="w-px h-4 bg-bolt-elements-borderColor" />
+
+        {/* Zoom controls */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-bolt-elements-textSecondary">Zoom:</span>
+          {([75, 100, 125] as ZoomLevel[]).map((z) => (
+            <button
+              key={z}
+              onClick={() => setZoom(z)}
+              className={`px-2 py-1 rounded text-xs transition-colors ${
+                zoom === z
+                  ? 'bg-bolt-elements-background-depth-4 text-bolt-elements-textPrimary'
+                  : 'text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3'
+              }`}
+            >
+              {z}%
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Open in new tab button */}
+        <button
+          onClick={openInNewTab}
+          disabled={!activePreview}
+          title="Open in new tab"
+          className="flex items-center gap-1 px-2 py-1 rounded text-xs text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <div className="i-ph:arrow-square-out w-3.5 h-3.5" />
+          <span>New tab</span>
+        </button>
+
+        {/* Manual "Report Error" trigger */}
+        <button
+          onClick={() => {
+            setPreviewError('App error detected — please describe the issue in the chat or click Fix with AI.');
+            setErrorBannerDismissed(false);
+          }}
+          title="Report an error to fix with AI"
+          className="flex items-center gap-1 px-2 py-1 rounded text-xs text-bolt-elements-textSecondary hover:text-red-500 hover:bg-bolt-elements-background-depth-3 transition-colors"
+        >
+          <div className="i-ph:bug w-3.5 h-3.5" />
+          <span>Report error</span>
+        </button>
+      </div>
+
+      <div className="flex-1 border-t border-bolt-elements-borderColor flex justify-center items-center overflow-auto relative">
         <div
           style={{
             width: isDeviceModeOn ? (showDeviceFrameInPreview ? '100%' : `${widthPercent}%`) : '100%',
@@ -994,15 +1109,110 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
                     />
                   </div>
                 </div>
+              ) : quickDeviceMode !== 'desktop' ? (
+                /* Sprint 2: Quick device frame for tablet/mobile */
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'flex-start',
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'auto',
+                    padding: '16px',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'relative',
+                      borderRadius: quickDeviceMode === 'mobile' ? '36px' : '20px',
+                      background: getFrameColor(),
+                      padding: quickDeviceMode === 'mobile' ? '40px 16px' : '32px 24px',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+                      transform: `scale(${zoom / 100})`,
+                      transformOrigin: 'top center',
+                      transition: 'transform 0.2s ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {/* Notch for mobile */}
+                    {quickDeviceMode === 'mobile' && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '16px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: '60px',
+                          height: '8px',
+                          background: '#222',
+                          borderRadius: '4px',
+                          zIndex: 2,
+                        }}
+                      />
+                    )}
+                    {/* Home indicator */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: quickDeviceMode === 'mobile' ? '12px' : '10px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: quickDeviceMode === 'mobile' ? '40px' : '60px',
+                        height: '4px',
+                        background: '#444',
+                        borderRadius: '2px',
+                        zIndex: 2,
+                      }}
+                    />
+                    <iframe
+                      ref={iframeRef}
+                      title="preview"
+                      style={{
+                        border: 'none',
+                        width: quickDeviceMode === 'mobile' ? '390px' : '768px',
+                        height: quickDeviceMode === 'mobile' ? '844px' : '1024px',
+                        display: 'block',
+                        borderRadius: quickDeviceMode === 'mobile' ? '24px' : '12px',
+                        background: 'white',
+                      }}
+                      src={iframeUrl}
+                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
+                      allow="cross-origin-isolated"
+                    />
+                  </div>
+                </div>
               ) : (
-                <iframe
-                  ref={iframeRef}
-                  title="preview"
-                  className="border-none w-full h-full bg-bolt-elements-background-depth-1"
-                  src={iframeUrl}
-                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-                  allow="geolocation; ch-ua-full-version-list; cross-origin-isolated; screen-wake-lock; publickey-credentials-get; shared-storage-select-url; ch-ua-arch; bluetooth; compute-pressure; ch-prefers-reduced-transparency; deferred-fetch; usb; ch-save-data; publickey-credentials-create; shared-storage; deferred-fetch-minimal; run-ad-auction; ch-ua-form-factors; ch-downlink; otp-credentials; payment; ch-ua; ch-ua-model; ch-ect; autoplay; camera; private-state-token-issuance; accelerometer; ch-ua-platform-version; idle-detection; private-aggregation; interest-cohort; ch-viewport-height; local-fonts; ch-ua-platform; midi; ch-ua-full-version; xr-spatial-tracking; clipboard-read; gamepad; display-capture; keyboard-map; join-ad-interest-group; ch-width; ch-prefers-reduced-motion; browsing-topics; encrypted-media; gyroscope; serial; ch-rtt; ch-ua-mobile; window-management; unload; ch-dpr; ch-prefers-color-scheme; ch-ua-wow64; attribution-reporting; fullscreen; identity-credentials-get; private-state-token-redemption; hid; ch-ua-bitness; storage-access; sync-xhr; ch-device-memory; ch-viewport-width; picture-in-picture; magnetometer; clipboard-write; microphone"
-                />
+                /* Desktop: full width iframe, zoom via CSS transform */
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'auto',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'stretch',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined,
+                      transformOrigin: 'top left',
+                      ...(zoom !== 100 ? { width: `${(100 * 100) / zoom}%`, height: `${(100 * 100) / zoom}%` } : {}),
+                    }}
+                  >
+                    <iframe
+                      ref={iframeRef}
+                      title="preview"
+                      className="border-none w-full h-full bg-bolt-elements-background-depth-1"
+                      src={iframeUrl}
+                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
+                      allow="geolocation; ch-ua-full-version-list; cross-origin-isolated; screen-wake-lock; publickey-credentials-get; shared-storage-select-url; ch-ua-arch; bluetooth; compute-pressure; ch-prefers-reduced-transparency; deferred-fetch; usb; ch-save-data; publickey-credentials-create; shared-storage; deferred-fetch-minimal; run-ad-auction; ch-ua-form-factors; ch-downlink; otp-credentials; payment; ch-ua; ch-ua-model; ch-ect; autoplay; camera; private-state-token-issuance; accelerometer; ch-ua-platform-version; idle-detection; private-aggregation; interest-cohort; ch-viewport-height; local-fonts; ch-ua-platform; midi; ch-ua-full-version; xr-spatial-tracking; clipboard-read; gamepad; display-capture; keyboard-map; join-ad-interest-group; ch-width; ch-prefers-reduced-motion; browsing-topics; encrypted-media; gyroscope; serial; ch-rtt; ch-ua-mobile; window-management; unload; ch-dpr; ch-prefers-color-scheme; ch-ua-wow64; attribution-reporting; fullscreen; identity-credentials-get; private-state-token-redemption; hid; ch-ua-bitness; storage-access; sync-xhr; ch-device-memory; ch-viewport-width; picture-in-picture; magnetometer; clipboard-write; microphone"
+                    />
+                  </div>
+                </div>
               )}
               <ScreenshotSelector
                 isSelectionMode={isSelectionMode}
@@ -1041,6 +1251,66 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
               <ResizeHandle side="left" />
               <ResizeHandle side="right" />
             </>
+          )}
+
+          {/* Sprint 2: Fix with AI error banner */}
+          {previewError && !errorBannerDismissed && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'rgba(220, 38, 38, 0.95)',
+                color: 'white',
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                zIndex: 20,
+                fontSize: '13px',
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                ⚠️ App has an error — {previewError}
+              </span>
+              <button
+                onClick={() => {
+                  const errorMsg = `The preview has an error. Please fix it:\n\n${previewError}`;
+                  workbenchStore.pendingFixMessage.set(errorMsg);
+                  setErrorBannerDismissed(true);
+                }}
+                style={{
+                  background: 'white',
+                  color: 'rgb(220,38,38)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '3px 10px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  flexShrink: 0,
+                }}
+              >
+                Fix with AI
+              </button>
+              <button
+                onClick={() => setErrorBannerDismissed(true)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  padding: '0 4px',
+                  fontSize: '16px',
+                  lineHeight: 1,
+                  flexShrink: 0,
+                }}
+                title="Dismiss"
+              >
+                ×
+              </button>
+            </div>
           )}
         </div>
       </div>
