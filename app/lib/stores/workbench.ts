@@ -54,6 +54,8 @@ export class WorkbenchStore {
     import.meta.hot?.data.supabaseAlert ?? atom<SupabaseAlert | undefined>(undefined);
   deployAlert: WritableAtom<DeployAlert | undefined> =
     import.meta.hot?.data.deployAlert ?? atom<DeployAlert | undefined>(undefined);
+  pendingFixMessage: WritableAtom<string | undefined> =
+    import.meta.hot?.data.pendingFixMessage ?? atom<string | undefined>(undefined);
   modifiedFiles = new Set<string>();
   artifactIdList: string[] = [];
   #globalExecutionQueue = Promise.resolve();
@@ -620,9 +622,13 @@ export class WorkbenchStore {
     const timestampHash = Date.now().toString(36).slice(-6);
     const uniqueProjectName = `${projectName}_${timestampHash}`;
 
+    const fileList: string[] = [];
+
     for (const [filePath, dirent] of Object.entries(files)) {
       if (dirent?.type === 'file' && !dirent.isBinary) {
         const relativePath = extractRelativePath(filePath);
+
+        fileList.push(relativePath);
 
         // split the path into segments
         const pathSegments = relativePath.split('/');
@@ -641,6 +647,33 @@ export class WorkbenchStore {
         }
       }
     }
+
+    // Add a README.md with project info and setup instructions
+    const displayName = description.value ?? 'My Project';
+    const topFiles = fileList.slice(0, 15);
+    const readmeContent = [
+      `# ${displayName}`,
+      '',
+      'Generated with [bolt.feldev](https://bolt.feldev.com).',
+      '',
+      '## Files',
+      '',
+      ...topFiles.map((f) => `- ${f}`),
+      fileList.length > 15 ? `- ... and ${fileList.length - 15} more` : '',
+      '',
+      '## Getting Started',
+      '',
+      '```bash',
+      'npm install',
+      'npm run dev',
+      '```',
+      '',
+      '> Open your browser at http://localhost:5173',
+    ]
+      .filter((line) => line !== undefined)
+      .join('\n');
+
+    zip.file('README.md', readmeContent);
 
     // Generate the zip file and save it
     const content = await zip.generateAsync({ type: 'blob' });

@@ -33,6 +33,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 interface WorkspaceProps {
   chatStarted?: boolean;
   isStreaming?: boolean;
+  messages?: import('ai').Message[];
   metadata?: {
     gitUrl?: string;
   };
@@ -284,6 +285,7 @@ export const Workbench = memo(
   ({
     chatStarted,
     isStreaming,
+    messages,
     metadata: _metadata,
     updateChatMestaData: _updateChatMestaData,
     setSelectedElement,
@@ -408,7 +410,7 @@ export const Workbench = memo(
                   {selectedView === 'code' && (
                     <div className="flex overflow-y-auto">
                       {/* Export Chat Button */}
-                      <ExportChatButton exportChat={exportChat} />
+                      <ExportChatButton exportChat={exportChat} messages={messages} />
 
                       {/* Sync Button */}
                       <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
