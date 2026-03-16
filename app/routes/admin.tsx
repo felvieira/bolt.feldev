@@ -94,27 +94,28 @@ export default function AdminPage() {
       style={{ background: 'var(--background)', color: 'var(--text-primary)' }}
     >
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-4 mb-10 pb-6" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <a
             href="/"
-            className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+            className="flex items-center justify-center w-9 h-9 rounded-lg transition-all hover:scale-105"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
           >
             <div className="i-ph:arrow-left text-sm" />
           </a>
           <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               Instance Administration
             </h1>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
               Manage your bolt.feldev instance
             </p>
           </div>
         </div>
 
         {/* Database Status */}
-        <section className="mb-6">
-          <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div className="i-ph:database text-base" style={{ color: 'var(--accent)' }} />
             Database
           </h2>
           <div
@@ -183,8 +184,9 @@ export default function AdminPage() {
         </section>
 
         {/* Provisioned App Schemas */}
-        <section className="mb-6">
-          <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div className="i-ph:squares-four text-base" style={{ color: 'var(--accent)' }} />
             App databases ({apps.length})
           </h2>
           <div
@@ -215,8 +217,9 @@ export default function AdminPage() {
         </section>
 
         {/* Quick SQL Test */}
-        <section className="mb-6">
-          <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div className="i-ph:terminal-window text-base" style={{ color: 'var(--accent)' }} />
             Quick SQL
           </h2>
           <div
@@ -258,8 +261,9 @@ export default function AdminPage() {
         </section>
 
         {/* Docker / Infrastructure */}
-        <section className="mb-6">
-          <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div className="i-ph:check-square text-base" style={{ color: 'var(--accent)' }} />
             Infrastructure checklist
           </h2>
           <div
@@ -275,8 +279,9 @@ export default function AdminPage() {
         </section>
 
         {/* Deployment guide */}
-        <section>
-          <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div className="i-ph:rocket-launch text-base" style={{ color: 'var(--accent)' }} />
             Deploy guide
           </h2>
           <div
@@ -310,17 +315,33 @@ export default function AdminPage() {
 
 function CheckItem({ label, ok, hint }: { label: string; ok: boolean; hint?: string }) {
   return (
-    <div className="flex items-start gap-2">
-      <div
-        className={ok ? 'i-ph:check-circle-fill' : 'i-ph:x-circle'}
-        style={{ color: ok ? 'var(--success)' : 'var(--text-tertiary)', marginTop: '2px' }}
-      />
+    <div
+      className="flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors"
+      style={{ background: 'var(--surface-2)' }}
+    >
+      <div className="flex items-center gap-2.5 mt-0.5">
+        <div
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ background: ok ? 'var(--success)' : 'var(--error)', boxShadow: ok ? '0 0 6px var(--success)' : '0 0 6px var(--error)' }}
+        />
+      </div>
       <div className="flex-1">
-        <span className="text-sm" style={{ color: ok ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-          {label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium" style={{ color: ok ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+            {label}
+          </span>
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded font-medium uppercase"
+            style={{
+              background: ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+              color: ok ? 'var(--success)' : 'var(--error)',
+            }}
+          >
+            {ok ? 'OK' : 'Missing'}
+          </span>
+        </div>
         {!ok && hint && (
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
             {hint}
           </p>
         )}
