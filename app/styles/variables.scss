@@ -89,8 +89,43 @@
   --bolt-terminal-brightCyan:    #67E8F9;
   --bolt-terminal-brightWhite:   #FAFAFA;
 
+  /* === Preview address bar === */
+  --bolt-elements-preview-addressBar-background:       var(--surface-2);
+  --bolt-elements-preview-addressBar-backgroundHover:  var(--surface-3);
+  --bolt-elements-preview-addressBar-backgroundActive: var(--surface-3);
+  --bolt-elements-preview-addressBar-text:             var(--text-tertiary);
+  --bolt-elements-preview-addressBar-textActive:       var(--text-primary);
+
   /* === Scrollbar === */
   --bolt-scrollbar-track:   transparent;
   --bolt-scrollbar-thumb:   var(--surface-3);
   --bolt-scrollbar-thumb-hover: var(--border-default);
+}
+
+/* === Global scrollbar styling === */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }

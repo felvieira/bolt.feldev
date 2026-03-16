@@ -1,7 +1,7 @@
 import { useStore } from '@nanostores/react';
 import { motion, type HTMLMotionProps, type Variants } from 'framer-motion';
 import { computed } from 'nanostores';
-import { memo, useCallback, useEffect, useState, useMemo } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { Popover, Transition } from '@headlessui/react';
 import { diffLines, type Change } from 'diff';
@@ -312,6 +312,40 @@ export const Workbench = memo(
     const isSmallViewport = useViewport(1024);
     const streaming = useStore(streamingState);
     const { exportChat } = useChatHistory();
+    const [isDragging, setIsDragging] = useState(false);
+    const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+    // Drag handle for resizing chat/workbench split
+    const handleDragStart = useCallback((e: React.MouseEvent) => {
+      e.preventDefault();
+      const workbenchEl = document.querySelector('[class*="z-workbench"]')?.querySelector('[class*="fixed"]') as HTMLElement;
+      if (!workbenchEl) return;
+      const currentWidth = workbenchEl.getBoundingClientRect().width;
+      dragRef.current = { startX: e.clientX, startWidth: currentWidth };
+      setIsDragging(true);
+    }, []);
+
+    useEffect(() => {
+      if (!isDragging) return;
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!dragRef.current) return;
+        const delta = dragRef.current.startX - e.clientX;
+        const newWidth = Math.max(400, Math.min(window.innerWidth - 350, dragRef.current.startWidth + delta));
+        document.documentElement.style.setProperty('--workbench-width', `${newWidth}px`);
+        document.documentElement.style.setProperty('--workbench-inner-width', `${newWidth}px`);
+        document.documentElement.style.setProperty('--workbench-left', `${window.innerWidth - newWidth}px`);
+      };
+      const handleMouseUp = () => {
+        setIsDragging(false);
+        dragRef.current = null;
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }, [isDragging]);
     const [isSyncing, setIsSyncing] = useState(false);
 
     const setSelectedView = (view: WorkbenchViewType) => {
@@ -410,6 +444,16 @@ export const Workbench = memo(
               },
             )}
           >
+            {/* Drag handle for resizing */}
+            {!isSmallViewport && (
+              <div
+                onMouseDown={handleDragStart}
+                className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group"
+                style={{ background: isDragging ? 'var(--accent)' : 'transparent' }}
+              >
+                <div className="absolute inset-y-0 left-0 w-0.5 bg-[var(--border-subtle)] group-hover:bg-[var(--accent)] transition-colors" />
+              </div>
+            )}
             <div className="absolute inset-0 px-2 lg:px-4">
               <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--surface-1)', borderLeft: '1px solid var(--border-subtle)' }}>
                 <div className="flex items-center px-3 py-2 gap-1.5" style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border-subtle)' }}>

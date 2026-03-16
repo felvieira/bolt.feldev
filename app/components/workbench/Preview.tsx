@@ -747,7 +747,7 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
           <input
             title="URL Path"
             ref={inputRef}
-            className="w-full bg-transparent outline-none"
+            className="w-full bg-transparent outline-none text-[var(--text-secondary)]"
             type="text"
             value={displayPath}
             onChange={(event) => {
