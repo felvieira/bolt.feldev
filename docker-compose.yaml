@@ -118,9 +118,10 @@ services:
       - CODEX_PROXY_PORT=3100
     volumes:
       # Persist codex sidecar OAuth tokens + proxy session files across restarts.
-      # Without this, users must re-login after every deploy.
-      - codex_proxy_data:/app/.config
-      - codex_proxy_sessions:/app/.sessions
+      # Using host bind mounts (fixed path) instead of named volumes to avoid
+      # Coolify project-ID conflicts that break volume reuse across deploys.
+      - /var/lib/bolt-codex/config:/app/.config
+      - /var/lib/bolt-codex/sessions:/app/.sessions
     restart: unless-stopped
     profiles: ['production', 'development', 'default']
 
@@ -153,22 +154,6 @@ services:
       - '3200'
     profiles: ['production', 'development', 'default']
 
-  traefik:
-    image: traefik:v3.0
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    restart: unless-stopped
-    profiles: ['production', 'development', 'default']
 
 volumes:
   postgres_data:
-  codex_proxy_data:
-  codex_proxy_sessions:
