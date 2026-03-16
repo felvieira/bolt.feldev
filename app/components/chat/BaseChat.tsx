@@ -19,6 +19,7 @@ import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
 import GitCloneButton from './GitCloneButton';
 import type { ProviderInfo } from '~/types/model';
 import StarterTemplates from './StarterTemplates';
+import { LandingPageWizard } from './LandingPageWizard';
 import type { ActionAlert, SupabaseAlert, DeployAlert, LlmErrorAlertType } from '~/types/actions';
 import DeployChatAlert from '~/components/deploy/DeployAlert';
 import ChatAlert from './ChatAlert';
@@ -147,6 +148,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [progressAnnotations, setProgressAnnotations] = useState<ProgressAnnotation[]>([]);
     const expoUrl = useStore(expoUrlAtom);
     const [qrModalOpen, setQrModalOpen] = useState(false);
+    const [wizardOpen, setWizardOpen] = useState(false);
 
     useEffect(() => {
       if (expoUrl) {
@@ -491,6 +493,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 </div>
               )}
               <div className="flex flex-col gap-5">
+                {!chatStarted && (
+                  <div className="flex justify-center mt-2">
+                    <button
+                      onClick={() => setWizardOpen(true)}
+                      className="flex items-center gap-2 px-5 py-3 rounded-xl border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 font-semibold text-sm transition-all"
+                    >
+                      <span className="text-lg">✨</span>
+                      Create Landing Page
+                    </button>
+                  </div>
+                )}
                 {!chatStarted &&
                   ExamplePrompts((event, messageInput) => {
                     if (isStreaming) {
@@ -502,6 +515,15 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   })}
                 {!chatStarted && <StarterTemplates />}
               </div>
+              {!chatStarted && (
+                <LandingPageWizard
+                  isOpen={wizardOpen}
+                  onClose={() => setWizardOpen(false)}
+                  onGenerate={(prompt) => {
+                    handleSendMessage?.({} as React.UIEvent, prompt);
+                  }}
+                />
+              )}
             </div>
           </div>
           <ClientOnly>
