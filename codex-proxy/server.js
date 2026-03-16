@@ -66,10 +66,10 @@ function loadSessionToken(userId) {
 }
 
 function getUserId(req) {
-  // With a single codex sidecar, ALL users share the same session.
-  // Multi-session per userId only makes sense when each user has their own sidecar.
-  // For now, always return 'default' to avoid session fragmentation.
-  return 'default';
+  const id = req.headers['x-user-id'];
+  // Without auth, all requests share 'default'. With auth, each user gets their own session.
+  if (!id || id === 'anonymous') return 'default';
+  return id;
 }
 
 function getOrCreateSession(userId) {
@@ -105,23 +105,40 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // Check every 5 minutes
 
-function requireSession(req, res, next) {
+async function requireSession(req, res, next) {
   const userId = getUserId(req);
-  const session = userSessions.get(userId);
-  const token = req.headers['x-codex-session'];
+  const session = getOrCreateSession(userId);
 
-  if (!session || !session.activeSessionToken || token !== session.activeSessionToken) {
-    console.log(`[requireSession:${userId}] REJECTED ${req.method} ${req.path} token=${token ? token.substring(0, 8) + '...' : 'none'} active=${session?.activeSessionToken ? session.activeSessionToken.substring(0, 8) + '...' : 'none'}`);
-    return res.status(401).json({
-      error: 'No active Codex session. Login with ChatGPT first.',
-      authenticated: false,
-    });
+  // If session has an active token, allow the request
+  if (session.activeSessionToken) {
+    req._userSession = session;
+    req._userId = userId;
+    return next();
   }
 
-  // Attach session to request for downstream handlers
-  req._userSession = session;
-  req._userId = userId;
-  next();
+  // No active token — check if sidecar is actually authenticated
+  try {
+    const account = await session.codex.getAccount(false);
+    if (account && (account.email || account.type)) {
+      // Sidecar is authenticated but we don't have a token stored.
+      // Generate a token and store it.
+      const token = crypto.randomBytes(32).toString('hex');
+      session.activeSessionToken = token;
+      saveSessionToken(userId, token);
+      console.log(`[requireSession:${userId}] Sidecar authenticated (${account.email || 'unknown'}), generated token`);
+      req._userSession = session;
+      req._userId = userId;
+      return next();
+    }
+  } catch {
+    // Sidecar not authenticated
+  }
+
+  console.log(`[requireSession:${userId}] REJECTED ${req.method} ${req.path}`);
+  return res.status(401).json({
+    error: 'No active Codex session. Login with ChatGPT first.',
+    authenticated: false,
+  });
 }
 
 // ─── Public endpoints (no session required) ─────────────────────────
@@ -142,7 +159,7 @@ app.get('/health', (_req, res) => {
 // Check status (public — frontend uses this to decide whether to show login UI)
 app.get('/codex/status', (req, res) => {
   const userId = getUserId(req);
-  const session = userSessions.get(userId);
+  const session = getOrCreateSession(userId);
 
   try {
     res.json({
@@ -157,7 +174,7 @@ app.get('/codex/status', (req, res) => {
 // Session health — called by the frontend heartbeat to verify session is still alive
 app.get('/codex/session-health', async (req, res) => {
   const userId = getUserId(req);
-  const session = userSessions.get(userId);
+  const session = getOrCreateSession(userId);
   const authenticated = !!session?.activeSessionToken;
   let sessionOwner = null;
 
@@ -293,30 +310,28 @@ app.get('/codex/account', async (req, res) => {
 
     if (account) {
       // If there's a pending token from login, activate it now
-      if (session.pendingSessionToken && token === session.pendingSessionToken) {
+      if (session.pendingSessionToken && (!token || token === session.pendingSessionToken)) {
         console.log(`[codex/account:${userId}] activating session token`);
         session.activeSessionToken = session.pendingSessionToken;
         saveSessionToken(userId, session.activeSessionToken);
         session.pendingSessionToken = null;
       }
 
-      // Only return account details if this is the session owner
-      if (token === session.activeSessionToken) {
-        // Trigger a background refresh to extend token lifetime (non-blocking)
-        session.codex.getAccount(true).catch((err) => {
-          console.warn(`[codex/account:${userId}] Background token refresh failed: ${err.message}`);
-        });
-
-        return res.json({ account, authenticated: true });
+      // If sidecar is authenticated but no active token yet, generate one
+      if (!session.activeSessionToken) {
+        const newToken = crypto.randomBytes(32).toString('hex');
+        session.activeSessionToken = newToken;
+        saveSessionToken(userId, newToken);
+        console.log(`[codex/account:${userId}] generated token from authenticated sidecar`);
       }
 
-      // Token mismatch
-      console.log(`[codex/account:${userId}] token mismatch`);
-      return res.json({
-        account: null,
-        authenticated: false,
-        message: 'Session token mismatch.',
+      // Sidecar is authenticated — return account info regardless of token matching
+      // Trigger a background refresh to extend token lifetime (non-blocking)
+      session.codex.getAccount(true).catch((err) => {
+        console.warn(`[codex/account:${userId}] Background token refresh failed: ${err.message}`);
       });
+
+      return res.json({ account, authenticated: true, sessionToken: session.activeSessionToken });
     }
 
     console.log(`[codex/account:${userId}] no account returned from getAccount`);
