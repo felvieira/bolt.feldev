@@ -27,7 +27,7 @@ export async function fetchProjects() {
 
     if (res.ok) {
       const data = await res.json();
-      projectsStore.set(data);
+      projectsStore.set(Array.isArray(data) ? data : []);
     }
   } finally {
     projectsLoadingStore.set(false);

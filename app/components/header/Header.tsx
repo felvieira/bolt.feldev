@@ -31,7 +31,7 @@ export function Header() {
       return;
     }
 
-    const linked = projects.find((p) => p.chat_id === currentChatId);
+    const linked = Array.isArray(projects) ? projects.find((p) => p.chat_id === currentChatId) : undefined;
     setLinkedProjectId(linked ? linked.id : null);
   }, [currentChatId, projects]);
 
