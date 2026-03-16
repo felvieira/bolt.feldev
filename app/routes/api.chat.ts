@@ -40,14 +40,6 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 }
 
 async function chatAction({ context, request }: ActionFunctionArgs) {
-  const streamRecovery = new StreamRecoveryManager({
-    timeout: streamTimeoutMs,
-    maxRetries: 2,
-    onTimeout: () => {
-      logger.warn('Stream timeout - attempting recovery');
-    },
-  });
-
   const { messages, files, promptId, contextOptimization, supabase, chatMode, designScheme, maxLLMSteps, projectRules } =
     await request.json<{
       messages: Messages;
@@ -91,6 +83,14 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
   // Use a much longer timeout for these providers to avoid false "Network connection lost" errors.
   const isSlowProvider = detectedProvider === 'ChatGPT' || detectedProvider === 'chatgpt';
   const streamTimeoutMs = isSlowProvider ? 5 * 60 * 1000 : 45_000; // 5 min for Codex, 45s for others
+
+  const streamRecovery = new StreamRecoveryManager({
+    timeout: streamTimeoutMs,
+    maxRetries: 2,
+    onTimeout: () => {
+      logger.warn('Stream timeout - attempting recovery');
+    },
+  });
 
   const stream = new SwitchableStream();
 
