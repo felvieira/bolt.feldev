@@ -52,9 +52,12 @@ function CurrentDateTime() {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800/50">
-      <div className="h-4 w-4 i-ph:clock opacity-80" />
-      <div className="flex gap-2">
+    <div
+      className="flex items-center gap-2 px-5 py-2.5 text-xs"
+      style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border-subtle)' }}
+    >
+      <div className="h-3.5 w-3.5 i-ph:clock opacity-70" />
+      <div className="flex gap-2 tracking-wide">
         <span>{dateTime.toLocaleDateString()}</span>
         <span>{dateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
@@ -338,17 +341,16 @@ export const Menu = () => {
         }}
       >
         <div
-          className="h-12 flex items-center justify-between px-4"
+          className="h-14 flex items-center justify-between px-5"
           style={{ borderBottom: '1px solid var(--border-subtle)' }}
         >
-          <div className="font-medium" style={{ color: 'var(--text-primary)' }}></div>
+          <HelpButton onClick={() => window.open('https://stackblitz-labs.github.io/bolt.diy/', '_blank')} />
           <div className="flex items-center gap-3">
-            <HelpButton onClick={() => window.open('https://stackblitz-labs.github.io/bolt.diy/', '_blank')} />
             <span className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
               {profile?.username || 'Guest User'}
             </span>
             <div
-              className="flex items-center justify-center w-[32px] h-[32px] overflow-hidden rounded-full shrink-0"
+              className="flex items-center justify-center w-[36px] h-[36px] overflow-hidden rounded-full shrink-0 ring-2 ring-white/10"
               style={{ background: 'var(--surface-2)', color: 'var(--text-tertiary)' }}
             >
               {profile?.avatar ? (
@@ -367,19 +369,20 @@ export const Menu = () => {
         </div>
         <CurrentDateTime />
         <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
-          <div className="p-4 space-y-3">
+          <div className="px-4 pt-5 pb-3 space-y-3">
             <div className="flex gap-2">
               <a
                 href="/"
-                className="flex-1 flex gap-2 items-center rounded-lg px-4 py-2 transition-colors"
+                className="flex-1 flex gap-2 items-center justify-center rounded-lg px-4 py-2.5 transition-all font-medium text-sm"
                 style={{
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-secondary)',
+                  background: 'var(--accent)',
+                  color: '#fff',
                   borderRadius: 'var(--radius-sm)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                 }}
               >
-                <span className="inline-block i-ph:plus-circle h-4 w-4" />
-                <span className="text-sm font-medium">New chat</span>
+                <span className="inline-block i-ph:plus h-4 w-4" />
+                <span>New chat</span>
               </a>
               <button
                 onClick={toggleSelectionMode}
@@ -400,12 +403,14 @@ export const Menu = () => {
                 <span className="i-ph:magnifying-glass h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />
               </div>
               <input
-                className="w-full relative pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1"
+                className="w-full relative pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all"
                 style={{
                   background: 'var(--surface-2)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-sm)',
                   color: 'var(--text-primary)',
+                  // @ts-ignore
+                  '--tw-ring-color': 'var(--accent)',
                 }}
                 type="search"
                 placeholder="Search chats..."
@@ -414,8 +419,11 @@ export const Menu = () => {
               />
             </div>
           </div>
-          <div className="flex items-center justify-between text-sm px-4 py-2">
-            <div className="font-medium" style={{ color: 'var(--text-tertiary)' }}>
+          <div
+            className="flex items-center justify-between px-5 py-2.5"
+            style={{ borderBottom: '1px solid var(--border-subtle)' }}
+          >
+            <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
               Your Chats
             </div>
             {selectionMode && (
@@ -434,18 +442,22 @@ export const Menu = () => {
               </div>
             )}
           </div>
-          <div className="flex-1 overflow-auto px-3 pb-3">
+          <div className="flex-1 overflow-auto px-3 pb-4 pt-2">
             {filteredList.length === 0 && (
-              <div className="px-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+              <div className="px-4 py-3 text-sm" style={{ color: 'var(--text-tertiary)' }}>
                 {list.length === 0 ? 'No previous conversations' : 'No matches found'}
               </div>
             )}
             <DialogRoot open={dialogContent !== null}>
               {binDates(filteredList).map(({ category, items }) => (
-                <div key={category} className="mt-2 first:mt-0 space-y-1">
+                <div key={category} className="mt-4 first:mt-0 space-y-1">
                   <div
-                    className="text-xs font-medium uppercase tracking-wider sticky top-0 z-1 px-3 py-1"
-                    style={{ color: 'var(--text-tertiary)', background: 'transparent' }}
+                    className="text-[10px] font-semibold uppercase tracking-[0.1em] sticky top-0 z-1 px-3 py-1.5"
+                    style={{
+                      color: 'var(--text-tertiary)',
+                      background: 'rgba(9, 9, 11, 0.92)',
+                      backdropFilter: 'blur(4px)',
+                    }}
                   >
                     {category}
                   </div>
@@ -549,7 +561,7 @@ export const Menu = () => {
             </DialogRoot>
           </div>
           <div
-            className="flex items-center px-4 py-3"
+            className="flex items-center px-5 py-4"
             style={{ borderTop: '1px solid var(--border-subtle)' }}
           >
             <SettingsButton onClick={handleSettingsClick} />

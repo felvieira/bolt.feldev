@@ -71,11 +71,12 @@ export function HistoryItem({
         'cursor-pointer': selectionMode,
       })}
       style={{
-        padding: '8px 12px',
+        padding: '10px 14px',
         borderRadius: 'var(--radius-sm)',
         color: isActiveChat ? 'var(--text-primary)' : 'var(--text-secondary)',
         background: isActiveChat ? 'var(--surface-2)' : 'transparent',
         borderLeft: isActiveChat ? '2px solid var(--accent)' : '2px solid transparent',
+        fontSize: '13px',
       }}
       onMouseEnter={(e) => {
         if (!isActiveChat) {
