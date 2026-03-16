@@ -30,6 +30,7 @@ import { useChatHistory } from '~/lib/persistence';
 import { streamingState } from '~/lib/stores/streaming';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { versionCheckpoints, type VersionCheckpoint } from '~/lib/stores/versionHistory';
+import { CloudPanel } from './CloudPanel';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -58,6 +59,8 @@ const sliderOptions: SliderOptions<WorkbenchViewType> = {
     text: 'Preview',
   },
 };
+
+// Cloud view is handled separately (not in the 3-position slider)
 
 const workbenchVariants = {
   closed: {
@@ -466,59 +469,125 @@ export const Workbench = memo(
                       }
                     }}
                   />
-                  <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
+                  {selectedView !== 'cloud' && (
+                    <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
+                  )}
+                  {selectedView === 'cloud' && (
+                    <span className="text-sm font-medium px-2" style={{ color: 'var(--text-primary)' }}>
+                      Backend
+                    </span>
+                  )}
                   <div className="ml-auto" />
                   {selectedView === 'code' && (
-                    <div className="flex overflow-y-auto">
-                      {/* Version History Button */}
-                      <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden mr-1 relative">
+                    <div className="flex overflow-y-auto items-center gap-1">
+                      {/* Version History — Lovable-style dropdown */}
+                      <div className="relative">
                         <button
                           onClick={() => setShowHistoryPanel((v) => !v)}
-                          title="Version History"
-                          className="rounded-md items-center justify-center px-2 py-1.5 text-xs bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary flex gap-1"
+                          title="Version history"
+                          className="flex items-center gap-1 px-2 py-1.5 text-xs rounded-md transition-colors"
+                          style={{
+                            background: showHistoryPanel ? 'var(--surface-3)' : 'var(--surface-2)',
+                            color: showHistoryPanel ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            border: '1px solid var(--border-default)',
+                          }}
                         >
-                          <div className="i-ph:clock-counter-clockwise text-base" />
+                          <div className="i-ph:clock-counter-clockwise text-sm" />
                           {checkpoints.length > 0 && (
-                            <span className="text-xs">{checkpoints.length}</span>
+                            <span
+                              className="text-xs px-1 rounded"
+                              style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+                            >
+                              {checkpoints.length}
+                            </span>
                           )}
                         </button>
+
                         {showHistoryPanel && (
-                          <div className="absolute top-full right-0 z-50 mt-1 w-72 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-lg shadow-xl">
-                            <div className="flex items-center justify-between px-3 py-2 border-b border-bolt-elements-borderColor">
-                              <span className="text-sm font-medium text-bolt-elements-textPrimary">Version History</span>
+                          <div
+                            className="absolute top-full right-0 z-50 mt-1 w-80 rounded-xl shadow-2xl overflow-hidden"
+                            style={{
+                              background: 'var(--surface-2)',
+                              border: '1px solid var(--border-default)',
+                            }}
+                          >
+                            <div
+                              className="flex items-center justify-between px-4 py-3"
+                              style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                            >
+                              <div>
+                                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                  Version history
+                                </p>
+                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                  {checkpoints.length === 0 ? 'No checkpoints yet' : `${checkpoints.length} checkpoint${checkpoints.length !== 1 ? 's' : ''}`}
+                                </p>
+                              </div>
                               <button
                                 onClick={() => setShowHistoryPanel(false)}
-                                className="text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary"
+                                className="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
+                                style={{ color: 'var(--text-tertiary)' }}
                               >
                                 <div className="i-ph:x text-sm" />
                               </button>
                             </div>
+
                             {checkpoints.length === 0 ? (
-                              <div className="px-3 py-4 text-center text-sm text-bolt-elements-textTertiary">
-                                No checkpoints yet. Checkpoints are saved automatically after AI writes files.
+                              <div className="px-4 py-6 text-center">
+                                <div className="i-ph:clock-counter-clockwise text-2xl mx-auto mb-2" style={{ color: 'var(--text-tertiary)' }} />
+                                <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                                  Checkpoints are saved automatically after the AI writes files.
+                                </p>
                               </div>
                             ) : (
-                              <div className="max-h-64 overflow-y-auto">
+                              <div className="max-h-72 overflow-y-auto">
                                 {checkpoints.map((cp, index) => {
                                   const date = new Date(cp.timestamp);
-                                  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                  const now = new Date();
+                                  const isToday = date.toDateString() === now.toDateString();
+                                  const dateStr = isToday
+                                    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    : date.toLocaleDateString([], { month: 'short', day: 'numeric' }) +
+                                      ', ' +
+                                      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                                   return (
                                     <div
                                       key={cp.id}
-                                      className="flex items-center justify-between px-3 py-2 hover:bg-bolt-elements-background-depth-3 border-b border-bolt-elements-borderColor last:border-b-0"
+                                      className="flex items-center gap-3 px-4 py-3 group transition-colors"
+                                      style={{ borderBottom: '1px solid var(--border-subtle)' }}
                                     >
-                                      <div className="flex flex-col min-w-0">
-                                        <span className="text-sm font-medium text-bolt-elements-textPrimary">
-                                          {index === 0 ? 'latest' : cp.label} — {timeStr}
-                                        </span>
-                                        <span className="text-xs text-bolt-elements-textTertiary">
-                                          {cp.fileCount} file{cp.fileCount !== 1 ? 's' : ''}
-                                        </span>
+                                      {/* Timeline dot */}
+                                      <div className="flex flex-col items-center shrink-0">
+                                        <div
+                                          className="w-2 h-2 rounded-full"
+                                          style={{ background: index === 0 ? 'var(--accent)' : 'var(--border-default)' }}
+                                        />
                                       </div>
+
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                          {index === 0 && (
+                                            <span
+                                              className="text-xs px-1.5 py-0.5 rounded"
+                                              style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+                                            >
+                                              latest
+                                            </span>
+                                          )}
+                                          <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                            {cp.label}
+                                          </span>
+                                        </div>
+                                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                          {dateStr} · {cp.fileCount} file{cp.fileCount !== 1 ? 's' : ''}
+                                        </p>
+                                      </div>
+
                                       <button
                                         onClick={() => handleRestoreCheckpoint(cp)}
-                                        className="ml-2 px-2 py-1 text-xs rounded bg-bolt-elements-button-primary-background text-white hover:bg-bolt-elements-button-primary-backgroundHover shrink-0"
+                                        className="shrink-0 px-2.5 py-1 text-xs rounded-lg font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                        style={{ background: 'var(--surface-3)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
                                       >
                                         Restore
                                       </button>
@@ -535,11 +604,11 @@ export const Workbench = memo(
                       <ExportChatButton exportChat={exportChat} messages={messages} />
 
                       {/* Sync Button */}
-                      <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
+                      <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden">
                         <DropdownMenu.Root>
                           <DropdownMenu.Trigger
                             disabled={isSyncing || streaming}
-                            className="rounded-md items-center justify-center [&:is(:disabled,.disabled)]:cursor-not-allowed [&:is(:disabled,.disabled)]:opacity-60 px-3 py-1.5 text-xs bg-[var(--surface-2)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)] border border-[var(--border-default)] flex gap-1.7"
+                            className="rounded-md items-center justify-center [&:is(:disabled,.disabled)]:cursor-not-allowed [&:is(:disabled,.disabled)]:opacity-60 px-3 py-1.5 text-xs bg-[var(--surface-2)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)] border border-[var(--border-default)] flex gap-1.5"
                           >
                             {isSyncing ? 'Syncing...' : 'Sync'}
                             <span className={classNames('i-ph:caret-down transition-transform')} />
@@ -575,14 +644,29 @@ export const Workbench = memo(
                           </DropdownMenu.Content>
                         </DropdownMenu.Root>
                       </div>
-
-                      {/* Toggle Terminal moved to always-visible toolbar */}
                     </div>
                   )}
 
                   {selectedView === 'diff' && (
                     <FileModifiedDropdown fileHistory={fileHistory} onSelectFile={handleSelectFile} />
                   )}
+
+                  {/* Cloud / Backend Button — always visible */}
+                  <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
+                    <button
+                      onClick={() => setSelectedView(selectedView === 'cloud' ? 'code' : 'cloud')}
+                      title="Backend panel"
+                      className="rounded-md items-center justify-center px-2 py-1.5 text-xs flex gap-1.5 transition-colors"
+                      style={{
+                        background: selectedView === 'cloud' ? 'var(--accent-muted)' : 'var(--surface-2)',
+                        color: selectedView === 'cloud' ? 'var(--accent)' : 'var(--text-secondary)',
+                        border: '1px solid ' + (selectedView === 'cloud' ? 'var(--accent)' : 'var(--border-default)'),
+                      }}
+                    >
+                      <div className="i-ph:database text-sm" />
+                      Backend
+                    </button>
+                  </div>
 
                   {/* Rebuild Button - always visible */}
                   <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
@@ -645,9 +729,18 @@ export const Workbench = memo(
                   >
                     <DiffView fileHistory={fileHistory} setFileHistory={setFileHistory} />
                   </View>
-                  <View initial={{ x: '100%' }} animate={{ x: selectedView === 'preview' ? '0%' : '100%' }}>
+                  <View initial={{ x: '100%' }} animate={{ x: selectedView === 'preview' ? '0%' : selectedView === 'cloud' ? '100%' : '100%' }}>
                     <Preview setSelectedElement={setSelectedElement} />
                   </View>
+                  {/* Cloud / Backend panel */}
+                  <motion.div
+                    className="absolute inset-0"
+                    initial={{ x: '100%' }}
+                    animate={{ x: selectedView === 'cloud' ? '0%' : '100%' }}
+                    transition={viewTransition}
+                  >
+                    <CloudPanel />
+                  </motion.div>
                 </div>
               </div>
             </div>
