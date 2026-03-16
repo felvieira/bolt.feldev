@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@nanostores/react';
 import { IconButton } from '~/components/ui/IconButton';
 import { workbenchStore } from '~/lib/stores/workbench';
@@ -96,6 +96,56 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
   // Sprint 2: Device frame quick-toggle + zoom
   const [quickDeviceMode, setQuickDeviceMode] = useState<QuickDeviceMode>('desktop');
   const [zoom, setZoom] = useState<ZoomLevel>(100);
+
+  // Route dropdown
+  const [isRouteDropdownOpen, setIsRouteDropdownOpen] = useState(false);
+  const files = useStore(workbenchStore.files);
+  const routeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const detectedRoutes = useMemo(() => {
+    const routes = new Set<string>(['/']);
+    Object.keys(files).forEach((filePath) => {
+      // Normalize path
+      const p = filePath.replace(/\\/g, '/');
+      // React Router / Vite convention: src/pages/About.tsx → /about
+      const pagesMatch = p.match(/\/src\/pages\/(.+)\.(tsx?|jsx?)$/i);
+      if (pagesMatch) {
+        let route = '/' + pagesMatch[1]
+          .replace(/\/index$/i, '')
+          .replace(/\[(.+)\]/g, ':$1')
+          .toLowerCase();
+        if (route !== '/') routes.add(route);
+      }
+      // Remix convention: app/routes/about.tsx → /about
+      const remixMatch = p.match(/\/app\/routes\/(.+)\.(tsx?|jsx?)$/i);
+      if (remixMatch) {
+        let route = '/' + remixMatch[1]
+          .replace(/\._index$/i, '')
+          .replace(/\$/g, ':')
+          .replace(/\./g, '/')
+          .toLowerCase();
+        if (route !== '/') routes.add(route);
+      }
+      // Next.js convention: app/page.tsx or pages/about.tsx
+      const nextMatch = p.match(/\/(?:app|pages)\/(.+)\/page\.(tsx?|jsx?)$/i);
+      if (nextMatch) {
+        let route = '/' + nextMatch[1].toLowerCase();
+        routes.add(route);
+      }
+    });
+    return Array.from(routes).sort();
+  }, [files]);
+
+  // Close route dropdown on outside click
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (routeDropdownRef.current && !routeDropdownRef.current.contains(e.target as Node)) {
+        setIsRouteDropdownOpen(false);
+      }
+    };
+    if (isRouteDropdownOpen) document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [isRouteDropdownOpen]);
 
   // Sprint 2: Fix with AI error banner
   const [previewError, setPreviewError] = useState<string | undefined>();
@@ -735,7 +785,7 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
           />
         </div>
 
-        <div className="flex-grow flex items-center gap-1 bg-bolt-elements-preview-addressBar-background border border-bolt-elements-borderColor text-bolt-elements-preview-addressBar-text rounded-full px-1 py-1 text-sm hover:bg-bolt-elements-preview-addressBar-backgroundHover hover:focus-within:bg-bolt-elements-preview-addressBar-backgroundActive focus-within:bg-bolt-elements-preview-addressBar-backgroundActive focus-within-border-bolt-elements-borderColorActive focus-within:text-bolt-elements-preview-addressBar-textActive">
+        <div ref={routeDropdownRef} className="flex-grow flex items-center gap-1 bg-bolt-elements-preview-addressBar-background border border-bolt-elements-borderColor text-bolt-elements-preview-addressBar-text rounded-full px-1 py-1 text-sm hover:bg-bolt-elements-preview-addressBar-backgroundHover hover:focus-within:bg-bolt-elements-preview-addressBar-backgroundActive focus-within:bg-bolt-elements-preview-addressBar-backgroundActive focus-within-border-bolt-elements-borderColorActive focus-within:text-bolt-elements-preview-addressBar-textActive relative">
           <PortDropdown
             activePreviewIndex={activePreviewIndex}
             setActivePreviewIndex={setActivePreviewIndex}
@@ -745,7 +795,7 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
             previews={previews}
           />
           <input
-            title="URL Path"
+            title="URL Path — click to browse routes"
             ref={inputRef}
             className="w-full bg-transparent outline-none text-[var(--text-secondary)]"
             type="text"
@@ -753,6 +803,7 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
             onChange={(event) => {
               setDisplayPath(event.target.value);
             }}
+            onFocus={() => setIsRouteDropdownOpen(true)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && activePreview) {
                 let targetPath = displayPath.trim();
@@ -764,14 +815,46 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
                 const fullUrl = activePreview.baseUrl + targetPath;
                 setIframeUrl(fullUrl);
                 setDisplayPath(targetPath);
+                setIsRouteDropdownOpen(false);
 
                 if (inputRef.current) {
                   inputRef.current.blur();
                 }
               }
+              if (event.key === 'Escape') {
+                setIsRouteDropdownOpen(false);
+                inputRef.current?.blur();
+              }
             }}
             disabled={!activePreview}
           />
+          {/* Route dropdown */}
+          {isRouteDropdownOpen && detectedRoutes.length > 0 && (
+            <div
+              className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-[var(--border-default)] shadow-xl z-50 overflow-hidden"
+              style={{ background: 'var(--surface-2)' }}
+            >
+              <div className="px-2 py-1 text-xs text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]">
+                Detected routes
+              </div>
+              {detectedRoutes.map((route) => (
+                <button
+                  key={route}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-2"
+                  onClick={() => {
+                    if (activePreview) {
+                      setIframeUrl(activePreview.baseUrl + route);
+                      setDisplayPath(route);
+                    }
+                    setIsRouteDropdownOpen(false);
+                  }}
+                >
+                  <span className="i-ph:link text-[var(--text-tertiary)] shrink-0" />
+                  {route}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
