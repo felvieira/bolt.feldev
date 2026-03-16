@@ -29,13 +29,20 @@ CREATE INDEX IF NOT EXISTS idx_projects_chat_id ON projects(chat_id);
 CREATE TABLE IF NOT EXISTS project_hosting (
   project_id UUID PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
   provider VARCHAR(50) NOT NULL DEFAULT 'self',
+  slug VARCHAR(100) UNIQUE,
   domain VARCHAR(255),
+  custom_domain VARCHAR(255),
   netlify_site_id VARCHAR(255),
   vercel_project_id VARCHAR(255),
   self_container_id VARCHAR(255),
+  self_port INTEGER,
   last_deploy_at TIMESTAMPTZ,
-  deploy_status VARCHAR(20) DEFAULT 'pending'
+  deploy_status VARCHAR(20) DEFAULT 'pending',
+  build_command VARCHAR(500) DEFAULT 'npm run build',
+  output_dir VARCHAR(255) DEFAULT 'dist'
 );
+CREATE INDEX IF NOT EXISTS idx_project_hosting_slug ON project_hosting(slug);
+CREATE INDEX IF NOT EXISTS idx_project_hosting_custom_domain ON project_hosting(custom_domain);
 
 CREATE TABLE IF NOT EXISTS project_secrets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -646,6 +646,99 @@ app.post('/db/query', async (req, res) => {
   }
 });
 
+// ─── Hosting / Domain management ─────────────────────────────────────────────
+
+// GET /hosting/:projectId — get hosting info
+app.get('/hosting/:projectId', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM project_hosting WHERE project_id = $1', [req.params.projectId]);
+    if (result.rows.length === 0) return res.json({ hosting: null });
+    res.json({ hosting: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /hosting/:projectId — create/update hosting config + generate slug
+app.post('/hosting/:projectId', async (req, res) => {
+  try {
+    const { slug, customDomain, buildCommand, outputDir } = req.body;
+
+    // Generate slug from project name if not provided
+    let finalSlug = slug;
+    if (!finalSlug) {
+      const proj = await pool.query('SELECT name FROM projects WHERE id = $1', [req.params.projectId]);
+      if (proj.rows[0]) {
+        finalSlug = proj.rows[0].name
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '-')
+          .replace(/-+/g, '-')
+          .slice(0, 50);
+      } else {
+        finalSlug = req.params.projectId.slice(0, 8);
+      }
+    }
+
+    // Ensure slug is unique
+    const existing = await pool.query(
+      'SELECT project_id FROM project_hosting WHERE slug = $1 AND project_id != $2',
+      [finalSlug, req.params.projectId]
+    );
+    if (existing.rows.length > 0) {
+      finalSlug = `${finalSlug}-${Date.now().toString(36).slice(-4)}`;
+    }
+
+    await pool.query(
+      `INSERT INTO project_hosting (project_id, slug, custom_domain, build_command, output_dir)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (project_id) DO UPDATE SET
+         slug = COALESCE($2, project_hosting.slug),
+         custom_domain = $3,
+         build_command = COALESCE($4, project_hosting.build_command),
+         output_dir = COALESCE($5, project_hosting.output_dir),
+         deploy_status = 'pending'`,
+      [req.params.projectId, finalSlug, customDomain || null, buildCommand || 'npm run build', outputDir || 'dist']
+    );
+
+    // Get the instance domain from env
+    const instanceDomain = process.env.DOMAIN || 'localhost';
+    const autoUrl = `https://${finalSlug}.${instanceDomain}`;
+    const customUrl = customDomain ? `https://${customDomain}` : null;
+
+    res.json({
+      hosting: {
+        slug: finalSlug,
+        autoUrl,
+        customUrl,
+        customDomain: customDomain || null,
+      }
+    });
+  } catch (err) {
+    console.error('[auth] Hosting config error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /hosting — list all hosted apps (for Caddy config generation)
+app.get('/hosting', async (req, res) => {
+  const secret = req.headers['x-internal-secret'];
+  if (secret !== 'bolt-internal') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT h.*, p.name AS project_name
+       FROM project_hosting h
+       JOIN projects p ON p.id = h.project_id
+       WHERE h.deploy_status = 'live'
+       ORDER BY h.last_deploy_at DESC`
+    );
+    res.json({ apps: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
