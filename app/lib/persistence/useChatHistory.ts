@@ -63,11 +63,11 @@ export function useChatHistory() {
     }
 
     if (mixedId) {
-      Promise.all([
-        getMessages(db, mixedId),
-        getSnapshot(db, mixedId), // Fetch snapshot from DB
-      ])
-        .then(async ([storedMessages, snapshot]) => {
+      getMessages(db, mixedId)
+        .then(async (storedMessages) => {
+          // Use the actual chat ID (not urlId) to fetch snapshot
+          const actualChatId = storedMessages?.id || mixedId;
+          const snapshot = await getSnapshot(db, actualChatId);
           if (storedMessages && storedMessages.messages.length > 0) {
             /*
              * const snapshotStr = localStorage.getItem(`snapshot:${mixedId}`); // Remove localStorage usage
@@ -100,7 +100,7 @@ export function useChatHistory() {
 
             setArchivedMessages(archivedMessages);
 
-            if (startingIdx > 0) {
+            if (startingIdx >= 0) {
               const files = Object.entries(validSnapshot?.files || {})
                 .map(([key, value]) => {
                   if (value?.type !== 'file') {
@@ -169,7 +169,7 @@ ${value.content}
                  */
                 ...filteredMessages,
               ];
-              restoreSnapshot(mixedId);
+              restoreSnapshot(mixedId, validSnapshot);
             }
 
             setInitialMessages(filteredMessages);
