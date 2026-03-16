@@ -36,7 +36,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       return Response.json(data, { status: response.status });
     }
 
-    return Response.json(data);
+    // Include the resolved userId so the frontend can store it and send
+    // the correct x-user-id in chat requests via the ChatGPT provider.
+    return Response.json({ ...data, userId });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to connect to codex-proxy';
     return Response.json({ error: message }, { status: 502 });

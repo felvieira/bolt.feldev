@@ -12,12 +12,20 @@ interface CodexAccount {
 
 type LoginStatus = 'idle' | 'installing' | 'pending' | 'authenticated' | 'error';
 
-function saveSessionToken(token: string) {
+function saveSessionToken(token: string, userId?: string) {
   Cookies.set('codexSession', token, { expires: 7 });
 
   const currentKeys = Cookies.get('apiKeys');
   const keys = currentKeys ? JSON.parse(currentKeys) : {};
   keys['ChatGPT'] = token;
+
+  // BOLT_USER_ID is sent as x-user-id in chat requests so the codex-proxy
+  // routes them to the correct per-user session. Without it, all requests
+  // go to the 'default' session which has no active token → 401.
+  if (userId && userId !== 'anonymous') {
+    keys['BOLT_USER_ID'] = userId;
+  }
+
   Cookies.set('apiKeys', JSON.stringify(keys));
 }
 
@@ -33,6 +41,7 @@ function clearSessionToken() {
   if (currentKeys) {
     const keys = JSON.parse(currentKeys);
     delete keys['ChatGPT'];
+    delete keys['BOLT_USER_ID'];
     Cookies.set('apiKeys', JSON.stringify(keys));
   }
 }
@@ -138,6 +147,12 @@ const ChatGPTLoginSection: React.FC = () => {
           const accountData = await accountRes.json();
 
           if (accountData.authenticated && accountData.account) {
+            if (accountData.userId && accountData.userId !== 'anonymous') {
+              const currentKeys = Cookies.get('apiKeys');
+              const keys = currentKeys ? JSON.parse(currentKeys) : {};
+              keys['BOLT_USER_ID'] = accountData.userId;
+              Cookies.set('apiKeys', JSON.stringify(keys));
+            }
             setAccount(accountData.account);
             setLoginStatus('authenticated');
           } else {
@@ -158,6 +173,12 @@ const ChatGPTLoginSection: React.FC = () => {
       const data = await res.json();
 
       if (data.authenticated && data.account) {
+        if (data.userId && data.userId !== 'anonymous') {
+          const currentKeys = Cookies.get('apiKeys');
+          const keys = currentKeys ? JSON.parse(currentKeys) : {};
+          keys['BOLT_USER_ID'] = data.userId;
+          Cookies.set('apiKeys', JSON.stringify(keys));
+        }
         setAccount(data.account);
         setLoginStatus('authenticated');
       } else {
@@ -212,6 +233,16 @@ const ChatGPTLoginSection: React.FC = () => {
 
           if (accountData.authenticated && accountData.account) {
             clearInterval(pollInterval);
+            // Re-save token with the resolved userId so chat requests route correctly
+            if (accountData.sessionToken) {
+              saveSessionToken(accountData.sessionToken, accountData.userId);
+            } else if (accountData.userId) {
+              // userId received but token unchanged — just update BOLT_USER_ID
+              const currentKeys = Cookies.get('apiKeys');
+              const keys = currentKeys ? JSON.parse(currentKeys) : {};
+              if (accountData.userId !== 'anonymous') keys['BOLT_USER_ID'] = accountData.userId;
+              Cookies.set('apiKeys', JSON.stringify(keys));
+            }
             setAccount(accountData.account);
             setLoginStatus('authenticated');
             toast.success('ChatGPT connected successfully!');
