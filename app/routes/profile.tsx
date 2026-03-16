@@ -119,188 +119,230 @@ export default function ProfilePage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4"
+      className="min-h-screen flex flex-col items-center justify-center p-6"
       style={{ background: 'var(--background)' }}
     >
-      <div className="w-full" style={{ maxWidth: 480 }}>
+      <div className="w-full" style={{ maxWidth: 520 }}>
         {/* Back link */}
         <Link
           to="/"
-          className="inline-flex items-center gap-1 text-sm mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-sm mb-8 transition-colors group"
           style={{ color: 'var(--text-tertiary)' }}
           onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
           onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-tertiary)')}
         >
-          <div className="i-ph:arrow-left text-base" />
+          <div className="i-ph:arrow-left text-base transition-transform group-hover:-translate-x-0.5" />
           Back to app
         </Link>
 
-        <div className="volt-card" style={{ padding: 32 }}>
+        <div
+          className="volt-card"
+          style={{
+            padding: 0,
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+          }}
+        >
           {/* User header */}
-          <div className="flex items-center gap-4 mb-6">
+          <div
+            className="flex items-center gap-5 p-8"
+            style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-2)' }}
+          >
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-medium shrink-0"
+              className="relative group w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-semibold shrink-0 ring-2 ring-white/10"
               style={{ background: 'var(--accent)' }}
             >
               {(user.displayName || user.email).charAt(0).toUpperCase()}
+              <div
+                className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                style={{ background: 'rgba(0,0,0,0.5)' }}
+              >
+                <div className="i-ph:camera text-white text-lg" />
+              </div>
             </div>
-            <div>
-              <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <div className="min-w-0">
+              <div className="text-lg font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
                 {user.displayName || user.email}
               </div>
-              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-sm mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
                 {user.email}
               </div>
-              <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
                 Member since {memberSince}
               </div>
             </div>
           </div>
 
           {/* Account section */}
-          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
-            Account
-          </p>
-
-          <Form method="post" className="flex flex-col gap-4">
-            <input type="hidden" name="intent" value="updateProfile" />
-
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium"
-                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+          <div className="p-8">
+            <div className="flex items-center gap-2 mb-5">
+              <div className="i-ph:user-circle text-base" style={{ color: 'var(--text-tertiary)' }} />
+              <p
+                className="text-xs font-semibold uppercase tracking-widest"
+                style={{ color: 'var(--text-tertiary)' }}
               >
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={user.email}
-                readOnly
-                className="volt-input w-full"
-                style={{ opacity: 0.6, cursor: 'default' }}
-              />
+                Account
+              </p>
             </div>
 
-            <div>
-              <label
-                htmlFor="displayName"
-                className="block text-sm font-medium"
-                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
-              >
-                Display Name
-              </label>
-              <input
-                id="displayName"
-                name="displayName"
-                type="text"
-                defaultValue={user.displayName || ''}
-                className="volt-input w-full"
-              />
-            </div>
+            <Form method="post" className="flex flex-col gap-5">
+              <input type="hidden" name="intent" value="updateProfile" />
 
-            {actionData?.intent === 'updateProfile' && actionData.error && (
-              <div className="p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                {actionData.error}
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={user.email}
+                  readOnly
+                  className="volt-input w-full"
+                  style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                />
               </div>
-            )}
-            {actionData?.intent === 'updateProfile' && actionData.success && (
-              <div className="p-3 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-                {actionData.success}
+
+              <div>
+                <label
+                  htmlFor="displayName"
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Display Name
+                </label>
+                <input
+                  id="displayName"
+                  name="displayName"
+                  type="text"
+                  defaultValue={user.displayName || ''}
+                  className="volt-input w-full"
+                />
               </div>
-            )}
 
-            <div className="flex justify-end">
-              <button type="submit" className="btn-primary">
-                Save
-              </button>
-            </div>
-          </Form>
+              {actionData?.intent === 'updateProfile' && actionData.error && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                  {actionData.error}
+                </div>
+              )}
+              {actionData?.intent === 'updateProfile' && actionData.success && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+                  {actionData.success}
+                </div>
+              )}
 
-          <hr style={{ borderColor: 'var(--border-subtle)', margin: '24px 0' }} />
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  className="btn-primary px-6 py-2 text-sm font-medium rounded-lg transition-all"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </Form>
+          </div>
+
+          {/* Divider */}
+          <div className="mx-8" style={{ height: 1, background: 'var(--border-subtle)' }} />
 
           {/* Password section */}
-          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
-            Password
-          </p>
-
-          <Form method="post" className="flex flex-col gap-4">
-            <input type="hidden" name="intent" value="changePassword" />
-
-            <div>
-              <label
-                htmlFor="currentPassword"
-                className="block text-sm font-medium"
-                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+          <div className="p-8">
+            <div className="flex items-center gap-2 mb-5">
+              <div className="i-ph:lock-simple text-base" style={{ color: 'var(--text-tertiary)' }} />
+              <p
+                className="text-xs font-semibold uppercase tracking-widest"
+                style={{ color: 'var(--text-tertiary)' }}
               >
-                Current Password
-              </label>
-              <input
-                id="currentPassword"
-                name="currentPassword"
-                type="password"
-                required
-                className="volt-input w-full"
-                placeholder="Enter current password"
-              />
+                Password
+              </p>
             </div>
 
-            <div>
-              <label
-                htmlFor="newPassword"
-                className="block text-sm font-medium"
-                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
-              >
-                New Password
-              </label>
-              <input
-                id="newPassword"
-                name="newPassword"
-                type="password"
-                required
-                minLength={8}
-                className="volt-input w-full"
-                placeholder="At least 8 characters"
-              />
-            </div>
+            <Form method="post" className="flex flex-col gap-5">
+              <input type="hidden" name="intent" value="changePassword" />
 
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium"
-                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
-              >
-                Confirm New Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                minLength={8}
-                className="volt-input w-full"
-                placeholder="Repeat new password"
-              />
-            </div>
-
-            {actionData?.intent === 'changePassword' && actionData.error && (
-              <div className="p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                {actionData.error}
+              <div>
+                <label
+                  htmlFor="currentPassword"
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Current Password
+                </label>
+                <input
+                  id="currentPassword"
+                  name="currentPassword"
+                  type="password"
+                  required
+                  className="volt-input w-full"
+                  placeholder="Enter current password"
+                />
               </div>
-            )}
-            {actionData?.intent === 'changePassword' && actionData.success && (
-              <div className="p-3 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-                {actionData.success}
-              </div>
-            )}
 
-            <div className="flex justify-end">
-              <button type="submit" className="btn-primary">
-                Save
-              </button>
-            </div>
-          </Form>
+              <div>
+                <label
+                  htmlFor="newPassword"
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  New Password
+                </label>
+                <input
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  required
+                  minLength={8}
+                  className="volt-input w-full"
+                  placeholder="At least 8 characters"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Confirm New Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  minLength={8}
+                  className="volt-input w-full"
+                  placeholder="Repeat new password"
+                />
+              </div>
+
+              {actionData?.intent === 'changePassword' && actionData.error && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                  {actionData.error}
+                </div>
+              )}
+              {actionData?.intent === 'changePassword' && actionData.success && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+                  {actionData.success}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  className="btn-primary px-6 py-2 text-sm font-medium rounded-lg transition-all"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
+                  Update Password
+                </button>
+              </div>
+            </Form>
+          </div>
         </div>
       </div>
     </div>
