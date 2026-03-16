@@ -1,42 +1,43 @@
 /**
- * Internal backend API — SQL query execution
- * Connects to the instance's own Postgres via DATABASE_URL env var.
+ * Internal backend API — execute raw SQL against the instance's Postgres.
+ * Accepts { schema?, sql, params? } in the POST body.
+ * If `schema` is provided, sets the search_path before executing.
  */
 import { json, type ActionFunctionArgs } from '@remix-run/cloudflare';
 
-export async function action({ request, context }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== 'POST') {
     return json({ error: 'Method not allowed' }, { status: 405 });
   }
 
+  const origin = new URL(request.url).origin;
+
   try {
-    const { sql } = (await request.json()) as { sql: string };
+    const { sql, schema, params } = (await request.json()) as {
+      sql: string;
+      schema?: string;
+      params?: unknown[];
+    };
 
     if (!sql?.trim()) {
       return json({ error: 'No SQL provided' }, { status: 400 });
     }
 
-    // Use DATABASE_URL from environment
-    const dbUrl = (context.cloudflare?.env as any)?.DATABASE_URL || process.env?.DATABASE_URL;
+    // Prepend search_path if schema is given
+    const fullSql = schema ? `SET search_path TO "${schema}",public; ${sql}` : sql;
 
-    if (!dbUrl) {
-      return json({ error: 'DATABASE_URL not configured on this instance' }, { status: 503 });
-    }
-
-    // Execute via pg-compatible HTTP proxy or direct connection
-    // We forward to /api/db-proxy which handles the actual pg connection server-side
-    const proxyRes = await fetch(`${new URL(request.url).origin}/api/db-proxy`, {
+    const res = await fetch(`${origin}/api/db-proxy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'bolt-internal' },
-      body: JSON.stringify({ sql, dbUrl }),
+      body: JSON.stringify({ sql: fullSql, params }),
     });
 
-    if (!proxyRes.ok) {
-      const err = await proxyRes.json().catch(() => ({ error: 'Query failed' }));
-      return json(err, { status: proxyRes.status });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Query failed' }));
+      return json(err, { status: res.status });
     }
 
-    return json(await proxyRes.json());
+    return json(await res.json());
   } catch (e: any) {
     return json({ error: e.message || 'Internal error' }, { status: 500 });
   }

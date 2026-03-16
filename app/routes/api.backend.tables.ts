@@ -1,5 +1,6 @@
 /**
- * Internal backend API — list tables in the instance's Postgres.
+ * Internal backend API — list tables in a given schema.
+ * Accepts { schema } in the POST body (defaults to 'public').
  */
 import { json, type ActionFunctionArgs } from '@remix-run/cloudflare';
 
@@ -8,10 +9,11 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: 'Method not allowed' }, { status: 405 });
   }
 
-  try {
-    const { schema = 'public' } = (await request.json()) as { schema?: string };
+  const origin = new URL(request.url).origin;
+  const { schema = 'public' } = (await request.json()) as { schema?: string };
 
-    const res = await fetch(`${new URL(request.url).origin}/api/db-proxy`, {
+  try {
+    const res = await fetch(`${origin}/api/db-proxy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'bolt-internal' },
       body: JSON.stringify({
@@ -21,7 +23,7 @@ export async function action({ request }: ActionFunctionArgs) {
             t.table_schema,
             COALESCE(s.n_live_tup, 0)::int AS row_count
           FROM information_schema.tables t
-          LEFT JOIN pg_stat_user_tables s ON s.relname = t.table_name
+          LEFT JOIN pg_stat_user_tables s ON s.relname = t.table_name AND s.schemaname = t.table_schema
           WHERE t.table_schema = $1
             AND t.table_type = 'BASE TABLE'
           ORDER BY t.table_name
@@ -30,10 +32,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }),
     });
 
-    if (!res.ok) {
-      return json(await res.json().catch(() => ({ error: 'Failed' })), { status: res.status });
-    }
-
+    if (!res.ok) return json(await res.json().catch(() => ({ error: 'Failed' })), { status: res.status });
     return json(await res.json());
   } catch (e: any) {
     return json({ error: e.message }, { status: 500 });
