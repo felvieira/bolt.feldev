@@ -1,0 +1,42 @@
+# ─── Caddyfile for bolt.feldev ─────────────────────────────────────────────
+#
+# Replace {$DOMAIN} with your actual domain (e.g. bolt.yourdomain.com)
+# or use the DOMAIN env var in your .env file.
+#
+# Caddy automatically provisions and renews SSL certificates via Let's Encrypt.
+#
+# Usage:
+#   1. Set DOMAIN=bolt.yourdomain.com in .env
+#   2. Point your domain's A record to the VPS IP
+#   3. docker compose --profile production up -d
+#
+# For local dev (no SSL), replace the domain block with:
+#   :80 { reverse_proxy app-dev:5173 }
+
+{$DOMAIN:localhost} {
+	# Main bolt.feldev app
+	reverse_proxy app-prod:5173
+
+	# WebSocket support for HMR / live preview
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websockets app-prod:5173
+
+	# Compression
+	encode gzip zstd
+
+	# Security headers
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	# Logs
+	log {
+		output file /data/access.log
+		format console
+	}
+}

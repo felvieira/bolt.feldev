@@ -624,6 +624,28 @@ app.post('/projects/:id/database/provision', async (req, res) => {
   }
 });
 
+// ─── Internal DB proxy (called by app's /api/db-proxy route) ─────────────────
+app.post('/db/query', async (req, res) => {
+  // Only accept requests from the app service (via internal secret)
+  const secret = req.headers['x-internal-secret'];
+  if (secret !== 'bolt-internal') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { sql, params } = req.body;
+  if (!sql?.trim()) {
+    return res.status(400).json({ error: 'No SQL provided' });
+  }
+
+  try {
+    const result = await pool.query(sql, params || []);
+    res.json({ rows: result.rows, rowCount: result.rowCount });
+  } catch (err) {
+    console.error('[auth] DB query error:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

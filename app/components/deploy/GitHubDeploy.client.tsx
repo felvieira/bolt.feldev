@@ -135,26 +135,52 @@ export function useGitHubDeploy() {
 
       const fileContents = await getAllFiles('/');
 
-      /*
-       * Show GitHub deployment dialog here - it will handle the actual deployment
-       * and will receive these files to deploy
-       */
+      // Push to GitHub via server-side API (creates repo if needed)
+      const projectName = (artifact.title || 'bolt-project')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 50);
 
-      /*
-       * For now, we'll just complete the deployment with a success message
-       * Notify that deployment preparation is complete
-       */
-      deployArtifact.runner.handleDeployAction('deploying', 'complete', {
-        source: 'github',
+      const pushRes = await fetch('/api/github-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: connection.token,
+          owner: connection.user.login || connection.user.username,
+          repo: projectName,
+          files: fileContents,
+          message: `Deploy from bolt.feldev — ${new Date().toLocaleString()}`,
+          branch: 'main',
+          isPrivate: true,
+          createRepo: true,
+        }),
       });
 
-      // Show success toast notification
-      toast.success(`🚀 GitHub deployment preparation completed successfully!`);
+      const pushData = await pushRes.json();
+
+      if (!pushRes.ok || !pushData.success) {
+        deployArtifact.runner.handleDeployAction('deploying', 'failed', {
+          error: pushData.error || 'Push to GitHub failed',
+          source: 'github',
+        });
+        throw new Error(pushData.error || 'GitHub push failed');
+      }
+
+      deployArtifact.runner.handleDeployAction('deploying', 'complete', {
+        source: 'github',
+        url: pushData.url,
+      });
+
+      toast.success(
+        `🚀 Pushed ${pushData.filesCount} files to ${pushData.url}`,
+      );
 
       return {
         success: true,
         files: fileContents,
-        projectName: artifact.title || 'bolt-project',
+        projectName,
+        url: pushData.url,
       };
     } catch (err) {
       console.error('GitHub deploy error:', err);
