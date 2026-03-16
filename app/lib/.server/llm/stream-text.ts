@@ -11,6 +11,7 @@ import { createFilesContext, extractPropertiesFromMessage } from './utils';
 import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
 import { planPrompt } from '~/lib/common/prompts/plan-prompt';
 import type { DesignScheme } from '~/types/design-scheme';
+import { getComponentHints } from './component-hints';
 
 export type Messages = Message[];
 
@@ -211,6 +212,22 @@ export async function streamText(props: {
 
   if (projectRules && projectRules.trim()) {
     systemPrompt = `${systemPrompt}\n\n<project_rules>\nThe user has defined these project-specific rules. Follow them exactly:\n${projectRules}\n</project_rules>`;
+  }
+
+  // C1: Inject component library hints based on the last user message intent
+  if (chatMode === 'build') {
+    const lastUserContent = processedMessages
+      .filter((m) => m.role === 'user')
+      .slice(-1)
+      .map((m) => (typeof m.content === 'string' ? m.content : ''))
+      .join('');
+
+    const componentHints = getComponentHints(lastUserContent);
+
+    if (componentHints) {
+      systemPrompt = `${systemPrompt}\n${componentHints}`;
+      logger.info('Injected component hints for detected UI intent');
+    }
   }
 
   const effectiveLockedFilePaths = new Set<string>();
