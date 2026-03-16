@@ -66,10 +66,10 @@ function loadSessionToken(userId) {
 }
 
 function getUserId(req) {
-  const id = req.headers['x-user-id'];
-  // Treat missing, 'anonymous', and 'default' as the same default session
-  if (!id || id === 'anonymous' || id === 'default') return 'default';
-  return id;
+  // With a single codex sidecar, ALL users share the same session.
+  // Multi-session per userId only makes sense when each user has their own sidecar.
+  // For now, always return 'default' to avoid session fragmentation.
+  return 'default';
 }
 
 function getOrCreateSession(userId) {
