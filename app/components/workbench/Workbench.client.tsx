@@ -31,6 +31,7 @@ import { streamingState } from '~/lib/stores/streaming';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { versionCheckpoints, type VersionCheckpoint } from '~/lib/stores/versionHistory';
 import { CloudPanel } from './CloudPanel';
+import { PublishButton } from './PublishButton';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -667,6 +668,9 @@ export const Workbench = memo(
                       Backend
                     </button>
                   </div>
+
+                  {/* Publish Button — Lovable-style */}
+                  <PublishButton />
 
                   {/* Rebuild Button - always visible */}
                   <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
