@@ -116,6 +116,11 @@ services:
       - '3100:3100'
     environment:
       - CODEX_PROXY_PORT=3100
+    volumes:
+      # Persist codex sidecar OAuth tokens + proxy session files across restarts.
+      # Without this, users must re-login after every deploy.
+      - codex_proxy_data:/app/.config
+      - codex_proxy_sessions:/app/.sessions
     restart: unless-stopped
     profiles: ['production', 'development', 'default']
 
@@ -150,3 +155,5 @@ services:
 
 volumes:
   postgres_data:
+  codex_proxy_data:
+  codex_proxy_sessions:
