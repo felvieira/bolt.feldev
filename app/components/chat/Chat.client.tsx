@@ -113,9 +113,10 @@ export const ChatImpl = memo(
     const { showChat } = useStore(chatStore);
     const [animationScope, animate] = useAnimate();
     const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-    const [chatMode, setChatMode] = useState<'discuss' | 'build'>('build');
+    const [chatMode, setChatMode] = useState<'discuss' | 'build' | 'plan'>('build');
     const [selectedElement, setSelectedElement] = useState<ElementInfo | null>(null);
     const mcpSettings = useMCPStore((state) => state.settings);
+    const projectRules = typeof window !== 'undefined' ? (localStorage.getItem('bolt_project_rules') || '') : '';
 
     const {
       messages,
@@ -149,6 +150,7 @@ export const ChatImpl = memo(
           },
         },
         maxLLMSteps: mcpSettings.maxLLMSteps,
+        projectRules,
       },
       sendExtraMessageFields: true,
       onError: (e) => {

@@ -21,6 +21,8 @@ import type { DesignScheme } from '~/types/design-scheme';
 import type { ElementInfo } from '~/components/workbench/Inspector';
 import { McpTools } from './MCPTools';
 import { WebSearch } from './WebSearch.client';
+import { ProjectRulesButton } from './ProjectRulesModal';
+import { LLMComplexityBadge } from './LLMComplexityBadge';
 
 interface ChatBoxProps {
   isModelSettingsCollapsed: boolean;
@@ -58,8 +60,8 @@ interface ChatBoxProps {
   enhancingPrompt?: boolean | undefined;
   enhancePrompt?: (() => void) | undefined;
   onWebSearchResult?: (result: string) => void;
-  chatMode?: 'discuss' | 'build';
-  setChatMode?: (mode: 'discuss' | 'build') => void;
+  chatMode?: 'discuss' | 'build' | 'plan';
+  setChatMode?: (mode: 'discuss' | 'build' | 'plan') => void;
   designScheme?: DesignScheme;
   setDesignScheme?: (scheme: DesignScheme) => void;
   selectedElement?: ElementInfo | null;
@@ -242,7 +244,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
             minHeight: props.TEXTAREA_MIN_HEIGHT,
             maxHeight: props.TEXTAREA_MAX_HEIGHT,
           }}
-          placeholder={props.chatMode === 'build' ? 'How can Bolt help you today?' : 'What would you like to discuss?'}
+          placeholder={props.chatMode === 'build' ? 'How can Bolt help you today?' : props.chatMode === 'plan' ? 'Describe what you want to build — AI will plan without coding...' : 'What would you like to discuss?'}
           translate="no"
         />
         <ClientOnly>
@@ -267,6 +269,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
         <div className="flex justify-between items-center text-sm p-4 pt-2">
           <div className="flex gap-1 items-center">
             <ColorSchemeDialog designScheme={props.designScheme} setDesignScheme={props.setDesignScheme} />
+            <ProjectRulesButton />
             <McpTools />
             <IconButton title="Upload file" className="transition-all" onClick={() => props.handleFileUpload()}>
               <div className="i-ph:paperclip text-xl"></div>
@@ -311,6 +314,23 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
                 {props.chatMode === 'discuss' ? <span>Discuss</span> : <span />}
               </IconButton>
             )}
+            {props.chatStarted && (
+              <IconButton
+                title="Plan Mode — AI describes changes without generating code"
+                className={classNames(
+                  'transition-all flex items-center gap-1 px-1.5',
+                  props.chatMode === 'plan'
+                    ? '!bg-yellow-500/20 !text-yellow-600 dark:!text-yellow-400'
+                    : 'bg-bolt-elements-item-backgroundDefault text-bolt-elements-item-contentDefault',
+                )}
+                onClick={() => {
+                  props.setChatMode?.(props.chatMode === 'plan' ? 'build' : 'plan');
+                }}
+              >
+                <div className="i-ph:clipboard-text text-xl" />
+                {props.chatMode === 'plan' ? <span className="text-xs">Plan</span> : <span />}
+              </IconButton>
+            )}
             <IconButton
               title="Model Settings"
               className={classNames('transition-all flex items-center gap-1', {
@@ -326,6 +346,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
               {props.isModelSettingsCollapsed ? <span className="text-xs">{props.model}</span> : <span />}
             </IconButton>
           </div>
+          <LLMComplexityBadge input={props.input} chatMode={props.chatMode} />
           {props.input.length > 3 ? (
             <div className="text-xs text-bolt-elements-textTertiary">
               Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd> +{' '}

@@ -30,6 +30,7 @@ import { expoUrlAtom } from '~/lib/stores/qrCodeStore';
 import { useStore } from '@nanostores/react';
 import { StickToBottom, useStickToBottomContext } from '~/lib/hooks';
 import { ChatBox } from './ChatBox';
+import { ContextWindowBar } from './ContextWindowBar';
 import type { DesignScheme } from '~/types/design-scheme';
 import type { ElementInfo } from '~/components/workbench/Inspector';
 import LlmErrorAlert from './LLMApiAlert';
@@ -73,8 +74,8 @@ interface BaseChatProps {
   llmErrorAlert?: LlmErrorAlertType;
   clearLlmErrorAlert?: () => void;
   data?: JSONValue[] | undefined;
-  chatMode?: 'discuss' | 'build';
-  setChatMode?: (mode: 'discuss' | 'build') => void;
+  chatMode?: 'discuss' | 'build' | 'plan';
+  setChatMode?: (mode: 'discuss' | 'build' | 'plan') => void;
   append?: (message: Message) => void;
   designScheme?: DesignScheme;
   setDesignScheme?: (scheme: DesignScheme) => void;
@@ -371,6 +372,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 <ClientOnly>
                   {() => {
                     return chatStarted ? (
+                      <>
+                      <ContextWindowBar messages={messages || []} />
                       <Messages
                         className="flex flex-col w-full flex-1 max-w-chat pb-4 mx-auto z-1"
                         messages={messages}
@@ -382,6 +385,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         model={model}
                         addToolResult={addToolResult}
                       />
+                      </>
                     ) : null;
                   }}
                 </ClientOnly>
@@ -412,6 +416,14 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         clearSupabaseAlert?.();
                       }}
                     />
+                  )}
+                  {chatMode === 'plan' && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 dark:text-yellow-300 text-sm">
+                      <span>📋</span>
+                      <span>
+                        <strong>Plan Mode</strong> — AI will describe changes without generating code
+                      </span>
+                    </div>
                   )}
                   {actionAlert && (
                     <ChatAlert

@@ -9,6 +9,7 @@ import { LLMManager } from '~/lib/modules/llm/manager';
 import { createScopedLogger } from '~/utils/logger';
 import { createFilesContext, extractPropertiesFromMessage } from './utils';
 import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
+import { planPrompt } from '~/lib/common/prompts/plan-prompt';
 import type { DesignScheme } from '~/types/design-scheme';
 
 export type Messages = Message[];
@@ -63,8 +64,9 @@ export async function streamText(props: {
   contextFiles?: FileMap;
   summary?: string;
   messageSliceId?: number;
-  chatMode?: 'discuss' | 'build';
+  chatMode?: 'discuss' | 'build' | 'plan';
   designScheme?: DesignScheme;
+  projectRules?: string;
 }) {
   const {
     messages,
@@ -79,6 +81,7 @@ export async function streamText(props: {
     summary,
     chatMode,
     designScheme,
+    projectRules,
   } = props;
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
@@ -206,6 +209,10 @@ export async function streamText(props: {
     }
   }
 
+  if (projectRules && projectRules.trim()) {
+    systemPrompt = `${systemPrompt}\n\n<project_rules>\nThe user has defined these project-specific rules. Follow them exactly:\n${projectRules}\n</project_rules>`;
+  }
+
   const effectiveLockedFilePaths = new Set<string>();
 
   if (files) {
@@ -292,7 +299,7 @@ export async function streamText(props: {
       apiKeys,
       providerSettings,
     }),
-    system: chatMode === 'build' ? systemPrompt : discussPrompt(),
+    system: chatMode === 'build' ? systemPrompt : chatMode === 'plan' ? planPrompt() : discussPrompt(),
     ...tokenParams,
     messages: convertToCoreMessages(processedMessages as any),
     ...filteredOptions,

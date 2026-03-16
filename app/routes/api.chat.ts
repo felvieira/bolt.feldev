@@ -48,13 +48,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     },
   });
 
-  const { messages, files, promptId, contextOptimization, supabase, chatMode, designScheme, maxLLMSteps } =
+  const { messages, files, promptId, contextOptimization, supabase, chatMode, designScheme, maxLLMSteps, projectRules } =
     await request.json<{
       messages: Messages;
       files: any;
       promptId?: string;
       contextOptimization: boolean;
-      chatMode: 'discuss' | 'build';
+      chatMode: 'discuss' | 'build' | 'plan';
       designScheme?: DesignScheme;
       supabase?: {
         isConnected: boolean;
@@ -65,6 +65,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         };
       };
       maxLLMSteps: number;
+      projectRules?: string;
     }>();
 
   const cookieHeader = request.headers.get('Cookie');
@@ -294,6 +295,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
               designScheme,
               summary,
               messageSliceId,
+              projectRules,
             });
 
             result.mergeIntoDataStream(dataStream);
@@ -335,6 +337,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           designScheme,
           summary,
           messageSliceId,
+          projectRules,
         });
 
         (async () => {
