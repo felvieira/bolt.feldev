@@ -63,28 +63,42 @@ export const DatabaseTab = ({ projectId }: DatabaseTabProps) => {
     }
   };
 
+  const inputClasses =
+    'w-full px-3 py-2 rounded-lg text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)]';
+
+  const inputStyle = {
+    background: 'var(--surface-1)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Provider toggle */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
           Provider
         </label>
         <div className="flex gap-2">
-          {(['supabase', 'local'] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setProvider(p)}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                background: provider === p ? 'var(--accent)' : 'var(--surface-2)',
-                color: provider === p ? '#fff' : 'var(--text-secondary)',
-                border: `1px solid ${provider === p ? 'var(--accent)' : 'var(--border-subtle)'}`,
-              }}
-            >
-              {p === 'supabase' ? 'Supabase Cloud' : 'Local PostgreSQL'}
-            </button>
-          ))}
+          {(['supabase', 'local'] as const).map((p) => {
+            const isActive = provider === p;
+
+            return (
+              <button
+                key={p}
+                onClick={() => setProvider(p)}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+                style={{
+                  background: isActive ? 'var(--accent)' : 'var(--surface-1)',
+                  color: isActive ? '#fff' : 'var(--text-secondary)',
+                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                  boxShadow: isActive ? '0 0 12px rgba(99,102,241,0.2)' : 'none',
+                }}
+              >
+                {p === 'supabase' ? 'Supabase Cloud' : 'Local PostgreSQL'}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -99,12 +113,8 @@ export const DatabaseTab = ({ projectId }: DatabaseTabProps) => {
               value={supabaseUrl}
               onChange={(e) => setSupabaseUrl(e.target.value)}
               placeholder="https://xxx.supabase.co"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={{
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-primary)',
-              }}
+              className={inputClasses}
+              style={inputStyle}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -116,21 +126,23 @@ export const DatabaseTab = ({ projectId }: DatabaseTabProps) => {
               value={anonKey}
               onChange={(e) => setAnonKey(e.target.value)}
               placeholder="eyJhbGciOiJI..."
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={{
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-primary)',
-              }}
+              className={`${inputClasses} font-mono`}
+              style={inputStyle}
             />
           </div>
         </>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div
+          className="flex flex-col gap-3 p-4 rounded-lg"
+          style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+        >
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Provision a local PostgreSQL database for your project.
+          </p>
           <button
             onClick={handleProvision}
             disabled={provisioning}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50 self-start"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-all duration-150 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed self-start"
             style={{ background: 'var(--accent)' }}
           >
             {provisioning ? 'Provisioning...' : 'Provision Database'}
@@ -139,26 +151,29 @@ export const DatabaseTab = ({ projectId }: DatabaseTabProps) => {
       )}
 
       {/* Connection status */}
-      <div className="flex items-center gap-2">
+      <div
+        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg"
+        style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+      >
         <span
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ background: connected ? '#22c55e' : '#ef4444' }}
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ background: connected ? '#22c55e' : '#ef4444', boxShadow: connected ? '0 0 6px rgba(34,197,94,0.4)' : 'none' }}
         />
-        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <span className="text-sm font-medium" style={{ color: connected ? '#22c55e' : 'var(--text-secondary)' }}>
           {connected ? 'Connected' : 'Not connected'}
         </span>
       </div>
 
       {/* Save */}
       {provider === 'supabase' && (
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-2">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
+            className="px-5 py-2 rounded-lg text-sm font-medium text-white transition-all duration-150 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'var(--accent)' }}
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       )}

@@ -47,6 +47,15 @@ export const GeneralTab = ({ projectId }: GeneralTabProps) => {
     }
   };
 
+  const inputClasses =
+    'w-full px-3 py-2 rounded-lg text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)]';
+
+  const inputStyle = {
+    background: 'var(--surface-1)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Name */}
@@ -58,12 +67,8 @@ export const GeneralTab = ({ projectId }: GeneralTabProps) => {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors"
-          style={{
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
+          className={inputClasses}
+          style={inputStyle}
         />
       </div>
 
@@ -76,12 +81,8 @@ export const GeneralTab = ({ projectId }: GeneralTabProps) => {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none transition-colors"
-          style={{
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
+          className={`${inputClasses} resize-none`}
+          style={inputStyle}
         />
       </div>
 
@@ -100,11 +101,12 @@ export const GeneralTab = ({ projectId }: GeneralTabProps) => {
                 key={opt.value}
                 onClick={() => setVisibility(opt.value)}
                 className={classNames(
-                  'flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-colors cursor-pointer',
+                  'flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-150 cursor-pointer',
+                  isActive ? 'ring-2 ring-[var(--accent)]' : 'hover:bg-[var(--surface-3)]',
                 )}
                 style={{
-                  background: 'var(--surface-2)',
-                  border: isActive ? '2px solid var(--accent)' : '1px solid var(--border-subtle)',
+                  background: isActive ? 'var(--accent-alpha, rgba(99,102,241,0.08))' : 'var(--surface-1)',
+                  border: isActive ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
                   color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                 }}
               >
@@ -120,14 +122,14 @@ export const GeneralTab = ({ projectId }: GeneralTabProps) => {
       </div>
 
       {/* Save */}
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
+          className="px-5 py-2 rounded-lg text-sm font-medium text-white transition-all duration-150 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--accent)' }}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>

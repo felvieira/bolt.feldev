@@ -57,7 +57,7 @@ export const ProjectSettingsModal = ({ open, onClose, projectId }: ProjectSettin
     <RadixDialog.Root open={open}>
       <RadixDialog.Portal>
         <div className="fixed inset-0 flex items-center justify-center z-[100]">
-          <RadixDialog.Overlay className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <RadixDialog.Overlay className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200" />
 
           <RadixDialog.Content
             aria-describedby={undefined}
@@ -67,8 +67,8 @@ export const ProjectSettingsModal = ({ open, onClose, projectId }: ProjectSettin
           >
             <div
               className={classNames(
-                'w-[900px] max-w-4xl h-[600px]',
-                'rounded-2xl shadow-2xl',
+                'w-[900px] max-w-[90vw] h-[600px]',
+                'rounded-2xl shadow-2xl shadow-black/40',
                 'flex overflow-hidden',
                 'transform transition-all duration-200 ease-out',
                 open ? 'opacity-100 scale-100' : 'opacity-0 scale-95',
@@ -77,10 +77,10 @@ export const ProjectSettingsModal = ({ open, onClose, projectId }: ProjectSettin
             >
               {/* Left sidebar */}
               <div
-                className="w-[200px] flex flex-col shrink-0 py-4"
-                style={{ borderRight: '1px solid var(--border-subtle)', background: 'var(--surface-2)' }}
+                className="w-[220px] flex flex-col shrink-0 py-4"
+                style={{ borderRight: '1px solid var(--border-subtle)', background: 'var(--surface-1)' }}
               >
-                <DialogTitle className="px-4 pb-3 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <DialogTitle className="px-4 pb-4 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                   Project Settings
                 </DialogTitle>
 
@@ -94,10 +94,16 @@ export const ProjectSettingsModal = ({ open, onClose, projectId }: ProjectSettin
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={classNames(
-                          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                          isActive ? 'bg-[var(--accent)]/15' : 'hover:bg-[var(--surface-3)]',
+                          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150',
+                          isActive
+                            ? ''
+                            : 'hover:bg-[var(--surface-3)]',
                         )}
-                        style={{ color: isActive ? 'var(--accent)' : 'var(--text-secondary)' }}
+                        style={{
+                          color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                          background: isActive ? 'var(--accent-alpha, rgba(99,102,241,0.1))' : undefined,
+                          borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                        }}
                       >
                         <Icon className="w-4 h-4" />
                         {tab.label}
@@ -108,7 +114,7 @@ export const ProjectSettingsModal = ({ open, onClose, projectId }: ProjectSettin
               </div>
 
               {/* Right content */}
-              <div className="flex-1 flex flex-col min-w-0">
+              <div className="flex-1 flex flex-col min-w-0" style={{ background: 'var(--surface-2)' }}>
                 {/* Header with close */}
                 <div
                   className="flex items-center justify-between px-6 py-4 shrink-0"
@@ -119,8 +125,14 @@ export const ProjectSettingsModal = ({ open, onClose, projectId }: ProjectSettin
                   </h2>
                   <button
                     onClick={onClose}
-                    className="flex items-center justify-center w-8 h-8 rounded-full transition-colors hover:bg-[var(--surface-3)]"
+                    className="flex items-center justify-center w-8 h-8 rounded-full transition-all duration-150 hover:bg-[var(--surface-3)]"
                     style={{ color: 'var(--text-tertiary)' }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)';
+                    }}
                   >
                     <X className="w-4 h-4" />
                   </button>

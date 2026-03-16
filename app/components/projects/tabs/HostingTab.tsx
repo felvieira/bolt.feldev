@@ -39,6 +39,15 @@ export const HostingTab = ({ projectId }: HostingTabProps) => {
 
   const isPublished = !!project?.deploy_status && project.deploy_status !== 'none';
 
+  const inputClasses =
+    'w-full px-3 py-2 rounded-lg text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)]';
+
+  const inputStyle = {
+    background: 'var(--surface-1)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Provider */}
@@ -49,12 +58,8 @@ export const HostingTab = ({ projectId }: HostingTabProps) => {
         <select
           value={provider}
           onChange={(e) => setProvider(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-          style={{
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
+          className={inputClasses}
+          style={inputStyle}
         >
           {PROVIDERS.map((p) => (
             <option key={p} value={p}>
@@ -70,19 +75,27 @@ export const HostingTab = ({ projectId }: HostingTabProps) => {
           Deploy Status
         </label>
         {isPublished ? (
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+          >
             <span
-              className="w-2 h-2 rounded-full"
+              className="w-2 h-2 rounded-full animate-pulse"
               style={{ background: project?.deploy_status === 'live' ? '#22c55e' : '#eab308' }}
             />
-            <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>
               {project?.deploy_status}
             </span>
           </div>
         ) : (
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            Your project is not published yet. Deploy it to see status here.
-          </p>
+          <div
+            className="px-3 py-2.5 rounded-lg"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+          >
+            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+              Not published yet. Deploy your project to see status here.
+            </p>
+          </div>
         )}
       </div>
 
@@ -96,24 +109,23 @@ export const HostingTab = ({ projectId }: HostingTabProps) => {
           value={domain}
           onChange={(e) => setDomain(e.target.value)}
           placeholder="example.com"
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-          style={{
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
+          className={inputClasses}
+          style={inputStyle}
         />
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          Point your domain's CNAME record to your hosting provider.
+        </p>
       </div>
 
       {/* Save */}
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
+          className="px-5 py-2 rounded-lg text-sm font-medium text-white transition-all duration-150 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--accent)' }}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>
