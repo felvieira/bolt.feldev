@@ -158,6 +158,35 @@ export class WorkbenchStore {
     this.#terminalStore.onTerminalResize(cols, rows);
   }
 
+  rebuilding: WritableAtom<boolean> = atom(false);
+
+  async rebuildProject() {
+    const shell = this.boltTerminal;
+
+    if (!shell || this.rebuilding.get()) {
+      return;
+    }
+
+    this.rebuilding.set(true);
+
+    try {
+      await shell.ready();
+      const sessionId = `rebuild-${Date.now()}`;
+      await shell.executeCommand(sessionId, 'npm install && npm run dev');
+
+      // Switch to preview after rebuild
+      setTimeout(() => {
+        if (this.previews.get().length > 0) {
+          this.currentView.set('preview');
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('Rebuild failed:', error);
+    } finally {
+      this.rebuilding.set(false);
+    }
+  }
+
   setDocuments(files: FileMap) {
     this.#editorStore.setDocuments(files);
 

@@ -145,7 +145,6 @@ ${value.content}
                       }
                     })
                     .join('\n')}
-                  ${commandActionsString} 
                   </boltArtifact>
                   `, // Added commandActionsString, followupMessage, updated id and title
                   annotations: [
@@ -252,7 +251,11 @@ ${value.content}
       }
     });
 
-    // workbenchStore.files.setKey(snapshot?.files)
+    // After restoring files, auto-rebuild the project so the preview works
+    // Small delay to let file writes settle
+    setTimeout(() => {
+      workbenchStore.rebuildProject();
+    }, 1500);
   }, []);
 
   return {

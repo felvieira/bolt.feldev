@@ -532,24 +532,44 @@ export const Workbench = memo(
                         </DropdownMenu.Root>
                       </div>
 
-                      {/* Toggle Terminal Button */}
-                      <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
-                        <button
-                          onClick={() => {
-                            workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
-                          }}
-                          className="rounded-md items-center justify-center [&:is(:disabled,.disabled)]:cursor-not-allowed [&:is(:disabled,.disabled)]:opacity-60 px-3 py-1.5 text-xs bg-accent-500 text-white hover:text-bolt-elements-item-contentAccent [&:not(:disabled,.disabled)]:hover:bg-bolt-elements-button-primary-backgroundHover outline-accent-500 flex gap-1.7"
-                        >
-                          <div className="i-ph:terminal" />
-                          Toggle Terminal
-                        </button>
-                      </div>
+                      {/* Toggle Terminal moved to always-visible toolbar */}
                     </div>
                   )}
 
                   {selectedView === 'diff' && (
                     <FileModifiedDropdown fileHistory={fileHistory} onSelectFile={handleSelectFile} />
                   )}
+
+                  {/* Rebuild Button - always visible */}
+                  <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
+                    <button
+                      onClick={() => workbenchStore.rebuildProject()}
+                      disabled={streaming}
+                      className="rounded-md items-center justify-center [&:is(:disabled,.disabled)]:cursor-not-allowed [&:is(:disabled,.disabled)]:opacity-60 px-3 py-1.5 text-xs bg-bolt-elements-button-primary-background text-white hover:bg-bolt-elements-button-primary-backgroundHover flex gap-1.5"
+                      title="Rebuild: install deps & start dev server"
+                    >
+                      <div className="i-ph:arrow-clockwise" />
+                      Rebuild
+                    </button>
+                  </div>
+
+                  {/* Toggle Terminal Button - always visible */}
+                  <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden ml-1">
+                    <button
+                      onClick={() => {
+                        if (selectedView !== 'code') {
+                          setSelectedView('code');
+                        }
+
+                        workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
+                      }}
+                      className="rounded-md items-center justify-center px-2 py-1.5 text-xs bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary flex gap-1"
+                      title="Toggle Terminal"
+                    >
+                      <div className="i-ph:terminal" />
+                    </button>
+                  </div>
+
                   <IconButton
                     icon="i-ph:x-circle"
                     className="-mr-1"

@@ -72,15 +72,22 @@ export const Terminal = memo(
           }, 100);
         }
 
+        let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
         const resizeObserver = new ResizeObserver((entries) => {
-          // Debounce resize events
           if (entries.length > 0) {
-            try {
-              fitAddon.fit();
-              onTerminalResize?.(terminal.cols, terminal.rows);
-            } catch (error) {
-              logger.error(`Resize error [${id}]:`, error);
+            // Debounce resize events to avoid layout thrashing
+            if (resizeTimeout) {
+              clearTimeout(resizeTimeout);
             }
+
+            resizeTimeout = setTimeout(() => {
+              try {
+                fitAddon.fit();
+                onTerminalResize?.(terminal.cols, terminal.rows);
+              } catch (error) {
+                logger.error(`Resize error [${id}]:`, error);
+              }
+            }, 50);
           }
         });
 
