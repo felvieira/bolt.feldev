@@ -66,21 +66,28 @@ function loadSessionToken(userId) {
 }
 
 function getUserId(req) {
-  return req.headers['x-user-id'] || 'default';
+  const id = req.headers['x-user-id'];
+  // Treat missing, 'anonymous', and 'default' as the same default session
+  if (!id || id === 'anonymous' || id === 'default') return 'default';
+  return id;
 }
 
 function getOrCreateSession(userId) {
   let session = userSessions.get(userId);
   if (!session) {
     console.log(`[multi-session] Creating new CodexManager for user: ${userId}`);
+    const savedToken = loadSessionToken(userId);
     session = {
       codex: new CodexManager(),
-      activeSessionToken: null,
+      activeSessionToken: savedToken || null,
       pendingSessionToken: null,
       lastTokenRefresh: null,
       lastActivity: Date.now(),
     };
     userSessions.set(userId, session);
+    if (savedToken) {
+      console.log(`[multi-session] Restored saved session token for user: ${userId}`);
+    }
   }
   session.lastActivity = Date.now();
   return session;
