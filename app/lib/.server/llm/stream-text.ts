@@ -12,6 +12,7 @@ import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
 import { planPrompt } from '~/lib/common/prompts/plan-prompt';
 import type { DesignScheme } from '~/types/design-scheme';
 import { getComponentHints } from './component-hints';
+import { getContext7Docs } from './context7-client';
 
 export type Messages = Message[];
 
@@ -227,6 +228,19 @@ export async function streamText(props: {
     if (componentHints) {
       systemPrompt = `${systemPrompt}\n${componentHints}`;
       logger.info('Injected component hints for detected UI intent');
+    }
+
+    // C1: Try runtime Context7 docs (non-blocking, with timeout)
+    try {
+      const context7Docs = await getContext7Docs(lastUserContent, serverEnv);
+
+      if (context7Docs) {
+        systemPrompt = `${systemPrompt}\n${context7Docs}`;
+        logger.info('Injected Context7 runtime docs');
+      }
+    } catch {
+      // Non-fatal — static hints are the fallback
+      logger.warn('Context7 runtime fetch failed, using static hints only');
     }
   }
 

@@ -20,11 +20,15 @@ const HINT_RULES: HintRule[] = [
     hint: `
 **Landing Page Best Practices**
 - Hero: full-width section with gradient or image background, large headline (h1, text-4xl to text-6xl), subheadline (text-lg to text-xl text-muted-foreground), and a prominent CTA button.
+- Hero gradient pattern: \`bg-gradient-to-r from-blue-600 to-indigo-600\`, center content with \`flex flex-col items-center justify-center min-h-[80vh]\`.
 - Features grid: 3-4 cards with Lucide React icons (e.g. \`<Zap />\`, \`<Shield />\`, \`<Sparkles />\`), short title, one-liner description.
 - Pricing: 3-tier card layout; highlight the recommended plan with a ring/border accent and "Popular" badge. Add a monthly/annual toggle with framer-motion AnimatePresence.
 - Testimonials: avatar (rounded-full w-12 h-12), blockquote, name + role. Use a grid or horizontal scroll.
 - FAQ: accordion using details/summary or a custom Accordion component with smooth height animation.
+- Animated text entrance: use CSS \`@keyframes fadeInUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }\` with \`animation: fadeInUp 0.6s ease-out\`.
 - Animations: fade-in on scroll (IntersectionObserver + opacity/translate transition), hover-lift on cards (hover:-translate-y-1 transition-transform), subtle gradient shifts.
+- Gradient text: \`bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600\`.
+- shadcn components: install with \`npx shadcn@latest add button card\`. Import as \`import { Button } from "@/components/ui/button"\`.
 - Always use Tailwind CSS utility classes. Prefer semantic section elements (<header>, <section>, <footer>).
 `,
   },
@@ -36,7 +40,8 @@ const HINT_RULES: HintRule[] = [
 **Dashboard / Admin Panel Patterns**
 - Layout: fixed or collapsible sidebar (w-64) with icon + label nav items; main content area with top header bar.
 - Stat cards: grid of 4 cards each showing icon, metric value (text-2xl font-bold), label, and a trend indicator (up/down arrow + percentage in green/red).
-- Charts: use the Recharts library (\`<LineChart>\`, \`<BarChart>\`, \`<PieChart>\`) — it works well inside WebContainer.
+- Stat card pattern: \`<div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm"><p className="text-sm text-gray-500">Revenue</p><p className="text-3xl font-bold">$12,450</p><span className="text-green-500 text-sm">+12.5%</span></div>\`
+- Charts: install Recharts by adding \`"recharts": "^2.12.0"\` to package.json. Use \`<ResponsiveContainer width="100%" height={300}><LineChart data={data}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Line type="monotone" dataKey="value" stroke="#8884d8" /></LineChart></ResponsiveContainer>\`.
 - Tables: use \`<table>\` with sticky header, alternating row colors, sortable column headers (click to toggle asc/desc), pagination controls, and a search/filter input.
 - Consistent spacing scale: p-4/p-6 for card padding, gap-4/gap-6 for grids, rounded-lg + shadow-sm for cards.
 `,
