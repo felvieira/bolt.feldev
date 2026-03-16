@@ -2,21 +2,62 @@ import { spawn } from 'child_process';
 import { createInterface } from 'readline';
 import { createHash } from 'crypto';
 import { EventEmitter } from 'events';
+import fs from 'fs';
+import path from 'path';
+
+const THREADS_DIR = path.join('/app', '.sessions');
+
+function ensureThreadsDir() {
+  try {
+    if (!fs.existsSync(THREADS_DIR)) fs.mkdirSync(THREADS_DIR, { recursive: true });
+  } catch {}
+}
+
+function threadsCachePath(userId) {
+  if (!userId || userId === 'default') return path.join('/app', '.threads_cache.json');
+  ensureThreadsDir();
+  return path.join(THREADS_DIR, `.threads_${userId}.json`);
+}
 
 /**
  * Manages the Codex app-server sidecar process.
  * Communicates via JSON-RPC 2.0 over stdin/stdout (JSONL).
  */
 export class CodexManager extends EventEmitter {
-  constructor() {
+  constructor(userId = 'default') {
     super();
+    this.userId = userId;
     this.process = null;
     this.initialized = false;
     this.requestId = 0;
     this.pending = new Map(); // id -> { resolve, reject, timer }
     this.account = null;
     // Thread reuse: conversationKey -> { threadId, model, lastUsed }
-    this.threads = new Map();
+    this.threads = this._loadThreadsFromDisk();
+  }
+
+  _loadThreadsFromDisk() {
+    try {
+      const file = threadsCachePath(this.userId);
+      if (fs.existsSync(file)) {
+        const obj = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const map = new Map(Object.entries(obj));
+        console.log(`[threads:${this.userId}] Loaded ${map.size} cached threads from disk`);
+        return map;
+      }
+    } catch (err) {
+      console.warn(`[threads:${this.userId}] Failed to load threads cache: ${err.message}`);
+    }
+    return new Map();
+  }
+
+  _saveThreadsToDisk() {
+    try {
+      const obj = Object.fromEntries(this.threads);
+      fs.writeFileSync(threadsCachePath(this.userId), JSON.stringify(obj), 'utf8');
+    } catch (err) {
+      console.warn(`[threads:${this.userId}] Failed to persist threads cache: ${err.message}`);
+    }
   }
 
   /** Send a JSON-RPC request and wait for a response */
@@ -256,7 +297,7 @@ export class CodexManager extends EventEmitter {
    * the same bolt conversation always maps to the same Codex thread,
    * even when message arrays differ (e.g., llmcall vs main chat).
    */
-  _conversationKey(messages, sessionToken) {
+  _conversationKey(messages) {
     const userMessages = messages.filter((m) => m.role === 'user');
     if (!userMessages.length) return null;
 
@@ -270,9 +311,11 @@ export class CodexManager extends EventEmitter {
       return content.trim();
     });
 
-    // Hash all user messages together for a stable key
+    // Hash all user messages together for a stable key.
+    // NOTE: sessionToken is intentionally excluded — userId already provides
+    // user isolation, and including the token breaks thread reuse after
+    // browser restarts (new token = different hash = new thread every time).
     const hash = createHash('sha256');
-    hash.update(sessionToken || '');
     for (const content of normalized) {
       hash.update(':' + content.substring(0, 500));
     }
@@ -284,13 +327,17 @@ export class CodexManager extends EventEmitter {
   _evictStaleThreads() {
     const maxAge = 30 * 60 * 1000;
     const now = Date.now();
+    let evicted = 0;
 
     for (const [key, entry] of this.threads) {
       if (now - entry.lastUsed > maxAge) {
-        console.log(`[threads] evicting stale thread ${entry.threadId} (key=${key})`);
+        console.log(`[threads:${this.userId}] evicting stale thread ${entry.threadId} (key=${key})`);
         this.threads.delete(key);
+        evicted++;
       }
     }
+
+    if (evicted > 0) this._saveThreadsToDisk();
   }
 
   /** Chat completion via Codex threads — reuses threads for the same conversation */
@@ -321,7 +368,7 @@ export class CodexManager extends EventEmitter {
 
     // --- Thread reuse logic ---
     this._evictStaleThreads();
-    const convKey = this._conversationKey(messages, sessionToken);
+    const convKey = this._conversationKey(messages);
     const cached = convKey ? this.threads.get(convKey) : null;
     const canReuse = cached && cached.model === model;
 
@@ -361,7 +408,8 @@ export class CodexManager extends EventEmitter {
       // Store for reuse
       if (convKey) {
         this.threads.set(convKey, { threadId, model, lastUsed: Date.now() });
-        console.log(`[threads] created thread ${threadId} for key=${convKey} model=${model}`);
+        this._saveThreadsToDisk();
+        console.log(`[threads:${this.userId}] created thread ${threadId} for key=${convKey} model=${model}`);
       }
     }
 
@@ -445,8 +493,9 @@ export class CodexManager extends EventEmitter {
     } catch (err) {
       // If the thread is stale or invalid, create a new one and retry
       if (canReuse && (err.message.includes('not found') || err.message.includes('invalid'))) {
-        console.warn(`[threads] cached thread ${threadId} is invalid, creating new one`);
+        console.warn(`[threads:${this.userId}] cached thread ${threadId} is invalid, creating new one`);
         this.threads.delete(convKey);
+        this._saveThreadsToDisk();
         return this.chatCompletion(model, messages, reasoningEffort, deltaCallback, sessionToken);
       }
       if (err.message.toLowerCase().includes('missing field model')) {

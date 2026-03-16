@@ -78,7 +78,7 @@ function getOrCreateSession(userId) {
     console.log(`[multi-session] Creating new CodexManager for user: ${userId}`);
     const savedToken = loadSessionToken(userId);
     session = {
-      codex: new CodexManager(),
+      codex: new CodexManager(userId),
       activeSessionToken: savedToken || null,
       pendingSessionToken: null,
       lastTokenRefresh: null,
