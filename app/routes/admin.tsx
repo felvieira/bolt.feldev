@@ -267,7 +267,7 @@ export default function AdminPage() {
             Infrastructure checklist
           </h2>
           <div
-            className="rounded-xl p-4 flex flex-col gap-2"
+            className="rounded-xl p-3 flex flex-col gap-1.5"
             style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
           >
             <CheckItem label="Postgres running" ok={dbStatus?.ok ?? false} />
