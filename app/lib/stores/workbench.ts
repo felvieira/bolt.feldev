@@ -578,7 +578,7 @@ export class WorkbenchStore {
         this.setSelectedFile(fullPath);
       }
 
-      if (this.currentView.value !== 'code') {
+      if (isStreaming && this.currentView.value !== 'code') {
         this.currentView.set('code');
       }
 
@@ -598,6 +598,12 @@ export class WorkbenchStore {
         await artifact.runner.runAction(data);
         this.resetAllFileModifications();
         this.#scheduleCheckpoint();
+
+        // After streaming ends and all file actions are processed,
+        // auto-switch to preview if one is available
+        if (this.previews.get().length > 0) {
+          this.currentView.set('preview');
+        }
       }
     } else {
       await artifact.runner.runAction(data);

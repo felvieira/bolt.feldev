@@ -521,7 +521,13 @@ ${content.trim()}
 
   reset() {
     super.reset();
-    this._processedCodeBlocks.clear();
+
+    // NOTE: Do NOT clear _processedCodeBlocks here.
+    // During streaming, parse() is called repeatedly with the raw input
+    // (which doesn't contain <boltArtifact> tags). If we clear the processed
+    // blocks tracking, the same code blocks get re-detected with new artifact IDs,
+    // causing an infinite loop of file writes.
+    // this._processedCodeBlocks.clear();
     this._artifactCounter = 0;
   }
 }
