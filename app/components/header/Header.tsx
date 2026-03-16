@@ -40,6 +40,21 @@ export function Header() {
             style={{ width: '24px', height: '24px', filter: 'brightness(0) invert(1)' }}
           />
         </a>
+        <a
+          href="/projects"
+          className="ml-2 px-2 py-1 text-xs font-medium rounded-md transition-colors duration-150"
+          style={{ color: 'var(--text-secondary)' }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+            (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+            (e.currentTarget as HTMLElement).style.background = 'transparent';
+          }}
+        >
+          Projects
+        </a>
       </div>
 
       {/* Chat title — grows to fill space */}
