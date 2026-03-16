@@ -162,6 +162,7 @@ export default class ChatGPTProvider extends BaseProvider {
       apiKey: sessionToken || 'no-session',
       headers: {
         'x-codex-session': sessionToken,
+        'x-user-id': apiKeys?.['BOLT_USER_ID'] || 'anonymous',
       },
     });
 

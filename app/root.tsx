@@ -1,6 +1,8 @@
 import { useStore } from '@nanostores/react';
-import type { LinksFunction } from '@remix-run/cloudflare';
+import type { LinksFunction, LoaderFunctionArgs } from '@remix-run/cloudflare';
+import { json } from '@remix-run/cloudflare';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
+import { getSessionToken, verifySession } from '~/lib/auth.server';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
@@ -60,6 +62,23 @@ const inlineThemeCode = stripIndents`
     document.querySelector('html')?.setAttribute('data-theme', theme);
   }
 `;
+
+export const id = 'root';
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const token = getSessionToken(request);
+  let user = null;
+
+  if (token) {
+    try {
+      user = await verifySession(token);
+    } catch {
+      // Auth service unavailable — treat as unauthenticated
+    }
+  }
+
+  return json({ user });
+}
 
 export const Head = createHead(() => (
   <>

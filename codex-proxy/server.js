@@ -11,129 +11,109 @@ const PORT = process.env.CODEX_PROXY_PORT || 3100;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const codex = new CodexManager();
+// ─── Multi-session manager map ──────────────────────────────────────
+// Each user gets their own CodexManager instance, keyed by x-user-id.
+// For backwards compatibility, requests without x-user-id use 'default'.
 
-/**
- * Session-based access control.
- *
- * When a user logs in via OAuth, the codex-proxy generates a random
- * session token and returns it. The frontend stores it in a cookie
- * scoped to that browser. All subsequent requests must include the
- * token in the `x-codex-session` header. This ensures:
- *
- * - Only the browser that initiated the login can use the Codex session
- * - Other users on the same bolt instance cannot piggyback on someone
- *   else's ChatGPT subscription
- * - A new login invalidates the previous session token
- *
- * The token is persisted to disk so container restarts don't force re-login.
- */
-const SESSION_FILE = path.join('/app', '.session_token');
+/** @type {Map<string, { codex: CodexManager, activeSessionToken: string|null, pendingSessionToken: string|null, lastTokenRefresh: string|null, lastActivity: number }>} */
+const userSessions = new Map();
 
-function saveSessionToken(token) {
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+
+const SESSION_DIR = path.join('/app', '.sessions');
+
+function ensureSessionDir() {
   try {
-    if (token) {
-      fs.writeFileSync(SESSION_FILE, token, 'utf8');
-    } else {
-      fs.rmSync(SESSION_FILE, { force: true });
+    if (!fs.existsSync(SESSION_DIR)) {
+      fs.mkdirSync(SESSION_DIR, { recursive: true });
     }
-  } catch (err) {
-    console.warn(`[session] Failed to persist session token: ${err.message}`);
+  } catch {
+    // Fallback: use /app directly for single-session compat
   }
 }
 
-function loadSessionToken() {
+function sessionFilePath(userId) {
+  if (userId === 'default') {
+    return path.join('/app', '.session_token');
+  }
+  ensureSessionDir();
+  return path.join(SESSION_DIR, `.session_${userId}`);
+}
+
+function saveSessionToken(userId, token) {
   try {
-    if (fs.existsSync(SESSION_FILE)) {
-      return fs.readFileSync(SESSION_FILE, 'utf8').trim();
+    const filePath = sessionFilePath(userId);
+    if (token) {
+      fs.writeFileSync(filePath, token, 'utf8');
+    } else {
+      fs.rmSync(filePath, { force: true });
     }
   } catch (err) {
-    console.warn(`[session] Failed to load session token: ${err.message}`);
+    console.warn(`[session:${userId}] Failed to persist session token: ${err.message}`);
+  }
+}
+
+function loadSessionToken(userId) {
+  try {
+    const filePath = sessionFilePath(userId);
+    if (fs.existsSync(filePath)) {
+      return fs.readFileSync(filePath, 'utf8').trim();
+    }
+  } catch (err) {
+    console.warn(`[session:${userId}] Failed to load session token: ${err.message}`);
   }
   return null;
 }
 
-let activeSessionToken = null;
-let tokenRefreshInterval = null;
-let lastTokenRefresh = null;
-
-// Restore session on startup
-async function restoreSession() {
-  const saved = loadSessionToken();
-  if (!saved) return;
-
-  console.log('[session] Found saved session token, verifying with sidecar...');
-  try {
-    await codex.ensureRunning();
-
-    // Try a full refresh first to extend token lifetime
-    let account = null;
-    try {
-      console.log('[session] Attempting token refresh (getAccount(true))...');
-      account = await codex.getAccount(true);
-    } catch (refreshErr) {
-      console.warn(`[session] Refresh failed, trying cached read: ${refreshErr.message}`);
-    }
-
-    // Fall back to cached read if refresh failed
-    if (!account) {
-      try {
-        account = await codex.getAccount(false);
-      } catch (cachedErr) {
-        console.warn(`[session] Cached read also failed: ${cachedErr.message}`);
-      }
-    }
-
-    if (account) {
-      activeSessionToken = saved;
-      console.log(`[session] Session restored for ${account.email || 'unknown'}`);
-    } else {
-      console.log('[session] Saved token found but sidecar not authenticated — clearing');
-      saveSessionToken(null);
-    }
-  } catch (err) {
-    console.warn(`[session] Could not restore session: ${err.message}`);
-  }
+function getUserId(req) {
+  return req.headers['x-user-id'] || 'default';
 }
 
-// Periodically refresh the sidecar token to prevent expiry
-function startTokenRefreshInterval() {
-  if (tokenRefreshInterval) {
-    clearInterval(tokenRefreshInterval);
+function getOrCreateSession(userId) {
+  let session = userSessions.get(userId);
+  if (!session) {
+    console.log(`[multi-session] Creating new CodexManager for user: ${userId}`);
+    session = {
+      codex: new CodexManager(),
+      activeSessionToken: null,
+      pendingSessionToken: null,
+      lastTokenRefresh: null,
+      lastActivity: Date.now(),
+    };
+    userSessions.set(userId, session);
   }
-
-  const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-
-  tokenRefreshInterval = setInterval(async () => {
-    if (!activeSessionToken) return;
-
-    try {
-      const account = await codex.getAccount(true);
-      if (account) {
-        lastTokenRefresh = new Date().toISOString();
-        console.log(`[session] Token refreshed successfully for ${account.email || 'unknown'}`);
-      } else {
-        console.warn('[session] Periodic refresh returned no account — session may have expired');
-      }
-    } catch (err) {
-      console.warn(`[session] Periodic token refresh failed: ${err.message}`);
-    }
-  }, REFRESH_INTERVAL_MS);
-
-  console.log(`[session] Token refresh interval started (every ${REFRESH_INTERVAL_MS / 60000} minutes)`);
+  session.lastActivity = Date.now();
+  return session;
 }
+
+// Periodically clean up inactive user sessions
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, session] of userSessions) {
+    if (now - session.lastActivity > INACTIVITY_TIMEOUT_MS) {
+      console.log(`[multi-session] Evicting inactive session for user: ${userId}`);
+      session.codex.kill().catch(() => {});
+      userSessions.delete(userId);
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
 
 function requireSession(req, res, next) {
+  const userId = getUserId(req);
+  const session = userSessions.get(userId);
   const token = req.headers['x-codex-session'];
 
-  if (!activeSessionToken || token !== activeSessionToken) {
-    console.log(`[requireSession] REJECTED ${req.method} ${req.path} token=${token ? token.substring(0, 8) + '...' : 'none'} active=${activeSessionToken ? activeSessionToken.substring(0, 8) + '...' : 'none'}`);
+  if (!session || !session.activeSessionToken || token !== session.activeSessionToken) {
+    console.log(`[requireSession:${userId}] REJECTED ${req.method} ${req.path} token=${token ? token.substring(0, 8) + '...' : 'none'} active=${session?.activeSessionToken ? session.activeSessionToken.substring(0, 8) + '...' : 'none'}`);
     return res.status(401).json({
       error: 'No active Codex session. Login with ChatGPT first.',
       authenticated: false,
     });
   }
 
+  // Attach session to request for downstream handlers
+  req._userSession = session;
+  req._userId = userId;
   next();
 }
 
@@ -141,19 +121,26 @@ function requireSession(req, res, next) {
 
 // Health check
 app.get('/health', (_req, res) => {
+  const activeSessions = [...userSessions.entries()]
+    .filter(([, s]) => !!s.activeSessionToken)
+    .map(([id]) => id);
+
   res.json({
     status: 'ok',
-    codexRunning: codex.initialized,
-    hasActiveSession: !!activeSessionToken,
+    activeUserSessions: activeSessions.length,
+    users: activeSessions,
   });
 });
 
 // Check status (public — frontend uses this to decide whether to show login UI)
-app.get('/codex/status', (_req, res) => {
+app.get('/codex/status', (req, res) => {
+  const userId = getUserId(req);
+  const session = userSessions.get(userId);
+
   try {
     res.json({
-      running: codex.initialized,
-      hasActiveSession: !!activeSessionToken,
+      running: session?.codex?.initialized || false,
+      hasActiveSession: !!session?.activeSessionToken,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -161,35 +148,42 @@ app.get('/codex/status', (_req, res) => {
 });
 
 // Session health — called by the frontend heartbeat to verify session is still alive
-app.get('/codex/session-health', async (_req, res) => {
-  const authenticated = !!activeSessionToken;
+app.get('/codex/session-health', async (req, res) => {
+  const userId = getUserId(req);
+  const session = userSessions.get(userId);
+  const authenticated = !!session?.activeSessionToken;
   let sessionOwner = null;
 
-  if (authenticated) {
+  if (authenticated && session) {
     try {
-      const account = await codex.getAccount(false);
+      const account = await session.codex.getAccount(false);
       sessionOwner = account?.email || null;
     } catch {
       // Non-fatal — sidecar may be temporarily busy
     }
   }
 
-  const codexRunning = !!(codex.process && !codex.process.killed);
+  const codexRunning = !!(session?.codex?.process && !session.codex.process.killed);
 
   res.json({
     authenticated,
     sessionOwner,
-    lastRefresh: lastTokenRefresh,
+    lastRefresh: session?.lastTokenRefresh || null,
     codexRunning,
   });
 });
 
 // Diagnostic: check if sidecar HTTP server at 1455 is reachable
-app.get('/codex/diag', async (_req, res) => {
+app.get('/codex/diag', async (req, res) => {
+  const userId = getUserId(req);
+  const session = getOrCreateSession(userId);
+  const codex = session.codex;
+
   const result = {
+    userId,
     codexInitialized: codex.initialized,
-    hasPendingToken: !!codex._pendingSessionToken,
-    hasActiveSession: !!activeSessionToken,
+    hasPendingToken: !!session.pendingSessionToken,
+    hasActiveSession: !!session.activeSessionToken,
     sidecar1455: null,
     codexBinary: null,
     spawnTest: null,
@@ -251,76 +245,77 @@ app.get('/codex/diag', async (_req, res) => {
   res.json(result);
 });
 
-// Start OAuth login flow (public — anyone can initiate login)
-// If someone else was logged in, their session is invalidated.
-app.post('/codex/login', async (_req, res) => {
-  try {
-    // Invalidate previous session
-    activeSessionToken = null;
-    saveSessionToken(null);
+// Start OAuth login flow — per-user session
+app.post('/codex/login', async (req, res) => {
+  const userId = getUserId(req);
+  const session = getOrCreateSession(userId);
 
-    const result = await codex.startLogin();
+  try {
+    // Invalidate previous session for THIS user only
+    session.activeSessionToken = null;
+    saveSessionToken(userId, null);
+
+    const result = await session.codex.startLogin();
 
     // Generate a new session token for this login attempt
     const pendingToken = crypto.randomBytes(32).toString('hex');
-
-    // The token becomes active only after successful auth polling
-    // Store it temporarily on the codex manager
-    codex._pendingSessionToken = pendingToken;
+    session.pendingSessionToken = pendingToken;
 
     res.json({
       ...result,
       sessionToken: pendingToken,
     });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error(`[login:${userId}] error:`, err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Poll account — called during login polling with the pending token
 app.get('/codex/account', async (req, res) => {
+  const userId = getUserId(req);
+  const session = getOrCreateSession(userId);
   const token = req.headers['x-codex-session'];
 
-  console.log(`[codex/account] token=${token ? token.substring(0, 8) + '...' : 'none'} pendingToken=${codex._pendingSessionToken ? codex._pendingSessionToken.substring(0, 8) + '...' : 'none'} activeToken=${activeSessionToken ? activeSessionToken.substring(0, 8) + '...' : 'none'}`);
+  console.log(`[codex/account:${userId}] token=${token ? token.substring(0, 8) + '...' : 'none'} pendingToken=${session.pendingSessionToken ? session.pendingSessionToken.substring(0, 8) + '...' : 'none'} activeToken=${session.activeSessionToken ? session.activeSessionToken.substring(0, 8) + '...' : 'none'}`);
 
   try {
-    const account = await codex.getAccount(true);
+    const account = await session.codex.getAccount(true);
 
-    console.log(`[codex/account] getAccount result: ${JSON.stringify(account)}`);
+    console.log(`[codex/account:${userId}] getAccount result: ${JSON.stringify(account)}`);
 
     if (account) {
       // If there's a pending token from login, activate it now
-      if (codex._pendingSessionToken && token === codex._pendingSessionToken) {
-        console.log(`[codex/account] activating session token`);
-        activeSessionToken = codex._pendingSessionToken;
-        saveSessionToken(activeSessionToken);
-        codex._pendingSessionToken = null;
+      if (session.pendingSessionToken && token === session.pendingSessionToken) {
+        console.log(`[codex/account:${userId}] activating session token`);
+        session.activeSessionToken = session.pendingSessionToken;
+        saveSessionToken(userId, session.activeSessionToken);
+        session.pendingSessionToken = null;
       }
 
       // Only return account details if this is the session owner
-      if (token === activeSessionToken) {
+      if (token === session.activeSessionToken) {
         // Trigger a background refresh to extend token lifetime (non-blocking)
-        codex.getAccount(true).catch((err) => {
-          console.warn(`[codex/account] Background token refresh failed: ${err.message}`);
+        session.codex.getAccount(true).catch((err) => {
+          console.warn(`[codex/account:${userId}] Background token refresh failed: ${err.message}`);
         });
 
         return res.json({ account, authenticated: true });
       }
 
-      // Someone else is logged in
-      console.log(`[codex/account] token mismatch — activeToken=${activeSessionToken ? activeSessionToken.substring(0, 8) + '...' : 'none'}`);
+      // Token mismatch
+      console.log(`[codex/account:${userId}] token mismatch`);
       return res.json({
         account: null,
         authenticated: false,
-        message: 'Another user is currently logged in via Codex.',
+        message: 'Session token mismatch.',
       });
     }
 
-    console.log(`[codex/account] no account returned from getAccount`);
+    console.log(`[codex/account:${userId}] no account returned from getAccount`);
     res.json({ account: null, authenticated: false });
   } catch (err) {
-    console.error(`[codex/account] error: ${err.message}`);
+    console.error(`[codex/account:${userId}] error: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -344,9 +339,6 @@ app.get('/auth/callback', async (req, res) => {
       console.log(`[codex-proxy] Sidecar redirect location: ${location}`);
 
       if (location) {
-        // If the sidecar redirects to its own /success endpoint (localhost:1455/success?...),
-        // we MUST follow that redirect internally. The /success handler is where the sidecar
-        // finalizes token storage. Without calling it, account/read returns requiresOpenaiAuth:true
         const isSidecarSuccess =
           location.includes('localhost:1455/success') ||
           location.includes('127.0.0.1:1455/success');
@@ -368,7 +360,6 @@ app.get('/auth/callback', async (req, res) => {
             console.warn(`[codex-proxy] Sidecar /success call failed (non-fatal): ${err.message}`);
           }
 
-          // Return success page — auth is now finalized in the sidecar
           res.set('Content-Type', 'text/html');
           return res.send(`
             <!DOCTYPE html>
@@ -391,13 +382,11 @@ app.get('/auth/callback', async (req, res) => {
 
     const body = await response.text();
 
-    // Propagate non-success responses from the sidecar
     if (!response.ok) {
       console.error(`[codex-proxy] Sidecar returned ${response.status}: ${body.substring(0, 200)}`);
       return res.status(response.status).json({ error: `Sidecar error ${response.status}: ${body.substring(0, 200)}` });
     }
 
-    // Return a success page
     res.set('Content-Type', 'text/html');
     res.send(`
       <!DOCTYPE html>
@@ -420,13 +409,18 @@ app.get('/auth/callback', async (req, res) => {
 
 // ─── Protected endpoints (session required) ─────────────────────────
 
-// Logout
-app.post('/codex/logout', requireSession, async (_req, res) => {
+// Logout — only affects the requesting user's session
+app.post('/codex/logout', requireSession, async (req, res) => {
+  const userId = req._userId;
+  const session = req._userSession;
+
   try {
-    activeSessionToken = null;
-    saveSessionToken(null);
-    codex._pendingSessionToken = null;
-    await codex.logout();
+    session.activeSessionToken = null;
+    saveSessionToken(userId, null);
+    session.pendingSessionToken = null;
+    await session.codex.logout();
+    // Remove from map so it can be garbage collected
+    userSessions.delete(userId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -434,9 +428,9 @@ app.post('/codex/logout', requireSession, async (_req, res) => {
 });
 
 // List available models
-app.get('/codex/models', requireSession, async (_req, res) => {
+app.get('/codex/models', requireSession, async (req, res) => {
   try {
-    const models = await codex.listModels();
+    const models = await req._userSession.codex.listModels();
     res.json({ models });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -445,6 +439,9 @@ app.get('/codex/models', requireSession, async (_req, res) => {
 
 // Chat completion — supports both streaming (SSE) and non-streaming modes
 app.post('/codex/chat/completions', requireSession, async (req, res) => {
+  const session = req._userSession;
+  const codex = session.codex;
+
   try {
     const { model, messages, reasoningEffort, stream } = req.body;
 
@@ -453,10 +450,9 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
     }
 
     const sessionToken = req.headers['x-codex-session'] || null;
-    console.log(`[chat/completions] model=${model} stream=${!!stream}`);
+    console.log(`[chat/completions:${req._userId}] model=${model} stream=${!!stream}`);
 
     if (stream) {
-      // SSE streaming mode — required by AI SDK's streamText
       const id = `codex-${Date.now()}`;
       const created = Math.floor(Date.now() / 1000);
       let firstDelta = true;
@@ -468,23 +464,17 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
         'X-Accel-Buffering': 'no',
       });
 
-      // SSE heartbeat: send comment lines every 15s to prevent Cloudflare 524 timeouts.
-      // Reasoning models (o3, gpt-5.1, Kimi K2.5) can think silently for >100s before
-      // emitting tokens. SSE comments (`: heartbeat\n\n`) are ignored by clients.
       const heartbeatInterval = setInterval(() => {
         try {
           res.write(': heartbeat\n\n');
         } catch (_) {
-          // Connection already closed — clearInterval will happen in finally
+          // Connection already closed
         }
       }, 15_000);
 
       const sendChunk = (content) => {
         if (firstDelta) {
-          // First real data received — stop heartbeats
           clearInterval(heartbeatInterval);
-
-          // Send role chunk first
           res.write(`data: ${JSON.stringify({
             id, object: 'chat.completion.chunk', created, model,
             choices: [{ index: 0, delta: { role: 'assistant', content: '' }, finish_reason: null }],
@@ -502,16 +492,14 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
           sendChunk(delta);
         }, sessionToken);
 
-        // If no deltas were streamed (e.g. sidecar returned full text at end), send now
         if (firstDelta && text) {
           sendChunk(text);
         }
 
-        console.log(`[chat/completions] streaming done, firstDelta=${firstDelta}`);
+        console.log(`[chat/completions:${req._userId}] streaming done, firstDelta=${firstDelta}`);
       } catch (err) {
-        console.error('[chat/completions] streaming error:', err.message);
+        console.error(`[chat/completions:${req._userId}] streaming error:`, err.message);
         if (firstDelta) {
-          // Send error in OpenAI-compatible format so AI SDK can parse it (not a plain string)
           const isModelNotSupported = err.message.includes('not supported');
           res.write(`data: ${JSON.stringify({
             error: {
@@ -523,11 +511,9 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
           })}\n\n`);
         }
       } finally {
-        // Ensure heartbeat is always stopped, even if cleared earlier (clearInterval is idempotent)
         clearInterval(heartbeatInterval);
       }
 
-      // Final chunk + DONE
       if (!firstDelta) {
         res.write(`data: ${JSON.stringify({
           id, object: 'chat.completion.chunk', created, model,
@@ -537,7 +523,6 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
       res.write('data: [DONE]\n\n');
       res.end();
     } else {
-      // Non-streaming mode (used by /api/llmcall template selector)
       const text = await codex.chatCompletion(model, messages, reasoningEffort, null, sessionToken);
 
       res.json({
@@ -578,26 +563,94 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
   }
 });
 
+// ─── Session restore + token refresh (per-user) ─────────────────────
+
+async function restoreSession(userId) {
+  const saved = loadSessionToken(userId);
+  if (!saved) return;
+
+  console.log(`[session:${userId}] Found saved session token, verifying with sidecar...`);
+  const session = getOrCreateSession(userId);
+
+  try {
+    await session.codex.ensureRunning();
+
+    let account = null;
+    try {
+      account = await session.codex.getAccount(true);
+    } catch (refreshErr) {
+      console.warn(`[session:${userId}] Refresh failed, trying cached read: ${refreshErr.message}`);
+    }
+
+    if (!account) {
+      try {
+        account = await session.codex.getAccount(false);
+      } catch (cachedErr) {
+        console.warn(`[session:${userId}] Cached read also failed: ${cachedErr.message}`);
+      }
+    }
+
+    if (account) {
+      session.activeSessionToken = saved;
+      console.log(`[session:${userId}] Session restored for ${account.email || 'unknown'}`);
+    } else {
+      console.log(`[session:${userId}] Saved token found but sidecar not authenticated — clearing`);
+      saveSessionToken(userId, null);
+      userSessions.delete(userId);
+    }
+  } catch (err) {
+    console.warn(`[session:${userId}] Could not restore session: ${err.message}`);
+  }
+}
+
+// Periodically refresh tokens for all active sessions
+let tokenRefreshInterval = null;
+
+function startTokenRefreshInterval() {
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+  }
+
+  const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+  tokenRefreshInterval = setInterval(async () => {
+    for (const [userId, session] of userSessions) {
+      if (!session.activeSessionToken) continue;
+
+      try {
+        const account = await session.codex.getAccount(true);
+        if (account) {
+          session.lastTokenRefresh = new Date().toISOString();
+          console.log(`[session:${userId}] Token refreshed for ${account.email || 'unknown'}`);
+        } else {
+          console.warn(`[session:${userId}] Periodic refresh returned no account`);
+        }
+      } catch (err) {
+        console.warn(`[session:${userId}] Periodic token refresh failed: ${err.message}`);
+      }
+    }
+  }, REFRESH_INTERVAL_MS);
+
+  console.log(`[session] Token refresh interval started (every ${REFRESH_INTERVAL_MS / 60000} minutes)`);
+}
+
 // ─── Graceful shutdown ──────────────────────────────────────────────
 
-process.on('SIGINT', async () => {
+async function shutdownAll() {
   console.log('Shutting down codex-proxy...');
   if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
-  await codex.kill();
+  const kills = [...userSessions.values()].map(s => s.codex.kill().catch(() => {}));
+  await Promise.all(kills);
   process.exit(0);
-});
+}
 
-process.on('SIGTERM', async () => {
-  console.log('Shutting down codex-proxy...');
-  if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
-  await codex.kill();
-  process.exit(0);
-});
+process.on('SIGINT', shutdownAll);
+process.on('SIGTERM', shutdownAll);
 
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Codex proxy server running on port ${PORT}`);
-  // Attempt to restore session from previous run (survives container restarts)
-  await restoreSession();
-  // Start periodic token refresh to keep the session alive
+  // Restore the default session from previous run (backwards compat)
+  await restoreSession('default');
+  // Start periodic token refresh to keep sessions alive
   startTokenRefreshInterval();
 });

@@ -1,4 +1,5 @@
 import type { ActionFunctionArgs } from '@remix-run/cloudflare';
+import { getSessionToken, verifySession } from '~/lib/auth.server';
 
 function getCodexProxyUrl(context: any): string {
   return (
@@ -15,10 +16,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   const codexProxyUrl = getCodexProxyUrl(context);
 
+  // Resolve user id for multi-session
+  const token = getSessionToken(request);
+  const user = token ? await verifySession(token).catch(() => null) : null;
+  const userId = user?.id || 'anonymous';
+
   try {
     const response = await fetch(`${codexProxyUrl}/codex/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+      },
     });
 
     const data = (await response.json()) as Record<string, any>;

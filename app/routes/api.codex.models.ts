@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from '@remix-run/cloudflare';
 import { parseCookies } from '~/lib/api/cookies';
+import { getSessionToken, verifySession } from '~/lib/auth.server';
 
 function getCodexProxyUrl(context: any): string {
   return (
@@ -12,6 +13,11 @@ function getCodexProxyUrl(context: any): string {
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const codexProxyUrl = getCodexProxyUrl(context);
 
+  // Resolve user id for multi-session
+  const authToken = getSessionToken(request);
+  const user = authToken ? await verifySession(authToken).catch(() => null) : null;
+  const userId = user?.id || 'anonymous';
+
   try {
     const cookieHeader = request.headers.get('Cookie') || '';
     const cookies = parseCookies(cookieHeader);
@@ -20,6 +26,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const response = await fetch(`${codexProxyUrl}/codex/models`, {
       headers: {
         'x-codex-session': sessionToken,
+        'x-user-id': userId,
       },
     });
 
