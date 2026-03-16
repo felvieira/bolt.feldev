@@ -153,6 +153,21 @@ services:
       - '3200'
     profiles: ['production', 'development', 'default']
 
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    profiles: ['production', 'development', 'default']
+
 volumes:
   postgres_data:
   codex_proxy_data:
