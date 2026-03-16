@@ -8,7 +8,7 @@
  * The provider toggle at the top switches between modes.
  * All queries are scoped to the app's schema when using internal mode.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useStore } from '@nanostores/react';
 import { toast } from 'react-toastify';
 import {
@@ -93,12 +93,15 @@ const NavItem = ({
 }) => (
   <button
     onClick={() => onClick(id)}
-    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-left transition-colors"
+    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-left transition-all relative"
     style={{
       background: active ? 'var(--surface-3)' : 'transparent',
       color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
     }}
   >
+    {active && (
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r" style={{ background: 'var(--accent)' }} />
+    )}
     <div className={`${icon} text-base shrink-0`} style={{ color: active ? 'var(--accent)' : undefined }} />
     {label}
   </button>
@@ -217,7 +220,7 @@ const InternalOverview = ({ schema, onNavigate }: { schema: string; onNavigate: 
             key={c.section}
             onClick={() => onNavigate(c.section)}
             disabled={!provisioned}
-            className="flex flex-col gap-2 p-3 rounded-lg text-left transition-colors disabled:opacity-40"
+            className="flex flex-col gap-2 p-3 rounded-lg text-left transition-all disabled:opacity-40 hover:scale-[1.02] hover:shadow-md"
             style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
           >
             <div className={`${c.icon} text-xl`} style={{ color: 'var(--accent)' }} />
@@ -519,6 +522,88 @@ const InternalUsers = ({ schema }: { schema: string }) => {
                 <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Joined {fmt(u.created_at)}</p>
               </div>
               {u.confirmed_at && <div className="i-ph:check-circle text-sm" style={{ color: 'var(--success)' }} />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Internal: Logs ──────────────────────────────────────────────────────────
+
+const InternalLogs = ({ schema }: { schema: string }) => {
+  const [logs, setLogs] = useState<LogRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<string>('all');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const body: any = { schema };
+      if (filter !== 'all') body.level = filter;
+      const res = await internalPost('/api/backend/logs', body);
+      if (res.ok) setLogs((await res.json()).logs ?? []);
+    } finally { setLoading(false); }
+  }, [schema, filter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const levelColor = (level: string) => {
+    switch (level) {
+      case 'error': return 'var(--error)';
+      case 'warn': return '#f59e0b';
+      case 'info': return 'var(--accent)';
+      default: return 'var(--text-tertiary)';
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 p-4 h-full">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Logs</h3>
+        <div className="flex items-center gap-2">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="text-xs px-2 py-1 rounded-md focus:outline-none"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+          >
+            <option value="all">All levels</option>
+            <option value="error">Errors</option>
+            <option value="warn">Warnings</option>
+            <option value="info">Info</option>
+            <option value="debug">Debug</option>
+          </select>
+          <button onClick={load} className="w-6 h-6 flex items-center justify-center rounded"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+            <div className="i-ph:arrow-clockwise text-sm" />
+          </button>
+        </div>
+      </div>
+      {loading ? <Spinner /> : logs.length === 0 ? (
+        <EmptyState icon="i-ph:list-bullets" message="No logs yet. App activity will appear here." />
+      ) : (
+        <div className="flex flex-col gap-0.5 overflow-y-auto flex-1 font-mono text-xs">
+          {logs.map((log) => (
+            <div key={log.id} className="flex gap-2 px-2 py-1.5 rounded hover:bg-[var(--surface-2)] transition-colors">
+              <span className="shrink-0 w-16 text-right" style={{ color: 'var(--text-tertiary)' }}>
+                {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+              <span
+                className="shrink-0 w-12 text-center px-1 py-0.5 rounded text-[10px] font-semibold uppercase"
+                style={{ color: levelColor(log.level), background: `color-mix(in srgb, ${levelColor(log.level)} 10%, transparent)` }}
+              >
+                {log.level}
+              </span>
+              {log.source && (
+                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-3)', color: 'var(--text-tertiary)' }}>
+                  {log.source}
+                </span>
+              )}
+              <span className="flex-1 break-all" style={{ color: 'var(--text-primary)' }}>
+                {log.message}
+              </span>
             </div>
           ))}
         </div>
@@ -868,12 +953,7 @@ export const CloudPanel = () => {
       case 'users': return <InternalUsers schema={schema} />;
       case 'secrets': return <InternalSecrets schema={schema} />;
       case 'sql-editor': return <InternalSqlEditor schema={schema} />;
-      case 'logs': return (
-        <div className="p-4">
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Logs</h3>
-          <EmptyState icon="i-ph:list-bullets" message={`App logs from schema "${schema}" will appear here.`} />
-        </div>
-      );
+      case 'logs': return <InternalLogs schema={schema} />;
       case 'deploy': return <DeploySection />;
     }
   };
@@ -893,7 +973,12 @@ export const CloudPanel = () => {
               {schema}
             </p>
             {nav.map(item => (
-              <NavItem key={item.id} {...item} active={section === item.id} onClick={setSection} />
+              <Fragment key={item.id}>
+                {item.id === 'deploy' && (
+                  <div className="my-1.5" style={{ borderTop: '1px solid var(--border-subtle)' }} />
+                )}
+                <NavItem {...item} active={section === item.id} onClick={setSection} />
+              </Fragment>
             ))}
           </>
         )}

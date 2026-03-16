@@ -31,6 +31,7 @@ services:
       - RUNNING_IN_DOCKER=true
       - CODEX_PROXY_URL=http://codex-proxy:3100
       - AUTH_SERVICE_URL=http://auth-service:3200
+      - DEPLOY_SERVICE_URL=http://deploy-service:3300
       - DATABASE_URL=postgresql://bolt:${POSTGRES_PASSWORD:-bolt_secret_change_me}@postgres:5432/bolt_auth
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -38,6 +39,7 @@ services:
       - codex-proxy
       - auth-service
       - postgres
+      - deploy-service
     command: pnpm run dockerstart
     profiles:
       - production
@@ -75,6 +77,7 @@ services:
       - RUNNING_IN_DOCKER=true
       - CODEX_PROXY_URL=http://codex-proxy:3100
       - AUTH_SERVICE_URL=http://auth-service:3200
+      - DEPLOY_SERVICE_URL=http://deploy-service:3300
       - DATABASE_URL=postgresql://bolt:${POSTGRES_PASSWORD:-bolt_secret_change_me}@postgres:5432/bolt_auth
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -82,6 +85,7 @@ services:
       - codex-proxy
       - auth-service
       - postgres
+      - deploy-service
     volumes:
       - type: bind
         source: .
@@ -143,6 +147,20 @@ services:
       - '5432'
     profiles: ['production', 'development', 'default']
 
+  deploy-service:
+    image: bolt-deploy-service:latest
+    build:
+      context: ./deploy-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: '3300'
+    volumes:
+      - deployments_data:/deployments
+    expose:
+      - '3300'
+    profiles: ['production', 'development', 'default']
+
   auth-service:
     image: bolt-auth-service:latest
     build:
@@ -171,8 +189,10 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - deployments_data:/deployments:ro
     depends_on:
       - app-prod
+      - deploy-service
     profiles:
       - production
 
@@ -180,3 +200,4 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
+  deployments_data:

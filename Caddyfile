@@ -1,17 +1,10 @@
 # ─── Caddyfile for bolt.feldev ─────────────────────────────────────────────
 #
 # Set DOMAIN env var in .env (e.g. DOMAIN=bolt.yourdomain.com)
-# This handles:
-#   1. Main app at https://{DOMAIN}
-#   2. Deployed apps at https://<slug>.{DOMAIN}  (wildcard)
-#   3. Custom domains (via on-demand TLS)
 #
 # DNS requirements:
 #   - A record: bolt.yourdomain.com → VPS_IP
 #   - A record: *.bolt.yourdomain.com → VPS_IP  (wildcard)
-#
-# For local dev (no SSL):
-#   :80 { reverse_proxy app-dev:5173 }
 
 # ─── Main bolt.feldev app ──────────────────────────────────────────────────
 {$DOMAIN:localhost} {
@@ -38,23 +31,21 @@
 }
 
 # ─── Deployed apps via subdomain (<slug>.DOMAIN) ──────────────────────────
-# Caddy resolves the subdomain, passes it to the app service which serves
-# the correct static build via /api/serve/<slug>
 *.{$DOMAIN:localhost} {
-	# On-demand TLS for wildcard subdomains
 	tls {
 		on_demand
 	}
 
-	# Extract the subdomain (slug)
+	# Extract slug from subdomain
 	@app {
 		host *.{$DOMAIN:localhost}
 	}
 
-	# Proxy to the app service which resolves slug → static files
-	# The X-App-Slug header tells the app which deployed app to serve
-	reverse_proxy @app app-prod:5173 {
-		header_up X-App-Slug {labels.2}
+	# Serve static files directly from /deployments/{labels.2}/public/
+	handle @app {
+		root * /deployments/{labels.2}/public
+		try_files {path} /index.html
+		file_server
 	}
 
 	encode gzip zstd

@@ -1,6 +1,8 @@
 import type { ActionFunctionArgs } from '@remix-run/cloudflare';
 
 const AUTH_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3200';
+const DEPLOY_URL = process.env.DEPLOY_SERVICE_URL || 'http://deploy-service:3300';
+const INTERNAL_SECRET = 'bolt-internal';
 
 function getToken(request: Request): string | null {
   const cookie = request.headers.get('Cookie') || '';
@@ -10,56 +12,84 @@ function getToken(request: Request): string | null {
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const token = getToken(request);
-
   if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
 
   if (request.method === 'POST') {
-    // Trigger deploy
-    const { files, projectSlug } = await request.json();
+    const { files } = (await request.json()) as { files?: Record<string, string> };
+    const projectId = params.id;
 
-    // For now, proxy to auth-service which will handle Docker operations
-    // The actual container creation would need server-side Docker API access
-    // which isn't available in Cloudflare Workers
+    // 1. Get hosting config (slug)
+    let slug: string;
+    try {
+      const hostRes = await fetch(`${AUTH_URL}/hosting/${projectId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const hostData = await hostRes.json();
+      slug = hostData.slug;
+      if (!slug) throw new Error('No slug configured');
+    } catch {
+      return new Response(JSON.stringify({ error: 'Configure hosting first (Publish button)' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
 
-    // Update hosting status to 'building'
-    await fetch(`${AUTH_URL}/projects/${params.id}/hosting`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ provider: 'self', deployStatus: 'building' }),
+    // 2. Update status to building
+    await fetch(`${AUTH_URL}/hosting/${projectId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deploy_status: 'building' }),
     });
 
-    // TODO: In production, this would call a deployment service
-    // that has Docker socket access to:
-    // 1. Write files to a temp directory
-    // 2. Generate a Dockerfile (node:20-alpine, copy files, npm install, npm start)
-    // 3. docker build -t project-{slug} .
-    // 4. docker run with Traefik labels: Host(`{slug}.localhost`)
-    // 5. Update hosting with container ID and status 'live'
+    // 3. Send to deploy-service
+    try {
+      const deployRes = await fetch(`${DEPLOY_URL}/deploy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
+        body: JSON.stringify({ projectId, slug, files: files || {} }),
+      });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Deploy initiated',
-        note: 'Self-hosted deployment requires Docker socket access. Configure deployment service for full functionality.',
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+      const result = await deployRes.json();
+
+      if (result.success) {
+        // 4. Update status to live
+        await fetch(`${AUTH_URL}/hosting/${projectId}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deploy_status: 'live' }),
+        });
+
+        return new Response(JSON.stringify({
+          success: true,
+          slug,
+          url: `https://${slug}.${process.env.DOMAIN || 'localhost'}`,
+          statusUrl: `/api/projects/${projectId}/deploy`,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      } else {
+        // Build failed
+        await fetch(`${AUTH_URL}/hosting/${projectId}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deploy_status: 'error' }),
+        });
+
+        return new Response(JSON.stringify({ success: false, error: result.error, logs: result.logs }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+    } catch (e: any) {
+      await fetch(`${AUTH_URL}/hosting/${projectId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deploy_status: 'error' }),
+      });
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
   }
 
   if (request.method === 'GET') {
-    // Get deploy status
-    const res = await fetch(`${AUTH_URL}/projects/${params.id}`, {
+    // Get deploy status from deploy-service
+    const hostRes = await fetch(`${AUTH_URL}/hosting/${params.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return new Response(res.body, { status: res.status, headers: { 'Content-Type': 'application/json' } });
+    return new Response(hostRes.body, { status: hostRes.status, headers: { 'Content-Type': 'application/json' } });
   }
 
   return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
