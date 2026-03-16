@@ -29,6 +29,10 @@
   --header-height:           40px;
   --sidebar-width:           280px;
   --chat-max-width:          48rem;
+  --chat-min-width:          400px;
+  --workbench-width:         min(calc(100% - var(--chat-min-width)), 2536px);
+  --workbench-inner-width:   var(--workbench-width);
+  --workbench-left:          calc(100% - var(--workbench-width));
   --radius-sm:               6px;
   --radius-md:               8px;
   --radius-lg:               12px;
