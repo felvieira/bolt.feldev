@@ -486,13 +486,24 @@ app.post('/codex/chat/completions', requireSession, async (req, res) => {
         'X-Accel-Buffering': 'no',
       });
 
+      // Send a real SSE data chunk (empty content delta) every 20s so that
+      // client-side stream monitors (StreamRecoveryManager) see activity and
+      // don't time out while Codex is thinking but hasn't produced output yet.
+      // A plain SSE comment (': heartbeat') is ignored by the AI SDK parser.
       const heartbeatInterval = setInterval(() => {
         try {
-          res.write(': heartbeat\n\n');
+          if (firstDelta) {
+            // Before first real content: send an empty delta that resets client timer
+            res.write(`data: ${JSON.stringify({
+              id, object: 'chat.completion.chunk', created, model,
+              choices: [{ index: 0, delta: { content: '' }, finish_reason: null }],
+            })}\n\n`);
+          }
+          // After first content, heartbeat is no longer needed (cleared in sendChunk)
         } catch (_) {
           // Connection already closed
         }
-      }, 15_000);
+      }, 20_000);
 
       const sendChunk = (content) => {
         if (firstDelta) {

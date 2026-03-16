@@ -41,7 +41,7 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 
 async function chatAction({ context, request }: ActionFunctionArgs) {
   const streamRecovery = new StreamRecoveryManager({
-    timeout: 45000,
+    timeout: streamTimeoutMs,
     maxRetries: 2,
     onTimeout: () => {
       logger.warn('Stream timeout - attempting recovery');
@@ -76,15 +76,21 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
   // Log which provider/model is being used and whether API key is present
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+  let detectedProvider = 'unknown';
   if (lastUserMsg) {
     const msgContent = typeof lastUserMsg.content === 'string' ? lastUserMsg.content : '';
     const providerMatch = msgContent.match(/\[Provider:\s*([^\]]+)\]/);
     const modelMatch = msgContent.match(/\[Model:\s*([^\]]+)\]/);
-    const detectedProvider = providerMatch?.[1]?.trim() ?? 'unknown';
+    detectedProvider = providerMatch?.[1]?.trim() ?? 'unknown';
     const detectedModel = modelMatch?.[1]?.trim() ?? 'unknown';
     const hasKey = !!(apiKeys[detectedProvider]);
     console.log(`[chat] provider=${detectedProvider} model=${detectedModel} hasApiKey=${hasKey} chatMode=${chatMode} contextOpt=${contextOptimization} files=${Object.keys(files || {}).length}`);
   }
+
+  // Codex/ChatGPT reasoning models can take several minutes before the first token.
+  // Use a much longer timeout for these providers to avoid false "Network connection lost" errors.
+  const isSlowProvider = detectedProvider === 'ChatGPT' || detectedProvider === 'chatgpt';
+  const streamTimeoutMs = isSlowProvider ? 5 * 60 * 1000 : 45_000; // 5 min for Codex, 45s for others
 
   const stream = new SwitchableStream();
 
