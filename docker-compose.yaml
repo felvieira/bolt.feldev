@@ -117,10 +117,11 @@ services:
     environment:
       - CODEX_PROXY_PORT=3100
     volumes:
-      # Persist codex sidecar OAuth tokens + proxy session files across restarts.
-      # Using host bind mounts (fixed path) instead of named volumes to avoid
-      # Coolify project-ID conflicts that break volume reuse across deploys.
-      - /var/lib/bolt-codex/config:/app/.config
+      # Persist codex sidecar OAuth tokens across restarts/deploys.
+      # Codex ignores XDG_CONFIG_HOME and always writes to /root/.codex/
+      # (state_5.sqlite contains the OAuth session tokens).
+      - /var/lib/bolt-codex/codex-state:/root/.codex
+      # Proxy session tokens + thread cache (per-user files)
       - /var/lib/bolt-codex/sessions:/app/.sessions
     restart: unless-stopped
     profiles: ['production', 'development', 'default']
