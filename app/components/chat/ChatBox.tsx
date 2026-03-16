@@ -261,8 +261,8 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
             />
           )}
         </ClientOnly>
-        <div className="flex justify-between items-center text-sm p-4 pt-2">
-          <div className="flex gap-1 items-center">
+        <div className="flex justify-between items-center text-sm p-4 pt-2 overflow-hidden gap-2">
+          <div className="flex gap-1 items-center overflow-x-auto min-w-0 scrollbar-none">
             <ColorSchemeDialog designScheme={props.designScheme} setDesignScheme={props.setDesignScheme} />
             <ProjectRulesButton />
             <McpTools />
@@ -346,7 +346,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
               disabled={!props.providerList || props.providerList.length === 0}
             >
               <div className={`i-ph:caret-${props.isModelSettingsCollapsed ? 'right' : 'down'} text-lg`} />
-              {props.isModelSettingsCollapsed ? <span className="text-xs">{props.model}</span> : <span />}
+              {props.isModelSettingsCollapsed ? <span className="text-xs max-w-[80px] truncate">{props.model}</span> : <span />}
             </IconButton>
           </div>
           <LLMComplexityBadge input={props.input} chatMode={props.chatMode} />
