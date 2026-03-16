@@ -23,6 +23,7 @@ import { McpTools } from './MCPTools';
 import { WebSearch } from './WebSearch.client';
 import { ProjectRulesButton } from './ProjectRulesModal';
 import { LLMComplexityBadge } from './LLMComplexityBadge';
+import { ImageGenerateButton } from './ImageGenerateButton';
 
 interface ChatBoxProps {
   isModelSettingsCollapsed: boolean;
@@ -275,6 +276,14 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
               <div className="i-ph:paperclip text-xl"></div>
             </IconButton>
             <WebSearch onSearchResult={(result) => props.onWebSearchResult?.(result)} disabled={props.isStreaming} />
+            <ImageGenerateButton
+              isAvailable={!!(props.apiKeys?.['fal'])}
+              onImageGenerated={(snippet) => {
+                // Insert generated image context as a message via the send handler
+                props.handleSendMessage?.({} as React.UIEvent, snippet);
+              }}
+              disabled={props.isStreaming}
+            />
             <IconButton
               title="Enhance prompt"
               disabled={props.input.length === 0 || props.enhancingPrompt}
