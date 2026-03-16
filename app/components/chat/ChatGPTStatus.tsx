@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useStore } from '@nanostores/react';
 import { classNames } from '~/utils/classNames';
 import { toast } from 'react-toastify';
 import Cookies from 'js-cookie';
 import { Dialog, DialogRoot, DialogClose, DialogTitle, DialogButton } from '~/components/ui/Dialog';
+import { codexAuthenticated, codexLoginDialogOpen } from '~/lib/stores/codex-auth';
 
 interface CodexAccount {
   type: 'chatgpt' | 'apiKey';
@@ -54,6 +56,20 @@ export function ChatGPTStatus() {
   const [submittingCallback, setSubmittingCallback] = useState(false);
   const [sessionOwner, setSessionOwner] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const externalDialogOpen = useStore(codexLoginDialogOpen);
+
+  // Sync authenticated state to shared store
+  useEffect(() => {
+    codexAuthenticated.set(loginStatus === 'authenticated');
+  }, [loginStatus]);
+
+  // Allow external components to open the login dialog
+  useEffect(() => {
+    if (externalDialogOpen && !isDialogOpen) {
+      setIsDialogOpen(true);
+      codexLoginDialogOpen.set(false);
+    }
+  }, [externalDialogOpen]);
 
   useEffect(() => {
     checkStatus();
@@ -314,7 +330,7 @@ export function ChatGPTStatus() {
             'flex items-center gap-2 p-1.5',
             'bg-bolt-elements-item-backgroundDefault',
             'hover:bg-bolt-elements-item-backgroundActive',
-            'text-bolt-elements-item-contentAccent',
+            loginStatus === 'authenticated' ? 'text-emerald-400' : 'text-gray-500',
             'transition-colors duration-150',
           )}
         >

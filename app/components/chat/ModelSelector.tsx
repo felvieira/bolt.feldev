@@ -1,9 +1,11 @@
 import type { ProviderInfo } from '~/types/model';
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useStore } from '@nanostores/react';
 import type { KeyboardEvent } from 'react';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import { classNames } from '~/utils/classNames';
 import { LOCAL_PROVIDERS } from '~/lib/stores/settings';
+import { codexAuthenticated, codexLoginDialogOpen } from '~/lib/stores/codex-auth';
 
 // Fuzzy search utilities
 const levenshteinDistance = (str1: string, str2: string): number => {
@@ -65,7 +67,7 @@ const highlightText = (text: string, query: string): string => {
 
   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
 
-  return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 text-current">$1</mark>');
+  return text.replace(regex, '<mark class="bg-yellow-800 text-current">$1</mark>');
 };
 
 const formatContextSize = (tokens: number): string => {
@@ -130,6 +132,7 @@ export const ModelSelector = ({
   const providerOptionsRef = useRef<(HTMLDivElement | null)[]>([]);
   const providerDropdownRef = useRef<HTMLDivElement>(null);
   const [showFreeModelsOnly, setShowFreeModelsOnly] = useState(false);
+  const isCodexLoggedIn = useStore(codexAuthenticated);
 
   type ConnectionStatus = 'unknown' | 'connected' | 'disconnected';
 
@@ -620,11 +623,22 @@ export const ModelSelector = ({
                           )}
                         />
                       )}
+                      {providerOption.name === 'ChatGPT' && (
+                        <span
+                          className={classNames(
+                            'inline-block w-2 h-2 rounded-full flex-shrink-0',
+                            isCodexLoggedIn ? 'bg-emerald-400' : 'bg-gray-500',
+                          )}
+                        />
+                      )}
                       <span
                         dangerouslySetInnerHTML={{
                           __html: (providerOption as any).highlightedName || providerOption.name,
                         }}
                       />
+                      {providerOption.name === 'ChatGPT' && !isCodexLoggedIn && (
+                        <span className="text-xs text-gray-500 ml-1">(login required)</span>
+                      )}
                     </div>
                   </div>
                 ))
@@ -674,6 +688,27 @@ export const ModelSelector = ({
             role="listbox"
             id="model-listbox"
           >
+            {/* ChatGPT login prompt when not authenticated */}
+            {provider?.name === 'ChatGPT' && !isCodexLoggedIn ? (
+              <div className="p-4 text-center space-y-3">
+                <div className="text-sm text-bolt-elements-textSecondary">
+                  Faça login com sua conta ChatGPT para acessar os modelos
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsModelDropdownOpen(false);
+                    codexLoginDialogOpen.set(true);
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-[#10a37f] text-white hover:bg-[#0d8c6d] flex items-center gap-2 mx-auto"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                    <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z" />
+                  </svg>
+                  Entrar com ChatGPT
+                </button>
+              </div>
+            ) : (
             <div className="px-2 pb-2 space-y-2">
               {/* Free Models Filter Toggle - Only show for OpenRouter */}
               {provider?.name === 'OpenRouter' && (
@@ -860,6 +895,7 @@ export const ModelSelector = ({
                 ))
               )}
             </div>
+            )}
           </div>
         )}
       </div>
