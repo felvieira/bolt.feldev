@@ -12,7 +12,9 @@ import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { classNames } from '~/utils/classNames';
 import { useStore } from '@nanostores/react';
+import { useRouteLoaderData } from '@remix-run/react';
 import { profileStore } from '~/lib/stores/profile';
+import type { AuthUser } from '~/lib/auth.server';
 
 const menuVariants = {
   closed: {
@@ -73,6 +75,8 @@ export const Menu = () => {
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const profile = useStore(profileStore);
+  const rootData = useRouteLoaderData('root') as { user: AuthUser | null } | undefined;
+  const authUser = rootData?.user ?? null;
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
@@ -347,7 +351,7 @@ export const Menu = () => {
           <HelpButton onClick={() => window.open('https://stackblitz-labs.github.io/bolt.diy/', '_blank')} />
           <div className="flex items-center gap-3">
             <span className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
-              {profile?.username || 'Guest User'}
+              {authUser?.displayName || profile?.username || 'Guest User'}
             </span>
             <div
               className="flex items-center justify-center w-[36px] h-[36px] overflow-hidden rounded-full shrink-0 ring-2 ring-white/10"
@@ -356,7 +360,7 @@ export const Menu = () => {
               {profile?.avatar ? (
                 <img
                   src={profile.avatar}
-                  alt={profile?.username || 'User'}
+                  alt={authUser?.displayName || profile?.username || 'User'}
                   className="w-full h-full object-cover"
                   loading="eager"
                   decoding="sync"

@@ -48,23 +48,35 @@ export function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1 w-56 rounded-md bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor shadow-lg z-50">
-          <div className="px-4 py-3 border-b border-bolt-elements-borderColor">
-            <p className="text-sm font-medium text-bolt-elements-textPrimary">{user.displayName}</p>
-            <p className="text-xs text-bolt-elements-textSecondary truncate">{user.email}</p>
+        <div
+          className="absolute right-0 mt-1 w-56 rounded-md shadow-lg z-50"
+          style={{
+            background: 'var(--surface-1)',
+            border: '1px solid var(--border-default)',
+          }}
+        >
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{user.displayName}</p>
+            <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
           </div>
           <div className="p-1">
             <Link
               to="/profile"
               onClick={() => setOpen(false)}
-              className="block w-full text-left px-3 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3 rounded-md transition-colors"
+              className="block w-full text-left px-3 py-2 text-sm rounded-md transition-colors"
+              style={{ color: 'var(--text-primary)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
             >
               Profile
             </Link>
             <Form method="post" action="/logout">
               <button
                 type="submit"
-                className="w-full text-left px-3 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3 rounded-md transition-colors"
+                className="w-full text-left px-3 py-2 text-sm rounded-md transition-colors"
+                style={{ color: 'var(--text-primary)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
               >
                 Logout
               </button>

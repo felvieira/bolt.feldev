@@ -143,16 +143,19 @@ export function Header() {
                     disabled={converting}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150"
                     style={{
-                      color: 'var(--text-secondary)',
-                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-default)',
+                      background: 'var(--surface-1)',
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
                       (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-active)';
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                      (e.currentTarget as HTMLElement).style.background = 'var(--surface-1)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
                     }}
                     aria-label="Convert to project"
                     title="Convert this chat to a project"
