@@ -7,7 +7,7 @@ import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClientOnly } from 'remix-utils/client-only';
@@ -136,6 +136,21 @@ import { logStore } from './lib/stores/logs';
 export default function App() {
   const theme = useStore(themeStore);
 
+  // Lazy-load client-only components
+  const [ClientComponents, setClientComponents] = useState<{
+    WelcomeModal: React.ComponentType;
+    AuthRefresh: React.ComponentType;
+  } | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      import('./components/WelcomeModal').then((m) => m.WelcomeModal),
+      import('./components/AuthRefresh').then((m) => m.AuthRefresh),
+    ]).then(([WelcomeModal, AuthRefresh]) => {
+      setClientComponents({ WelcomeModal, AuthRefresh });
+    });
+  }, []);
+
   useEffect(() => {
     logStore.logSystem('Application initialized', {
       theme,
@@ -166,6 +181,12 @@ export default function App() {
   return (
     <Layout>
       <Outlet />
+      {ClientComponents && (
+        <>
+          <ClientComponents.WelcomeModal />
+          <ClientComponents.AuthRefresh />
+        </>
+      )}
     </Layout>
   );
 }

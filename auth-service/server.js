@@ -177,6 +177,94 @@ app.post('/auth/refresh', async (req, res) => {
   }
 });
 
+// PATCH /auth/profile — update display name
+app.patch('/auth/profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+    }
+
+    const token = authHeader.slice(7);
+    const payload = await verifyToken(token);
+
+    const { displayName } = req.body;
+
+    if (!displayName || !displayName.trim()) {
+      return res.status(400).json({ error: { message: 'Display name is required', type: 'validation' } });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET display_name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, display_name',
+      [displayName.trim(), payload.userId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: { message: 'User not found', type: 'not_found' } });
+    }
+
+    const user = result.rows[0];
+    res.json({ user: { id: user.id, email: user.email, displayName: user.display_name } });
+  } catch (err) {
+    if (err.code === 'ERR_JWT_EXPIRED') {
+      return res.status(401).json({ error: { message: 'Token expired', type: 'auth' } });
+    }
+
+    console.error('[auth] Profile update error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// POST /auth/change-password
+app.post('/auth/change-password', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+    }
+
+    const token = authHeader.slice(7);
+    const payload = await verifyToken(token);
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: { message: 'Current and new password are required', type: 'validation' } });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: { message: 'New password must be at least 8 characters', type: 'validation' } });
+    }
+
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [payload.userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: { message: 'User not found', type: 'not_found' } });
+    }
+
+    const user = result.rows[0];
+    const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: { message: 'Current password is incorrect', type: 'auth' } });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 12);
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, payload.userId]);
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    if (err.code === 'ERR_JWT_EXPIRED') {
+      return res.status(401).json({ error: { message: 'Token expired', type: 'auth' } });
+    }
+
+    console.error('[auth] Change password error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

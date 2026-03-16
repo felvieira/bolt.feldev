@@ -54,6 +54,13 @@ export function UserMenu() {
             <p className="text-xs text-bolt-elements-textSecondary truncate">{user.email}</p>
           </div>
           <div className="p-1">
+            <Link
+              to="/profile"
+              onClick={() => setOpen(false)}
+              className="block w-full text-left px-3 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3 rounded-md transition-colors"
+            >
+              Profile
+            </Link>
             <Form method="post" action="/logout">
               <button
                 type="submit"
