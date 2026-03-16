@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { classNames } from '~/utils/classNames';
 import { toast } from 'react-toastify';
-import { IoChatbubbleEllipses } from 'react-icons/io5';
 import Cookies from 'js-cookie';
 
 interface CodexAccount {
@@ -13,17 +12,9 @@ interface CodexAccount {
 
 type LoginStatus = 'idle' | 'installing' | 'pending' | 'authenticated' | 'error';
 
-/**
- * Stores the Codex session token in a browser cookie.
- * This ensures:
- * - Only this browser can use the ChatGPT/Codex session
- * - The token is sent automatically with API requests via cookies
- * - Other users on the same bolt instance cannot piggyback
- */
 function saveSessionToken(token: string) {
-  Cookies.set('codexSession', token, { expires: 7 }); // 7 days
+  Cookies.set('codexSession', token, { expires: 7 });
 
-  // Also store it as an API key so the ChatGPT provider can use it
   const currentKeys = Cookies.get('apiKeys');
   const keys = currentKeys ? JSON.parse(currentKeys) : {};
   keys['ChatGPT'] = token;
@@ -46,6 +37,13 @@ function clearSessionToken() {
   }
 }
 
+const PLAN_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  plus: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'Plus' },
+  pro: { bg: 'bg-violet-500/10', text: 'text-violet-400', label: 'Pro' },
+  team: { bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Team' },
+  free: { bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Free' },
+};
+
 const ChatGPTLoginSection: React.FC = () => {
   const [loginStatus, setLoginStatus] = useState<LoginStatus>('idle');
   const [account, setAccount] = useState<CodexAccount | null>(null);
@@ -56,12 +54,10 @@ const ChatGPTLoginSection: React.FC = () => {
   const [submittingCallback, setSubmittingCallback] = useState(false);
   const [sessionOwner, setSessionOwner] = useState<string | null>(null);
 
-  // Check if codex-proxy is available and if we have a stored session
   useEffect(() => {
     checkStatus();
   }, []);
 
-  // Auto-refresh account every 60 seconds when authenticated
   useEffect(() => {
     if (loginStatus !== 'authenticated') {
       return;
@@ -74,7 +70,6 @@ const ChatGPTLoginSection: React.FC = () => {
     return () => clearInterval(interval);
   }, [loginStatus]);
 
-  // Periodic heartbeat — check /codex/session-health every 60 seconds while mounted
   useEffect(() => {
     const checkHealth = async () => {
       try {
@@ -83,7 +78,6 @@ const ChatGPTLoginSection: React.FC = () => {
         });
 
         if (!res.ok) {
-          // Server error — do not clear cookie, just log
           console.warn(`[ChatGPT] session-health returned ${res.status}, keeping session cookie`);
           return;
         }
@@ -95,15 +89,13 @@ const ChatGPTLoginSection: React.FC = () => {
         }
 
         if (data.authenticated === false && loginStatus === 'authenticated') {
-          // Server explicitly says not authenticated — clear and show login
           console.warn('[ChatGPT] session-health reports unauthenticated — clearing session');
           clearSessionToken();
           setAccount(null);
           setSessionOwner(null);
           setLoginStatus('idle');
         }
-      } catch (err) {
-        // Network error / timeout — do NOT clear cookie
+      } catch {
         console.warn('[ChatGPT] session-health fetch failed (network), keeping session cookie');
       }
     };
@@ -139,7 +131,6 @@ const ChatGPTLoginSection: React.FC = () => {
           const accountRes = await fetch('/api/codex/account');
 
           if (!accountRes.ok && accountRes.status >= 500) {
-            // Server error (5xx) — proxy may be restarting, don't clear the cookie
             console.warn('[ChatGPT] Proxy returned server error, keeping session cookie');
             return;
           }
@@ -150,11 +141,9 @@ const ChatGPTLoginSection: React.FC = () => {
             setAccount(accountData.account);
             setLoginStatus('authenticated');
           } else {
-            // Server explicitly says not authenticated — clear cookie
             clearSessionToken();
           }
         } catch {
-          // Network error / timeout — proxy is unreachable, don't clear cookie
           console.warn('[ChatGPT] Could not reach proxy, keeping session cookie');
         }
       }
@@ -194,7 +183,6 @@ const ChatGPTLoginSection: React.FC = () => {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Store the session token in the browser
       if (data.sessionToken) {
         saveSessionToken(data.sessionToken);
       }
@@ -202,12 +190,10 @@ const ChatGPTLoginSection: React.FC = () => {
       setAuthUrl(data.authUrl);
       setLoginStatus('pending');
 
-      // Open the auth URL in a new tab
       window.open(data.authUrl, '_blank');
 
-      // Poll for authentication (works when bolt runs locally)
       let attempts = 0;
-      const maxAttempts = 150; // 5 minutes
+      const maxAttempts = 150;
 
       const pollInterval = setInterval(async () => {
         attempts++;
@@ -263,11 +249,9 @@ const ChatGPTLoginSection: React.FC = () => {
         throw new Error(data.error || 'Callback failed');
       }
 
-      // Callback processed — now poll for account
       setCallbackUrl('');
       toast.success('Callback received! Checking authentication...');
 
-      // Keep polling until authenticated or timeout (30 seconds)
       let callbackAttempts = 0;
       const maxCallbackAttempts = 15;
 
@@ -317,118 +301,169 @@ const ChatGPTLoginSection: React.FC = () => {
     }
   }, []);
 
-  if (codexAvailable === false) {
+  if (codexAvailable === false || codexAvailable === null) {
     return null;
   }
 
-  if (codexAvailable === null) {
-    return null;
-  }
-
-  const planColor =
-    account?.plan === 'plus' || account?.plan === 'pro' || account?.plan === 'team'
-      ? 'text-green-500'
-      : account?.plan === 'free'
-        ? 'text-yellow-500'
-        : 'text-bolt-elements-textSecondary';
+  const planStyle = account?.plan ? PLAN_STYLES[account.plan] || { bg: 'bg-gray-500/10', text: 'text-gray-400', label: account.plan } : null;
 
   return (
     <motion.div
-      className={classNames(
-        'rounded-lg border bg-bolt-elements-background shadow-sm p-4 mb-6',
-        'bg-bolt-elements-background-depth-2',
-        'relative overflow-hidden',
-      )}
-      initial={{ opacity: 0, y: 20 }}
+      className="relative overflow-hidden rounded-xl"
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
     >
-      <div className="flex items-start gap-4">
-        <motion.div
-          className={classNames(
-            'w-10 h-10 flex items-center justify-center rounded-xl',
-            'bg-bolt-elements-background-depth-3',
-            loginStatus === 'authenticated' ? 'text-green-500' : 'text-[var(--accent)]',
-          )}
-          whileHover={{ scale: 1.1 }}
-        >
-          <IoChatbubbleEllipses className="w-6 h-6" />
-        </motion.div>
+      {/* Background gradient */}
+      <div
+        className="absolute inset-0 rounded-xl"
+        style={{
+          background: loginStatus === 'authenticated'
+            ? 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(16,185,129,0.02) 100%)'
+            : 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(99,102,241,0.02) 100%)',
+        }}
+      />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-4 mb-2">
-            <div>
-              <h4 className="text-sm font-medium text-bolt-elements-textPrimary">
-                ChatGPT Login (Codex)
-              </h4>
-              <p className="text-xs text-bolt-elements-textSecondary mt-0.5">
-                Use your ChatGPT Plus/Pro/Team subscription — no API key needed
-              </p>
-            </div>
+      {/* Border */}
+      <div
+        className="absolute inset-0 rounded-xl pointer-events-none"
+        style={{
+          border: loginStatus === 'authenticated'
+            ? '1px solid rgba(16,185,129,0.15)'
+            : '1px solid var(--bolt-elements-borderColor)',
+        }}
+      />
+
+      <div className="relative p-4">
+        {/* Header row */}
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className={classNames(
+              'w-9 h-9 flex items-center justify-center rounded-lg',
+              loginStatus === 'authenticated'
+                ? 'bg-emerald-500/10'
+                : 'bg-bolt-elements-background-depth-3',
+            )}
+          >
+            <svg viewBox="0 0 24 24" className={classNames(
+              'w-5 h-5',
+              loginStatus === 'authenticated' ? 'text-emerald-400' : 'text-bolt-elements-textSecondary',
+            )} fill="currentColor">
+              <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/>
+            </svg>
           </div>
 
-          {loginStatus === 'idle' && (
-            <motion.button
-              onClick={handleLogin}
-              className={classNames(
-                'mt-2 px-4 py-2 rounded-lg text-sm font-medium',
-                'bg-[var(--accent)] hover:bg-[var(--accent)] text-white',
-                'transition-colors duration-200',
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-bolt-elements-textPrimary">ChatGPT</h4>
+              {loginStatus === 'authenticated' && planStyle && (
+                <span className={classNames('text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded', planStyle.bg, planStyle.text)}>
+                  {planStyle.label}
+                </span>
               )}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              Login with ChatGPT
-            </motion.button>
-          )}
-
-          {loginStatus === 'installing' && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-bolt-elements-textSecondary">
-              <div className="animate-spin w-4 h-4 border-2 border-[var(--accent)] border-t-transparent rounded-full" />
-              <span>Preparing Codex environment...</span>
             </div>
+            <p className="text-[11px] text-bolt-elements-textTertiary leading-tight">
+              {loginStatus === 'authenticated'
+                ? (account?.email || sessionOwner || 'Connected')
+                : 'Use your ChatGPT subscription — no API key needed'}
+            </p>
+          </div>
+
+          {/* Status indicator / Action */}
+          <div className="flex items-center gap-2">
+            <AnimatePresence mode="wait">
+              {loginStatus === 'authenticated' ? (
+                <motion.div
+                  key="connected"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[11px] font-medium text-emerald-400">Connected</span>
+                </motion.div>
+              ) : loginStatus === 'installing' || loginStatus === 'pending' ? (
+                <motion.div
+                  key="connecting"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-[11px] font-medium text-amber-400">
+                    {loginStatus === 'installing' ? 'Preparing...' : 'Waiting...'}
+                  </span>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Content area */}
+        <AnimatePresence mode="wait">
+          {loginStatus === 'idle' && (
+            <motion.div
+              key="idle"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <button
+                onClick={handleLogin}
+                className={classNames(
+                  'w-full py-2.5 rounded-lg text-sm font-medium',
+                  'bg-[#10a37f] hover:bg-[#0d8c6d] text-white',
+                  'transition-all duration-200',
+                  'flex items-center justify-center gap-2',
+                )}
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                  <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/>
+                </svg>
+                Sign in with ChatGPT
+              </button>
+            </motion.div>
           )}
 
           {loginStatus === 'pending' && (
-            <div className="mt-2 space-y-3">
-              <div className="flex items-center gap-2 text-sm text-yellow-500">
-                <div className="animate-pulse w-2 h-2 rounded-full bg-yellow-500" />
-                <span>Waiting for authentication...</span>
-              </div>
-
+            <motion.div
+              key="pending"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-3"
+            >
               {authUrl && (
-                <p className="text-xs text-bolt-elements-textSecondary">
-                  A new tab should have opened. If not,{' '}
-                  <a
-                    href={authUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--accent)] hover:underline"
-                  >
-                    click here to login
-                  </a>
-                  .
+                <p className="text-[11px] text-bolt-elements-textTertiary">
+                  A new tab should have opened.{' '}
+                  <a href={authUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">
+                    Click here
+                  </a>{' '}
+                  if it didn't.
                 </p>
               )}
 
-              {/* Remote deployment: paste callback URL */}
-              <div className="bg-bolt-elements-background-depth-3 rounded-lg p-3 space-y-2">
-                <p className="text-xs text-bolt-elements-textSecondary">
-                  <strong>Remote access?</strong> After authenticating, your browser will show an error page
-                  at <code className="text-[var(--accent)]">localhost:1455</code>. Copy the full URL from the
-                  address bar and paste it below:
+              <div className="rounded-lg bg-bolt-elements-background-depth-3 p-3 space-y-2">
+                <p className="text-[11px] text-bolt-elements-textSecondary">
+                  <span className="font-medium text-bolt-elements-textPrimary">Remote access?</span>{' '}
+                  Paste the callback URL from your browser after authenticating:
                 </p>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={callbackUrl}
                     onChange={(e) => setCallbackUrl(e.target.value)}
-                    placeholder="Paste the localhost:1455/auth/callback?code=... URL here"
+                    placeholder="localhost:1455/auth/callback?code=..."
                     className={classNames(
-                      'flex-1 px-3 py-1.5 text-xs rounded border',
-                      'border-bolt-elements-borderColor bg-bolt-elements-background-depth-2',
+                      'flex-1 px-3 py-1.5 text-xs rounded-lg font-mono',
+                      'bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor',
                       'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                      'focus:outline-none focus:ring-2 focus:ring-[var(--accent-muted)]',
+                      'focus:outline-none focus:ring-1 focus:ring-[var(--accent)] focus:border-[var(--accent)]',
+                      'transition-all duration-150',
                     )}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -436,105 +471,92 @@ const ChatGPTLoginSection: React.FC = () => {
                       }
                     }}
                   />
-                  <motion.button
+                  <button
                     onClick={handleSubmitCallback}
                     disabled={submittingCallback || !callbackUrl.trim()}
                     className={classNames(
-                      'px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap',
-                      'bg-[var(--accent)] hover:bg-[var(--accent)] text-white',
-                      'disabled:opacity-50 disabled:cursor-not-allowed',
-                      'transition-colors duration-200',
+                      'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap',
+                      'bg-[var(--accent)] text-white',
+                      'hover:brightness-110',
+                      'disabled:opacity-40 disabled:cursor-not-allowed',
+                      'transition-all duration-150',
                     )}
-                    whileTap={{ scale: 0.95 }}
                   >
                     {submittingCallback ? 'Processing...' : 'Submit'}
-                  </motion.button>
+                  </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {loginStatus === 'authenticated' && account && (
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm text-green-500 font-medium">Connected</span>
-              </div>
-
-              <div className="flex items-center gap-4 text-xs">
-                {(account.email || sessionOwner) && (
-                  <span className="text-bolt-elements-textSecondary">{account.email || sessionOwner}</span>
-                )}
-                {account.plan && (
-                  <span className={classNames('font-medium uppercase', planColor)}>
-                    {account.plan}
-                  </span>
-                )}
-              </div>
-
+            <motion.div
+              key="authenticated"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
               {account.plan === 'free' && (
-                <div className="text-xs text-yellow-500 bg-yellow-500/10 rounded px-2 py-1">
+                <div className="text-[11px] text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2 mb-3">
                   ChatGPT Free does not support Codex. Upgrade to Plus/Pro/Team.
                 </div>
               )}
 
-              <div className="flex items-center gap-2 mt-2">
-                <motion.button
+              <div className="flex items-center gap-2">
+                <button
                   onClick={refreshAccount}
                   className={classNames(
-                    'px-3 py-1 rounded text-xs font-medium',
-                    'bg-bolt-elements-background-depth-3 hover:bg-bolt-elements-background-depth-4',
+                    'px-3 py-1.5 rounded-lg text-xs font-medium',
+                    'bg-bolt-elements-background-depth-3',
                     'text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary',
-                    'transition-colors duration-200',
+                    'border border-bolt-elements-borderColor hover:border-bolt-elements-borderColorActive',
+                    'transition-all duration-150',
                   )}
-                  whileTap={{ scale: 0.95 }}
                 >
                   Refresh
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   onClick={handleLogout}
                   className={classNames(
-                    'px-3 py-1 rounded text-xs font-medium',
-                    'bg-red-500/10 hover:bg-red-500/20 text-red-500',
-                    'transition-colors duration-200',
+                    'px-3 py-1.5 rounded-lg text-xs font-medium',
+                    'text-red-400 hover:text-red-300',
+                    'hover:bg-red-500/10',
+                    'transition-all duration-150',
                   )}
-                  whileTap={{ scale: 0.95 }}
                 >
-                  Logout
-                </motion.button>
+                  Disconnect
+                </button>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {loginStatus === 'error' && (
-            <div className="mt-2 space-y-2">
-              <div className="text-xs text-red-500 bg-red-500/10 rounded px-2 py-1">
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-3"
+            >
+              <div className="text-[11px] text-red-400 bg-red-500/10 rounded-lg px-3 py-2">
                 {error || 'Authentication failed'}
               </div>
-              <motion.button
+              <button
                 onClick={handleLogin}
                 className={classNames(
-                  'px-4 py-2 rounded-lg text-sm font-medium',
-                  'bg-[var(--accent)] hover:bg-[var(--accent)] text-white',
-                  'transition-colors duration-200',
+                  'w-full py-2.5 rounded-lg text-sm font-medium',
+                  'bg-[#10a37f] hover:bg-[#0d8c6d] text-white',
+                  'transition-all duration-200',
                 )}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
               >
                 Try Again
-              </motion.button>
-            </div>
+              </button>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
       </div>
-
-      {loginStatus === 'authenticated' && (
-        <motion.div
-          className="absolute inset-0 border-2 border-green-500/20 rounded-lg pointer-events-none"
-          animate={{ borderColor: 'rgba(34, 197, 94, 0.2)' }}
-          transition={{ duration: 0.2 }}
-        />
-      )}
     </motion.div>
   );
 };
