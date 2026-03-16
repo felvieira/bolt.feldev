@@ -13,7 +13,6 @@ export * from './Label';
 export * from './ScrollArea';
 export * from './Switch';
 export * from './Tabs';
-export * from './ThemeSwitch';
 
 // Loading components
 export * from './LoadingDots';
@@ -26,7 +25,6 @@ export * from './CodeBlock';
 export * from './EmptyState';
 export * from './FileIcon';
 export * from './FilterChip';
-export * from './GradientCard';
 export * from './RepositoryStats';
 export * from './SearchInput';
 export * from './SearchResultItem';

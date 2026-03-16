@@ -7,6 +7,43 @@ interface HeaderActionButtonsProps {
   chatStarted: boolean;
 }
 
+const ghostButtonStyle: React.CSSProperties = {
+  color: 'var(--text-tertiary)',
+};
+
+function GhostIconButton({
+  onClick,
+  title,
+  icon,
+  label,
+}: {
+  onClick?: () => void;
+  title?: string;
+  icon: string;
+  label?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="flex items-center justify-center w-7 h-7 rounded-[var(--radius-sm)] transition-colors duration-150 gap-1.5 text-sm"
+      style={ghostButtonStyle}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+        (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)';
+        (e.currentTarget as HTMLElement).style.background = 'transparent';
+      }}
+      aria-label={title}
+    >
+      <div className={`${icon} text-base`} />
+      {label && <span>{label}</span>}
+    </button>
+  );
+}
+
 export function HeaderActionButtons({ chatStarted: _chatStarted }: HeaderActionButtonsProps) {
   const [activePreviewIndex] = useState(0);
   const previews = useStore(workbenchStore.previews);
@@ -21,19 +58,17 @@ export function HeaderActionButtons({ chatStarted: _chatStarted }: HeaderActionB
 
       {/* Debug Tools */}
       {shouldShowButtons && (
-        <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden text-sm">
-          <button
+        <>
+          <GhostIconButton
+            icon="i-ph:bug"
+            title="Report Bug"
             onClick={() =>
               window.open('https://github.com/stackblitz-labs/bolt.diy/issues/new?template=bug_report.yml', '_blank')
             }
-            className="rounded-l-md items-center justify-center [&:is(:disabled,.disabled)]:cursor-not-allowed [&:is(:disabled,.disabled)]:opacity-60 px-3 py-1.5 text-xs bg-accent-500 text-white hover:text-bolt-elements-item-contentAccent [&:not(:disabled,.disabled)]:hover:bg-bolt-elements-button-primary-backgroundHover outline-accent-500 flex gap-1.5"
-            title="Report Bug"
-          >
-            <div className="i-ph:bug" />
-            <span>Report Bug</span>
-          </button>
-          <div className="w-px bg-bolt-elements-borderColor" />
-          <button
+          />
+          <GhostIconButton
+            icon="i-ph:download"
+            title="Download Debug Log"
             onClick={async () => {
               try {
                 const { downloadDebugLog } = await import('~/utils/debugLogger');
@@ -42,13 +77,8 @@ export function HeaderActionButtons({ chatStarted: _chatStarted }: HeaderActionB
                 console.error('Failed to download debug log:', error);
               }
             }}
-            className="rounded-r-md items-center justify-center [&:is(:disabled,.disabled)]:cursor-not-allowed [&:is(:disabled,.disabled)]:opacity-60 px-3 py-1.5 text-xs bg-accent-500 text-white hover:text-bolt-elements-item-contentAccent [&:not(:disabled,.disabled)]:hover:bg-bolt-elements-button-primary-backgroundHover outline-accent-500 flex gap-1.5"
-            title="Download Debug Log"
-          >
-            <div className="i-ph:download" />
-            <span>Debug Log</span>
-          </button>
-        </div>
+          />
+        </>
       )}
     </div>
   );

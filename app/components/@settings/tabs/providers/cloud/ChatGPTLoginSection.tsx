@@ -348,7 +348,7 @@ const ChatGPTLoginSection: React.FC = () => {
           className={classNames(
             'w-10 h-10 flex items-center justify-center rounded-xl',
             'bg-bolt-elements-background-depth-3',
-            loginStatus === 'authenticated' ? 'text-green-500' : 'text-purple-500',
+            loginStatus === 'authenticated' ? 'text-green-500' : 'text-[var(--accent)]',
           )}
           whileHover={{ scale: 1.1 }}
         >
@@ -372,7 +372,7 @@ const ChatGPTLoginSection: React.FC = () => {
               onClick={handleLogin}
               className={classNames(
                 'mt-2 px-4 py-2 rounded-lg text-sm font-medium',
-                'bg-purple-500 hover:bg-purple-600 text-white',
+                'bg-[var(--accent)] hover:bg-[var(--accent)] text-white',
                 'transition-colors duration-200',
               )}
               whileHover={{ scale: 1.02 }}
@@ -384,7 +384,7 @@ const ChatGPTLoginSection: React.FC = () => {
 
           {loginStatus === 'installing' && (
             <div className="mt-2 flex items-center gap-2 text-sm text-bolt-elements-textSecondary">
-              <div className="animate-spin w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full" />
+              <div className="animate-spin w-4 h-4 border-2 border-[var(--accent)] border-t-transparent rounded-full" />
               <span>Preparing Codex environment...</span>
             </div>
           )}
@@ -403,7 +403,7 @@ const ChatGPTLoginSection: React.FC = () => {
                     href={authUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-purple-500 hover:underline"
+                    className="text-[var(--accent)] hover:underline"
                   >
                     click here to login
                   </a>
@@ -415,7 +415,7 @@ const ChatGPTLoginSection: React.FC = () => {
               <div className="bg-bolt-elements-background-depth-3 rounded-lg p-3 space-y-2">
                 <p className="text-xs text-bolt-elements-textSecondary">
                   <strong>Remote access?</strong> After authenticating, your browser will show an error page
-                  at <code className="text-purple-400">localhost:1455</code>. Copy the full URL from the
+                  at <code className="text-[var(--accent)]">localhost:1455</code>. Copy the full URL from the
                   address bar and paste it below:
                 </p>
                 <div className="flex gap-2">
@@ -428,7 +428,7 @@ const ChatGPTLoginSection: React.FC = () => {
                       'flex-1 px-3 py-1.5 text-xs rounded border',
                       'border-bolt-elements-borderColor bg-bolt-elements-background-depth-2',
                       'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                      'focus:outline-none focus:ring-2 focus:ring-purple-500/30',
+                      'focus:outline-none focus:ring-2 focus:ring-[var(--accent-muted)]',
                     )}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -441,7 +441,7 @@ const ChatGPTLoginSection: React.FC = () => {
                     disabled={submittingCallback || !callbackUrl.trim()}
                     className={classNames(
                       'px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap',
-                      'bg-purple-500 hover:bg-purple-600 text-white',
+                      'bg-[var(--accent)] hover:bg-[var(--accent)] text-white',
                       'disabled:opacity-50 disabled:cursor-not-allowed',
                       'transition-colors duration-200',
                     )}
@@ -515,7 +515,7 @@ const ChatGPTLoginSection: React.FC = () => {
                 onClick={handleLogin}
                 className={classNames(
                   'px-4 py-2 rounded-lg text-sm font-medium',
-                  'bg-purple-500 hover:bg-purple-600 text-white',
+                  'bg-[var(--accent)] hover:bg-[var(--accent)] text-white',
                   'transition-colors duration-200',
                 )}
                 whileHover={{ scale: 1.02 }}

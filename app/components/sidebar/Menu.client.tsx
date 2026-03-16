@@ -2,7 +2,6 @@ import { motion, type Variants } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
-import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { ControlPanel } from '~/components/@settings/core/ControlPanel';
 import { SettingsButton, HelpButton } from '~/components/ui/SettingsButton';
 import { Button } from '~/components/ui/Button';
@@ -18,8 +17,8 @@ import { profileStore } from '~/lib/stores/profile';
 const menuVariants = {
   closed: {
     opacity: 0,
-    visibility: 'hidden',
-    left: '-340px',
+    visibility: 'hidden' as const,
+    left: '-280px',
     transition: {
       duration: 0.2,
       ease: cubicEasingFn,
@@ -27,7 +26,7 @@ const menuVariants = {
   },
   open: {
     opacity: 1,
-    visibility: 'initial',
+    visibility: 'visible' as const,
     left: 0,
     transition: {
       duration: 0.2,
@@ -329,22 +328,29 @@ export const Menu = () => {
         initial="closed"
         animate={open ? 'open' : 'closed'}
         variants={menuVariants}
-        style={{ width: '340px' }}
-        className={classNames(
-          'flex selection-accent flex-col side-menu fixed top-0 h-full rounded-r-2xl',
-          'bg-white dark:bg-gray-950 border-r border-bolt-elements-borderColor',
-          'shadow-sm text-sm',
-          isSettingsOpen ? 'z-40' : 'z-sidebar',
-        )}
+        className={classNames('flex flex-col fixed top-0 left-0 h-full text-sm', isSettingsOpen ? 'z-40' : 'z-50')}
+        style={{
+          width: 'var(--sidebar-width)',
+          background: 'rgba(9, 9, 11, 0.88)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRight: '1px solid var(--border-subtle)',
+        }}
       >
-        <div className="h-12 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/50 rounded-tr-2xl">
-          <div className="text-gray-900 dark:text-white font-medium"></div>
+        <div
+          className="h-12 flex items-center justify-between px-4"
+          style={{ borderBottom: '1px solid var(--border-subtle)' }}
+        >
+          <div className="font-medium" style={{ color: 'var(--text-primary)' }}></div>
           <div className="flex items-center gap-3">
             <HelpButton onClick={() => window.open('https://stackblitz-labs.github.io/bolt.diy/', '_blank')} />
-            <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+            <span className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
               {profile?.username || 'Guest User'}
             </span>
-            <div className="flex items-center justify-center w-[32px] h-[32px] overflow-hidden bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-500 rounded-full shrink-0">
+            <div
+              className="flex items-center justify-center w-[32px] h-[32px] overflow-hidden rounded-full shrink-0"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-tertiary)' }}
+            >
               {profile?.avatar ? (
                 <img
                   src={profile.avatar}
@@ -365,19 +371,25 @@ export const Menu = () => {
             <div className="flex gap-2">
               <a
                 href="/"
-                className="flex-1 flex gap-2 items-center bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-500/20 rounded-lg px-4 py-2 transition-colors"
+                className="flex-1 flex gap-2 items-center rounded-lg px-4 py-2 transition-colors"
+                style={{
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
               >
                 <span className="inline-block i-ph:plus-circle h-4 w-4" />
-                <span className="text-sm font-medium">Start new chat</span>
+                <span className="text-sm font-medium">New chat</span>
               </a>
               <button
                 onClick={toggleSelectionMode}
-                className={classNames(
-                  'flex gap-1 items-center rounded-lg px-3 py-2 transition-colors',
-                  selectionMode
-                    ? 'bg-purple-600 dark:bg-purple-500 text-white border border-purple-700 dark:border-purple-600'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700',
-                )}
+                className="flex gap-1 items-center px-3 py-2 transition-colors"
+                style={{
+                  border: selectionMode ? '1px solid var(--accent)' : '1px solid var(--border-default)',
+                  color: selectionMode ? 'var(--accent)' : 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'transparent',
+                }}
                 aria-label={selectionMode ? 'Exit selection mode' : 'Enter selection mode'}
               >
                 <span className={selectionMode ? 'i-ph:x h-4 w-4' : 'i-ph:check-square h-4 w-4'} />
@@ -385,10 +397,16 @@ export const Menu = () => {
             </div>
             <div className="relative w-full">
               <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                <span className="i-ph:magnifying-glass h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <span className="i-ph:magnifying-glass h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />
               </div>
               <input
-                className="w-full bg-gray-50 dark:bg-gray-900 relative pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500/50 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 border border-gray-200 dark:border-gray-800"
+                className="w-full relative pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1"
+                style={{
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-primary)',
+                }}
                 type="search"
                 placeholder="Search chats..."
                 onChange={handleSearchChange}
@@ -397,7 +415,9 @@ export const Menu = () => {
             </div>
           </div>
           <div className="flex items-center justify-between text-sm px-4 py-2">
-            <div className="font-medium text-gray-600 dark:text-gray-400">Your Chats</div>
+            <div className="font-medium" style={{ color: 'var(--text-tertiary)' }}>
+              Your Chats
+            </div>
             {selectionMode && (
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={selectAll}>
@@ -416,14 +436,17 @@ export const Menu = () => {
           </div>
           <div className="flex-1 overflow-auto px-3 pb-3">
             {filteredList.length === 0 && (
-              <div className="px-4 text-gray-500 dark:text-gray-400 text-sm">
+              <div className="px-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>
                 {list.length === 0 ? 'No previous conversations' : 'No matches found'}
               </div>
             )}
             <DialogRoot open={dialogContent !== null}>
               {binDates(filteredList).map(({ category, items }) => (
                 <div key={category} className="mt-2 first:mt-0 space-y-1">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 sticky top-0 z-1 bg-white dark:bg-gray-950 px-4 py-1">
+                  <div
+                    className="text-xs font-medium uppercase tracking-wider sticky top-0 z-1 px-3 py-1"
+                    style={{ color: 'var(--text-tertiary)', background: 'transparent' }}
+                  >
                     {category}
                   </div>
                   <div className="space-y-0.5 pr-1">
@@ -525,11 +548,11 @@ export const Menu = () => {
               </Dialog>
             </DialogRoot>
           </div>
-          <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-800 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <SettingsButton onClick={handleSettingsClick} />
-            </div>
-            <ThemeSwitch />
+          <div
+            className="flex items-center px-4 py-3"
+            style={{ borderTop: '1px solid var(--border-subtle)' }}
+          >
+            <SettingsButton onClick={handleSettingsClick} />
           </div>
         </div>
       </motion.div>

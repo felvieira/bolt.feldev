@@ -43,13 +43,22 @@ export default function LoginPage() {
   const actionData = useActionData<typeof action>();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bolt-elements-background-depth-1">
-      <div className="w-full max-w-md p-8 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor">
-        <div className="flex justify-center mb-6">
-          <img src="/logo-dark-styled.png" alt="Bolt" className="w-[120px] hidden dark:block" />
-          <img src="/logo-light-styled.png" alt="Bolt" className="w-[120px] dark:hidden" />
-        </div>
-        <h1 className="text-2xl font-bold text-bolt-elements-textPrimary text-center mb-6">Sign In</h1>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center"
+      style={{ background: 'var(--background)' }}
+    >
+      {/* Logo above card */}
+      <div className="flex flex-col items-center mb-6 gap-2">
+        <img src="/volt-logo.svg" alt="Volt" style={{ width: 32, height: 32, filter: 'brightness(0) invert(1)' }} />
+        <span className="text-xs font-semibold tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+          VOLT
+        </span>
+      </div>
+
+      <div className="volt-card w-full" style={{ maxWidth: 380, padding: 32 }}>
+        <h1 className="text-xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
+          Sign in
+        </h1>
 
         {actionData?.error && (
           <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
@@ -59,7 +68,11 @@ export default function LoginPage() {
 
         <Form method="post" className="flex flex-col gap-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-bolt-elements-textSecondary mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium mb-1.5"
+              style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+            >
               Email
             </label>
             <input
@@ -67,13 +80,17 @@ export default function LoginPage() {
               name="email"
               type="email"
               required
-              className="w-full px-3 py-2 rounded-md bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="volt-input w-full"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-bolt-elements-textSecondary mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium"
+              style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+            >
               Password
             </label>
             <input
@@ -81,23 +98,20 @@ export default function LoginPage() {
               name="password"
               type="password"
               required
-              className="w-full px-3 py-2 rounded-md bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="volt-input w-full"
               placeholder="••••••••"
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-2 px-4 rounded-md bg-accent text-white font-medium hover:brightness-110 transition-all"
-          >
-            Login
+          <button type="submit" className="btn-primary w-full mt-2">
+            Sign in
           </button>
         </Form>
 
-        <p className="mt-4 text-center text-sm text-bolt-elements-textSecondary">
+        <p className="mt-4 text-center text-sm">
           Don&apos;t have an account?{' '}
-          <Link to="/register" className="text-accent hover:underline">
-            Register
+          <Link to="/register" style={{ color: 'var(--accent)' }}>
+            Create account
           </Link>
         </p>
       </div>

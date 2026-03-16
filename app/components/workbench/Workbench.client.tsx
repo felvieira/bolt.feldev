@@ -411,8 +411,8 @@ export const Workbench = memo(
             )}
           >
             <div className="absolute inset-0 px-2 lg:px-4">
-              <div className="h-full flex flex-col bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor shadow-sm rounded-lg overflow-hidden">
-                <div className="flex items-center px-3 py-2 border-b border-bolt-elements-borderColor gap-1.5">
+              <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--surface-1)', borderLeft: '1px solid var(--border-subtle)' }}>
+                <div className="flex items-center px-3 py-2 gap-1.5" style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border-subtle)' }}>
                   <button
                     className={`${showChat ? 'i-ph:sidebar-simple-fill' : 'i-ph:sidebar-simple'} text-lg text-bolt-elements-textSecondary mr-1`}
                     disabled={!canHideChat || isSmallViewport}

@@ -113,50 +113,82 @@ export default function ProfilePage() {
   const { user } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
-  const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown';
+  const memberSince = user.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bolt-elements-background-depth-1 p-4">
-      <div className="w-full max-w-lg">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-4"
+      style={{ background: 'var(--background)' }}
+    >
+      <div className="w-full" style={{ maxWidth: 480 }}>
         {/* Back link */}
-        <Link to="/" className="inline-flex items-center gap-1 text-sm text-bolt-elements-textSecondary hover:text-accent mb-4 transition-colors">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1 text-sm mb-6 transition-colors"
+          style={{ color: 'var(--text-tertiary)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+        >
           <div className="i-ph:arrow-left text-base" />
           Back to app
         </Link>
 
-        {/* User Info Card */}
-        <div className="p-6 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor mb-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center text-white text-2xl font-medium">
+        <div className="volt-card" style={{ padding: 32 }}>
+          {/* User header */}
+          <div className="flex items-center gap-4 mb-6">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-medium shrink-0"
+              style={{ background: 'var(--accent)' }}
+            >
               {(user.displayName || user.email).charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-xl font-bold text-bolt-elements-textPrimary">{user.displayName || user.email}</h1>
-              <p className="text-sm text-bolt-elements-textSecondary">{user.email}</p>
-              <p className="text-xs text-bolt-elements-textTertiary mt-1">Member since {memberSince}</p>
+              <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {user.displayName || user.email}
+              </div>
+              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {user.email}
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                Member since {memberSince}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Update Display Name */}
-        <div className="p-6 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor mb-4">
-          <h2 className="text-lg font-semibold text-bolt-elements-textPrimary mb-4">Update Display Name</h2>
-
-          {actionData?.intent === 'updateProfile' && actionData.error && (
-            <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-              {actionData.error}
-            </div>
-          )}
-          {actionData?.intent === 'updateProfile' && actionData.success && (
-            <div className="mb-4 p-3 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-              {actionData.success}
-            </div>
-          )}
+          {/* Account section */}
+          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
+            Account
+          </p>
 
           <Form method="post" className="flex flex-col gap-4">
             <input type="hidden" name="intent" value="updateProfile" />
+
             <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-bolt-elements-textSecondary mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium"
+                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={user.email}
+                readOnly
+                className="volt-input w-full"
+                style={{ opacity: 0.6, cursor: 'default' }}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="displayName"
+                className="block text-sm font-medium"
+                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+              >
                 Display Name
               </label>
               <input
@@ -164,37 +196,44 @@ export default function ProfilePage() {
                 name="displayName"
                 type="text"
                 defaultValue={user.displayName || ''}
-                className="w-full px-3 py-2 rounded-md bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary focus:outline-none focus:ring-2 focus:ring-accent"
+                className="volt-input w-full"
               />
             </div>
-            <button
-              type="submit"
-              className="w-full py-2 px-4 rounded-md bg-accent text-white font-medium hover:brightness-110 transition-all"
-            >
-              Update Name
-            </button>
+
+            {actionData?.intent === 'updateProfile' && actionData.error && (
+              <div className="p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                {actionData.error}
+              </div>
+            )}
+            {actionData?.intent === 'updateProfile' && actionData.success && (
+              <div className="p-3 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+                {actionData.success}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button type="submit" className="btn-primary">
+                Save
+              </button>
+            </div>
           </Form>
-        </div>
 
-        {/* Change Password */}
-        <div className="p-6 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor">
-          <h2 className="text-lg font-semibold text-bolt-elements-textPrimary mb-4">Change Password</h2>
+          <hr style={{ borderColor: 'var(--border-subtle)', margin: '24px 0' }} />
 
-          {actionData?.intent === 'changePassword' && actionData.error && (
-            <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-              {actionData.error}
-            </div>
-          )}
-          {actionData?.intent === 'changePassword' && actionData.success && (
-            <div className="mb-4 p-3 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-              {actionData.success}
-            </div>
-          )}
+          {/* Password section */}
+          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
+            Password
+          </p>
 
           <Form method="post" className="flex flex-col gap-4">
             <input type="hidden" name="intent" value="changePassword" />
+
             <div>
-              <label htmlFor="currentPassword" className="block text-sm font-medium text-bolt-elements-textSecondary mb-1">
+              <label
+                htmlFor="currentPassword"
+                className="block text-sm font-medium"
+                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+              >
                 Current Password
               </label>
               <input
@@ -202,12 +241,17 @@ export default function ProfilePage() {
                 name="currentPassword"
                 type="password"
                 required
-                className="w-full px-3 py-2 rounded-md bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary focus:outline-none focus:ring-2 focus:ring-accent"
+                className="volt-input w-full"
                 placeholder="Enter current password"
               />
             </div>
+
             <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-bolt-elements-textSecondary mb-1">
+              <label
+                htmlFor="newPassword"
+                className="block text-sm font-medium"
+                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+              >
                 New Password
               </label>
               <input
@@ -216,12 +260,17 @@ export default function ProfilePage() {
                 type="password"
                 required
                 minLength={8}
-                className="w-full px-3 py-2 rounded-md bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary focus:outline-none focus:ring-2 focus:ring-accent"
+                className="volt-input w-full"
                 placeholder="At least 8 characters"
               />
             </div>
+
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-bolt-elements-textSecondary mb-1">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium"
+                style={{ color: 'var(--text-secondary)', marginBottom: 6 }}
+              >
                 Confirm New Password
               </label>
               <input
@@ -230,16 +279,27 @@ export default function ProfilePage() {
                 type="password"
                 required
                 minLength={8}
-                className="w-full px-3 py-2 rounded-md bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary focus:outline-none focus:ring-2 focus:ring-accent"
+                className="volt-input w-full"
                 placeholder="Repeat new password"
               />
             </div>
-            <button
-              type="submit"
-              className="w-full py-2 px-4 rounded-md bg-accent text-white font-medium hover:brightness-110 transition-all"
-            >
-              Change Password
-            </button>
+
+            {actionData?.intent === 'changePassword' && actionData.error && (
+              <div className="p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                {actionData.error}
+              </div>
+            )}
+            {actionData?.intent === 'changePassword' && actionData.success && (
+              <div className="p-3 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+                {actionData.success}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button type="submit" className="btn-primary">
+                Save
+              </button>
+            </div>
           </Form>
         </div>
       </div>

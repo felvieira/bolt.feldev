@@ -1,46 +1,69 @@
 import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
 import { classNames } from '~/utils/classNames';
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bolt-elements-borderColor disabled:pointer-events-none disabled:opacity-50',
-  {
-    variants: {
-      variant: {
-        default: 'bg-bolt-elements-background text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-2',
-        destructive: 'bg-red-500 text-white hover:bg-red-600',
-        outline:
-          'border border-bolt-elements-borderColor bg-transparent hover:bg-bolt-elements-background-depth-2 hover:text-bolt-elements-textPrimary text-bolt-elements-textPrimary dark:border-bolt-elements-borderColorActive',
-        secondary:
-          'bg-bolt-elements-background-depth-1 text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-2',
-        ghost: 'hover:bg-bolt-elements-background-depth-1 hover:text-bolt-elements-textPrimary',
-        link: 'text-bolt-elements-textPrimary underline-offset-4 hover:underline',
-      },
-      size: {
-        default: 'h-9 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-10 rounded-md px-8',
-        icon: 'h-9 w-9',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
-  },
-);
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'default' | 'destructive' | 'outline' | 'link';
+type Size = 'default' | 'sm' | 'lg' | 'icon';
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+const variantStyles: Record<string, string> = {
+  primary:     'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-transparent',
+  secondary:   'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
+  ghost:       'bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
+  danger:      'bg-transparent border-[rgba(239,68,68,0.3)] text-[var(--error)] hover:bg-[rgba(239,68,68,0.1)]',
+  // Legacy aliases for backwards compat
+  default:     'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
+  destructive: 'bg-transparent border-[rgba(239,68,68,0.3)] text-[var(--error)] hover:bg-[rgba(239,68,68,0.1)]',
+  outline:     'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
+  link:        'bg-transparent border-transparent text-[var(--text-secondary)] underline-offset-4 hover:underline',
+};
+
+const sizeStyles: Record<string, string> = {
+  default: 'h-9 px-4 py-2',
+  sm:      'h-8 px-3 text-xs',
+  lg:      'h-10 px-8',
+  icon:    'h-9 w-9 p-0',
+};
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+  size?: Size;
   _asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, _asChild = false, ...props }, ref) => {
-    return <button className={classNames(buttonVariants({ variant, size }), className)} ref={ref} {...props} />;
+  ({ variant = 'secondary', size = 'default', className, children, _asChild = false, ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        className={classNames(
+          'inline-flex items-center justify-center gap-2',
+          'text-sm font-medium border rounded-[var(--radius-sm)]',
+          'transition-all duration-150 cursor-pointer',
+          'disabled:opacity-40 disabled:cursor-not-allowed',
+          variantStyles[variant] ?? variantStyles['secondary'],
+          sizeStyles[size] ?? sizeStyles['default'],
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </button>
+    );
   },
 );
 Button.displayName = 'Button';
 
-export { Button, buttonVariants };
+// Keep buttonVariants export for any callers that import it
+export const buttonVariants = (opts?: { variant?: string; size?: string }) => {
+  const v = opts?.variant ?? 'secondary';
+  const s = opts?.size ?? 'default';
+  return classNames(
+    'inline-flex items-center justify-center gap-2',
+    'text-sm font-medium border rounded-[var(--radius-sm)]',
+    'transition-all duration-150 cursor-pointer',
+    'disabled:opacity-40 disabled:cursor-not-allowed',
+    variantStyles[v] ?? variantStyles['secondary'],
+    sizeStyles[s] ?? sizeStyles['default'],
+  );
+};
+
+export { Button };

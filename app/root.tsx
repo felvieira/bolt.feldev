@@ -27,7 +27,7 @@ const toastAnimation = cssTransition({
 export const links: LinksFunction = () => [
   {
     rel: 'icon',
-    href: '/favicon.svg',
+    href: '/volt-logo-mark.svg',
     type: 'image/svg+xml',
   },
   { rel: 'stylesheet', href: reactToastifyStyles },
@@ -45,22 +45,12 @@ export const links: LinksFunction = () => [
   },
   {
     rel: 'stylesheet',
-    href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+    href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap',
   },
 ];
 
 const inlineThemeCode = stripIndents`
-  setTutorialKitTheme();
-
-  function setTutorialKitTheme() {
-    let theme = localStorage.getItem('bolt_theme');
-
-    if (!theme) {
-      theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-
-    document.querySelector('html')?.setAttribute('data-theme', theme);
-  }
+  document.querySelector('html')?.setAttribute('data-theme', 'dark');
 `;
 
 export const id = 'root';
@@ -91,12 +81,6 @@ export const Head = createHead(() => (
 ));
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const theme = useStore(themeStore);
-
-  useEffect(() => {
-    document.querySelector('html')?.setAttribute('data-theme', theme);
-  }, [theme]);
-
   return (
     <>
       <ClientOnly>{() => <DndProvider backend={HTML5Backend}>{children}</DndProvider>}</ClientOnly>

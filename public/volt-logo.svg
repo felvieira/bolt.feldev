@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- V shape with integrated lightning bolt -->
+  <path d="M8 6L14.5 26L18 14H24L16 26L19 6" stroke="#FAFAFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Green accent dot — the energy spark -->
+  <circle cx="16" cy="28" r="2" fill="#10B981"/>
+</svg>

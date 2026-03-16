@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_github_github__get_file_contents",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(ssh:*)",
+      "Read(//c/Users/Administrador/.ssh/**)",
+      "Bash(which sshpass:*)",
+      "WebFetch(domain:opencode.ai)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:cefboud.com)"
+    ]
+  }
+}

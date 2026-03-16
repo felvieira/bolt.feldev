@@ -24,10 +24,10 @@ export const DialogButton = memo(({ type, children, onClick, disabled }: DialogB
       className={classNames(
         'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors',
         type === 'primary'
-          ? 'bg-purple-500 text-white hover:bg-purple-600 dark:bg-purple-500 dark:hover:bg-purple-600'
+          ? 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-transparent'
           : type === 'secondary'
-            ? 'bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
-            : 'bg-transparent text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10',
+            ? 'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]'
+            : 'bg-transparent border-[rgba(239,68,68,0.3)] text-[var(--error)] hover:bg-[rgba(239,68,68,0.1)]',
       )}
       onClick={onClick}
       disabled={disabled}
@@ -40,7 +40,7 @@ export const DialogButton = memo(({ type, children, onClick, disabled }: DialogB
 export const DialogTitle = memo(({ className, children, ...props }: RadixDialog.DialogTitleProps) => {
   return (
     <RadixDialog.Title
-      className={classNames('text-lg font-medium text-bolt-elements-textPrimary flex items-center gap-2', className)}
+      className={classNames('text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2', className)}
       {...props}
     >
       {children}
@@ -51,7 +51,7 @@ export const DialogTitle = memo(({ className, children, ...props }: RadixDialog.
 export const DialogDescription = memo(({ className, children, ...props }: RadixDialog.DialogDescriptionProps) => {
   return (
     <RadixDialog.Description
-      className={classNames('text-sm text-bolt-elements-textSecondary mt-1', className)}
+      className={classNames('text-sm text-[var(--text-secondary)] mt-1', className)}
       {...props}
     >
       {children}
@@ -105,7 +105,8 @@ export const Dialog = memo(({ children, className, showCloseButton = true, onClo
     <RadixDialog.Portal>
       <RadixDialog.Overlay asChild>
         <motion.div
-          className={classNames('fixed inset-0 z-[9999] bg-black/70 dark:bg-black/80 backdrop-blur-sm')}
+          className={classNames('fixed inset-0 z-[9999]')}
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
           initial="closed"
           animate="open"
           exit="closed"
@@ -116,7 +117,8 @@ export const Dialog = memo(({ children, className, showCloseButton = true, onClo
       <RadixDialog.Content asChild>
         <motion.div
           className={classNames(
-            'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-950 rounded-lg shadow-xl border border-bolt-elements-borderColor z-[9999] w-[520px] focus:outline-none',
+            'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-[520px] focus:outline-none',
+            'bg-[var(--surface-1)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)]',
             className,
           )}
           initial="closed"
@@ -208,7 +210,7 @@ export function ConfirmationDialog({
   return (
     <RadixDialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog showCloseButton={false}>
-        <div className="p-6 bg-white dark:bg-gray-950 relative z-10">
+        <div className="p-6 relative z-10">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="mb-4">{description}</DialogDescription>
           <div className="flex justify-end space-x-2">
@@ -382,7 +384,7 @@ export function SelectionDialog({
   return (
     <RadixDialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog showCloseButton={false}>
-        <div className="p-6 bg-white dark:bg-gray-950 relative z-10">
+        <div className="p-6 relative z-10">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="mt-2 mb-4">
             Select the items you want to include and click{' '}

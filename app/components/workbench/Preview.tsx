@@ -686,12 +686,46 @@ export const Preview = memo(({ setSelectedElement }: PreviewProps) => {
     }
   };
 
+  const previewURL = activePreview?.baseUrl ? displayPath : undefined;
+
   return (
-    <div ref={containerRef} className={`w-full h-full flex flex-col relative`}>
+    <div ref={containerRef} className={`w-full h-full flex flex-col relative`} style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
       {isPortDropdownOpen && (
         <div className="z-iframe-overlay w-full h-full absolute" onClick={() => setIsPortDropdownOpen(false)} />
       )}
-      <div className="bg-bolt-elements-background-depth-2 p-2 flex items-center gap-2">
+      {/* Browser chrome address bar */}
+      <div
+        style={{
+          height: '36px',
+          background: 'var(--surface-2)',
+          borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 12px',
+          gap: '8px',
+          flexShrink: 0,
+        }}
+      >
+        {/* Traffic light dots */}
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--surface-3)' }} />
+          ))}
+        </div>
+        {/* URL bar */}
+        <div
+          style={{
+            flex: 1,
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono, monospace)',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {previewURL || 'localhost:3000'}
+        </div>
+      </div>
+      <div className="p-2 flex items-center gap-2" style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="flex items-center gap-2">
           <IconButton icon="i-ph:arrow-clockwise" onClick={reloadPreview} />
           <IconButton

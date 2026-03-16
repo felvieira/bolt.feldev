@@ -33,47 +33,56 @@ export function WelcomeModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-      <div className="w-full max-w-md mx-4 p-6 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor shadow-xl">
-        <h2 className="text-2xl font-bold text-bolt-elements-textPrimary mb-3">
-          Welcome to Bolt! {'\u{1F680}'}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}>
+      <div className="volt-card w-full mx-4" style={{ maxWidth: 420, padding: 32 }}>
+        {/* Volt icon */}
+        <div className="flex justify-center mb-4">
+          <img
+            src="/volt-logo.svg"
+            alt="Volt"
+            style={{ width: 48, height: 48, filter: 'brightness(0) invert(1)' }}
+          />
+        </div>
+
+        <h2 className="text-lg font-semibold text-center mb-2" style={{ color: 'var(--text-primary)' }}>
+          Welcome to Volt
         </h2>
-        <p className="text-sm text-bolt-elements-textSecondary mb-4">
+        <p className="text-sm text-center mb-6" style={{ color: 'var(--text-secondary)' }}>
           AI-powered app builder. Describe what you want and watch it come to life.
         </p>
 
-        <ul className="space-y-2 mb-6 text-sm text-bolt-elements-textSecondary">
-          <li className="flex items-start gap-2">
-            <div className="i-ph:lightbulb text-accent mt-0.5 shrink-0" />
-            <span>Describe your app in 2-3 sentences for best results</span>
+        <ul className="space-y-3 mb-6">
+          <li className="flex items-start gap-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <span style={{ color: 'var(--accent)' }}>●</span>
+            <span>Describe your app — Volt builds it</span>
           </li>
-          <li className="flex items-start gap-2">
-            <div className="i-ph:eye text-accent mt-0.5 shrink-0" />
-            <span>Use Plan mode to preview changes before building</span>
+          <li className="flex items-start gap-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <span style={{ color: 'var(--accent)' }}>●</span>
+            <span>Edit code live, preview instantly</span>
           </li>
-          <li className="flex items-start gap-2">
-            <div className="i-ph:gear text-accent mt-0.5 shrink-0" />
-            <span>Set Project Rules to customize AI behavior</span>
+          <li className="flex items-start gap-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <span style={{ color: 'var(--accent)' }}>●</span>
+            <span>Deploy with one click</span>
           </li>
         </ul>
 
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-xs text-bolt-elements-textTertiary cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={dontShow}
-              onChange={(e) => setDontShow(e.target.checked)}
-              className="rounded border-bolt-elements-borderColor"
-            />
-            Don&apos;t show again
-          </label>
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 rounded-md bg-accent text-white text-sm font-medium hover:brightness-110 transition-all"
-          >
-            Get Started
-          </button>
-        </div>
+        <button onClick={handleClose} className="btn-primary w-full mb-4">
+          Get Started
+        </button>
+
+        <label
+          className="flex items-center justify-center gap-2 text-xs cursor-pointer select-none"
+          style={{ color: 'var(--text-tertiary)' }}
+        >
+          <input
+            type="checkbox"
+            checked={dontShow}
+            onChange={(e) => setDontShow(e.target.checked)}
+            className="rounded"
+            style={{ borderColor: 'var(--border-subtle)' }}
+          />
+          Don&apos;t show again
+        </label>
       </div>
     </div>
   );

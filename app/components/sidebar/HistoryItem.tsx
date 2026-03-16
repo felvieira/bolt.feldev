@@ -67,11 +67,26 @@ export function HistoryItem({
 
   return (
     <div
-      className={classNames(
-        'group rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-gray-800/30 overflow-hidden flex justify-between items-center px-3 py-2 transition-colors',
-        { 'text-gray-900 dark:text-white bg-gray-50/80 dark:bg-gray-800/30': isActiveChat },
-        { 'cursor-pointer': selectionMode },
-      )}
+      className={classNames('group text-sm overflow-hidden flex justify-between items-center transition-colors', {
+        'cursor-pointer': selectionMode,
+      })}
+      style={{
+        padding: '8px 12px',
+        borderRadius: 'var(--radius-sm)',
+        color: isActiveChat ? 'var(--text-primary)' : 'var(--text-secondary)',
+        background: isActiveChat ? 'var(--surface-2)' : 'transparent',
+        borderLeft: isActiveChat ? '2px solid var(--accent)' : '2px solid transparent',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActiveChat) {
+          (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActiveChat) {
+          (e.currentTarget as HTMLElement).style.background = 'transparent';
+        }
+      }}
       onClick={selectionMode ? handleItemClick : undefined}
     >
       {selectionMode && (
@@ -89,7 +104,13 @@ export function HistoryItem({
         <form onSubmit={handleSubmit} className="flex-1 flex items-center gap-2">
           <input
             type="text"
-            className="flex-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-md px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+            className="flex-1 px-3 py-1.5 text-sm focus:outline-none focus:ring-1"
+            style={{
+              background: 'var(--surface-2)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+            }}
             autoFocus
             value={currentDescription}
             onChange={handleChange}
@@ -116,7 +137,10 @@ export function HistoryItem({
               'absolute right-0 top-0 bottom-0 flex items-center bg-transparent px-2 transition-colors',
             )}
           >
-            <div className="flex items-center gap-2.5 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+              className="flex items-center gap-2.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
               <ChatActionButton
                 toolTipContent="Export"
                 icon="i-ph:download-simple h-4 w-4"
@@ -178,7 +202,10 @@ const ChatActionButton = forwardRef(
         <button
           ref={ref}
           type="button"
-          className={`text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400 transition-colors ${icon} ${className ? className : ''}`}
+          className={`transition-colors ${icon} ${className ? className : ''}`}
+          style={{ color: 'var(--text-tertiary)' }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)')}
           onClick={onClick}
         />
       </WithTooltip>

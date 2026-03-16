@@ -99,12 +99,20 @@ const COLOR_PRIMITIVES = {
 
 export default defineConfig({
   safelist: [...Object.keys(customIconCollection[collectionName] || {}).map((x) => `i-bolt:${x}`)],
-  shortcuts: {
-    'bolt-ease-cubic-bezier': 'ease-[cubic-bezier(0.4,0,0.2,1)]',
-    'transition-theme': 'transition-[background-color,border-color,color] duration-150 bolt-ease-cubic-bezier',
-    kdb: 'bg-bolt-elements-code-background text-bolt-elements-code-text py-1 px-1.5 rounded-md',
-    'max-w-chat': 'max-w-[var(--chat-max-width)]',
-  },
+  shortcuts: [
+    {
+      'bolt-ease-cubic-bezier': 'ease-[cubic-bezier(0.4,0,0.2,1)]',
+      'transition-theme': 'transition-[background-color,border-color,color] duration-150 bolt-ease-cubic-bezier',
+      kdb: 'bg-bolt-elements-code-background text-bolt-elements-code-text py-1 px-1.5 rounded-md',
+      'max-w-chat': 'max-w-[var(--chat-max-width)]',
+    },
+    ['btn-primary', 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-[var(--radius-sm)] transition-all duration-150 border-0 cursor-pointer disabled:opacity-40'],
+    ['btn-secondary', 'bg-transparent border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium px-3 py-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--surface-2)] transition-all duration-150 cursor-pointer disabled:opacity-40'],
+    ['btn-ghost', 'bg-transparent text-[var(--text-secondary)] text-sm font-medium px-3 py-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--surface-2)] transition-all duration-150 cursor-pointer disabled:opacity-40 border-0'],
+    ['volt-input', 'bg-[var(--surface-2)] border border-[var(--border-default)] focus:border-[var(--border-active)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] rounded-[var(--radius-md)] px-3 py-2 text-sm outline-none transition-all duration-150 w-full'],
+    ['volt-card', 'bg-[var(--surface-1)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]'],
+    ['volt-surface', 'bg-[var(--surface-1)] border border-[var(--border-subtle)]'],
+  ],
   rules: [
     /**
      * This shorthand doesn't exist in Tailwind and we overwrite it to avoid
@@ -113,6 +121,10 @@ export default defineConfig({
     ['b', {}],
   ],
   theme: {
+    fontFamily: {
+      sans: ['Geist', '-apple-system', 'system-ui', 'sans-serif'],
+      mono: ['Geist Mono', 'SF Mono', 'Fira Code', 'monospace'],
+    },
     colors: {
       ...COLOR_PRIMITIVES,
       bolt: {
