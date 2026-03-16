@@ -77,14 +77,6 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
       )}
       style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}
     >
-
-        /*
-         * {
-         *   'sticky bottom-2': chatStarted,
-         * },
-         */
-      )}
-    >
       <svg className={classNames(styles.PromptEffectContainer)}>
         <defs>
           <linearGradient
