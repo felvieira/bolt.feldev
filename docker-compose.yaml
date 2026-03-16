@@ -30,10 +30,12 @@ services:
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
       - CODEX_PROXY_URL=http://codex-proxy:3100
+      - AUTH_SERVICE_URL=http://auth-service:3200
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:
       - codex-proxy
+      - auth-service
     command: pnpm run dockerstart
     profiles:
       - production
@@ -70,10 +72,12 @@ services:
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
       - CODEX_PROXY_URL=http://codex-proxy:3100
+      - AUTH_SERVICE_URL=http://auth-service:3200
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:
       - codex-proxy
+      - auth-service
     volumes:
       - type: bind
         source: .
@@ -114,3 +118,35 @@ services:
       - CODEX_PROXY_PORT=3100
     restart: unless-stopped
     profiles: ['production', 'development', 'default']
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bolt_auth
+      POSTGRES_USER: bolt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bolt_secret_change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    profiles: ['production', 'development', 'default']
+
+  auth-service:
+    image: bolt-auth-service:latest
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://bolt:${POSTGRES_PASSWORD:-bolt_secret_change_me}@postgres:5432/bolt_auth
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      PORT: '3200'
+    ports:
+      - '3200:3200'
+    profiles: ['production', 'development', 'default']
+
+volumes:
+  postgres_data:
