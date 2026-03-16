@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import * as jose from 'jose';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
+import crypto from 'crypto';
 import { readFileSync } from 'fs';
 
 const app = express();
@@ -14,6 +15,40 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'change-me-in-production');
 const JWT_ISSUER = 'bolt-auth';
 const JWT_EXPIRY = '7d';
+
+// Encryption helpers for secrets
+const ENCRYPTION_KEY = process.env.SECRETS_ENCRYPTION_KEY || process.env.JWT_SECRET || 'change-me-in-production';
+
+function encrypt(text) {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32), iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+function decrypt(text) {
+  const [ivHex, encrypted] = text.split(':');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32), Buffer.from(ivHex, 'hex'));
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
+// Auth helpers
+async function authenticateRequest(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  try {
+    const { payload } = await jose.jwtVerify(authHeader.split(' ')[1], JWT_SECRET, { issuer: JWT_ISSUER });
+    return payload;
+  } catch { return null; }
+}
+
+async function verifyProjectOwnership(projectId, userId) {
+  const result = await pool.query('SELECT id FROM projects WHERE id = $1 AND user_id = $2', [projectId, userId]);
+  return result.rows.length > 0;
+}
 
 // Auto-run schema on startup
 async function initDB() {
@@ -261,6 +296,330 @@ app.post('/auth/change-password', async (req, res) => {
     }
 
     console.error('[auth] Change password error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// ─── Project CRUD ───
+
+// POST /projects — create project
+app.post('/projects', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    const { name, description, visibility, chatId } = req.body;
+    if (!name?.trim()) {
+      return res.status(400).json({ error: { message: 'Project name is required', type: 'validation' } });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO projects (user_id, name, description, visibility, chat_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, user_id, name, description, visibility, share_slug, chat_id, created_at, updated_at`,
+      [payload.userId, name.trim(), description || null, visibility || 'private', chatId || null],
+    );
+
+    res.status(201).json({ project: result.rows[0] });
+  } catch (err) {
+    console.error('[auth] Create project error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// GET /projects — list user's projects
+app.get('/projects', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    const result = await pool.query(
+      `SELECT p.*, ph.provider AS hosting_provider, ph.deploy_status, ph.domain
+       FROM projects p
+       LEFT JOIN project_hosting ph ON ph.project_id = p.id
+       WHERE p.user_id = $1
+       ORDER BY p.updated_at DESC`,
+      [payload.userId],
+    );
+
+    res.json({ projects: result.rows });
+  } catch (err) {
+    console.error('[auth] List projects error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// GET /projects/:id — get single project
+app.get('/projects/:id', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    const result = await pool.query(
+      `SELECT p.*,
+              ph.provider AS hosting_provider, ph.deploy_status, ph.domain,
+              ph.netlify_site_id, ph.vercel_project_id, ph.self_container_id, ph.last_deploy_at,
+              pd.provider AS db_provider, pd.supabase_url, pd.local_db_name
+       FROM projects p
+       LEFT JOIN project_hosting ph ON ph.project_id = p.id
+       LEFT JOIN project_databases pd ON pd.project_id = p.id
+       WHERE p.id = $1 AND p.user_id = $2`,
+      [req.params.id, payload.userId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    res.json({ project: result.rows[0] });
+  } catch (err) {
+    console.error('[auth] Get project error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// PATCH /projects/:id — update project
+app.patch('/projects/:id', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    if (!(await verifyProjectOwnership(req.params.id, payload.userId))) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    const { name, description, visibility } = req.body;
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (name !== undefined) { fields.push(`name = $${idx++}`); values.push(name.trim()); }
+    if (description !== undefined) { fields.push(`description = $${idx++}`); values.push(description); }
+    if (visibility !== undefined) { fields.push(`visibility = $${idx++}`); values.push(visibility); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: { message: 'No fields to update', type: 'validation' } });
+    }
+
+    fields.push(`updated_at = NOW()`);
+    values.push(req.params.id);
+
+    const result = await pool.query(
+      `UPDATE projects SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values,
+    );
+
+    res.json({ project: result.rows[0] });
+  } catch (err) {
+    console.error('[auth] Update project error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// DELETE /projects/:id
+app.delete('/projects/:id', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    const result = await pool.query(
+      'DELETE FROM projects WHERE id = $1 AND user_id = $2 RETURNING id',
+      [req.params.id, payload.userId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    res.json({ message: 'Project deleted' });
+  } catch (err) {
+    console.error('[auth] Delete project error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// ─── Secrets ───
+
+// GET /projects/:id/secrets — list keys only
+app.get('/projects/:id/secrets', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    if (!(await verifyProjectOwnership(req.params.id, payload.userId))) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    const result = await pool.query(
+      'SELECT id, key, created_at FROM project_secrets WHERE project_id = $1 ORDER BY key',
+      [req.params.id],
+    );
+
+    res.json({ secrets: result.rows });
+  } catch (err) {
+    console.error('[auth] List secrets error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// PUT /projects/:id/secrets — create/update secret
+app.put('/projects/:id/secrets', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    if (!(await verifyProjectOwnership(req.params.id, payload.userId))) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    const { key, value } = req.body;
+    if (!key?.trim() || value === undefined) {
+      return res.status(400).json({ error: { message: 'Key and value are required', type: 'validation' } });
+    }
+
+    const encrypted = encrypt(value);
+    const result = await pool.query(
+      `INSERT INTO project_secrets (project_id, key, value_encrypted)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (project_id, key) DO UPDATE SET value_encrypted = $3, created_at = NOW()
+       RETURNING id, key, created_at`,
+      [req.params.id, key.trim(), encrypted],
+    );
+
+    res.json({ secret: result.rows[0] });
+  } catch (err) {
+    console.error('[auth] Upsert secret error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// DELETE /projects/:id/secrets/:key
+app.delete('/projects/:id/secrets/:key', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    if (!(await verifyProjectOwnership(req.params.id, payload.userId))) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM project_secrets WHERE project_id = $1 AND key = $2 RETURNING id',
+      [req.params.id, req.params.key],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: { message: 'Secret not found', type: 'not_found' } });
+    }
+
+    res.json({ message: 'Secret deleted' });
+  } catch (err) {
+    console.error('[auth] Delete secret error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// ─── Hosting ───
+
+// PUT /projects/:id/hosting — configure hosting provider
+app.put('/projects/:id/hosting', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    if (!(await verifyProjectOwnership(req.params.id, payload.userId))) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    const { provider, domain, netlifySiteId, vercelProjectId, selfContainerId } = req.body;
+    if (!provider) {
+      return res.status(400).json({ error: { message: 'Provider is required', type: 'validation' } });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO project_hosting (project_id, provider, domain, netlify_site_id, vercel_project_id, self_container_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (project_id) DO UPDATE SET
+         provider = $2, domain = $3, netlify_site_id = $4, vercel_project_id = $5, self_container_id = $6
+       RETURNING *`,
+      [req.params.id, provider, domain || null, netlifySiteId || null, vercelProjectId || null, selfContainerId || null],
+    );
+
+    res.json({ hosting: result.rows[0] });
+  } catch (err) {
+    console.error('[auth] Upsert hosting error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// ─── Database Config ───
+
+// PUT /projects/:id/database — configure database provider
+app.put('/projects/:id/database', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    if (!(await verifyProjectOwnership(req.params.id, payload.userId))) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    const { provider, supabaseUrl, supabaseAnonKey, localDbName, connectionString } = req.body;
+    if (!provider) {
+      return res.status(400).json({ error: { message: 'Provider is required', type: 'validation' } });
+    }
+
+    const encryptedConn = connectionString ? encrypt(connectionString) : null;
+
+    const result = await pool.query(
+      `INSERT INTO project_databases (project_id, provider, supabase_url, supabase_anon_key, local_db_name, connection_string_encrypted)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (project_id) DO UPDATE SET
+         provider = $2, supabase_url = $3, supabase_anon_key = $4, local_db_name = $5, connection_string_encrypted = $6
+       RETURNING project_id, provider, supabase_url, local_db_name, created_at`,
+      [req.params.id, provider, supabaseUrl || null, supabaseAnonKey || null, localDbName || null, encryptedConn],
+    );
+
+    res.json({ database: result.rows[0] });
+  } catch (err) {
+    console.error('[auth] Upsert database config error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
+  }
+});
+
+// POST /projects/:id/database/provision — create local PostgreSQL database
+app.post('/projects/:id/database/provision', async (req, res) => {
+  try {
+    const payload = await authenticateRequest(req);
+    if (!payload) return res.status(401).json({ error: { message: 'No token provided', type: 'auth' } });
+
+    if (!(await verifyProjectOwnership(req.params.id, payload.userId))) {
+      return res.status(404).json({ error: { message: 'Project not found', type: 'not_found' } });
+    }
+
+    const dbName = `project_${req.params.id.replace(/-/g, '_')}`;
+
+    // Create the database (ignore if already exists)
+    try {
+      await pool.query(`CREATE DATABASE "${dbName}"`);
+    } catch (dbErr) {
+      if (dbErr.code !== '42P04') throw dbErr; // 42P04 = duplicate_database
+    }
+
+    const connectionString = `postgresql://${process.env.PGUSER || 'postgres'}:${process.env.PGPASSWORD || ''}@${process.env.PGHOST || 'localhost'}:${process.env.PGPORT || '5432'}/${dbName}`;
+    const encryptedConn = encrypt(connectionString);
+
+    await pool.query(
+      `INSERT INTO project_databases (project_id, provider, local_db_name, connection_string_encrypted)
+       VALUES ($1, 'local', $2, $3)
+       ON CONFLICT (project_id) DO UPDATE SET
+         provider = 'local', local_db_name = $2, connection_string_encrypted = $3`,
+      [req.params.id, dbName, encryptedConn],
+    );
+
+    res.status(201).json({ database: { provider: 'local', localDbName: dbName, message: 'Database provisioned' } });
+  } catch (err) {
+    console.error('[auth] Provision database error:', err);
     res.status(500).json({ error: { message: 'Internal server error', type: 'server' } });
   }
 });
