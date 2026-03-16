@@ -709,6 +709,7 @@ export const ModelSelector = ({
                 </button>
               </div>
             ) : (
+            <>
             <div className="px-2 pb-2 space-y-2">
               {/* Free Models Filter Toggle - Only show for OpenRouter */}
               {provider?.name === 'OpenRouter' && (
@@ -895,6 +896,7 @@ export const ModelSelector = ({
                 ))
               )}
             </div>
+            </>
             )}
           </div>
         )}

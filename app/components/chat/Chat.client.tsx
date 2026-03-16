@@ -28,6 +28,7 @@ import type { ElementInfo } from '~/components/workbench/Inspector';
 import type { TextUIPart, FileUIPart, Attachment } from '@ai-sdk/ui-utils';
 import { useMCPStore } from '~/lib/stores/mcp';
 import type { LlmErrorAlertType } from '~/types/actions';
+import { codexAuthenticated, codexLoginDialogOpen } from '~/lib/stores/codex-auth';
 
 const logger = createScopedLogger('Chat');
 
@@ -405,6 +406,13 @@ export const ChatImpl = memo(
       const messageContent = messageInput || input;
 
       if (!messageContent?.trim()) {
+        return;
+      }
+
+      // Block sending if ChatGPT provider is selected but Codex is not authenticated
+      if (provider?.name === 'ChatGPT' && !codexAuthenticated.get()) {
+        toast.error('Faça login com sua conta ChatGPT primeiro');
+        codexLoginDialogOpen.set(true);
         return;
       }
 
