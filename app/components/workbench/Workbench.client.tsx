@@ -29,6 +29,7 @@ import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportCh
 import { useChatHistory } from '~/lib/persistence';
 import { streamingState } from '~/lib/stores/streaming';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { versionCheckpoints, type VersionCheckpoint } from '~/lib/stores/versionHistory';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -293,6 +294,8 @@ export const Workbench = memo(
     renderLogger.trace('Workbench');
 
     const [fileHistory, setFileHistory] = useState<Record<string, FileHistory>>({});
+    const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+    const checkpoints = useStore(versionCheckpoints);
 
     // const modifiedFiles = Array.from(useStore(workbenchStore.unsavedFiles).keys());
 
@@ -359,6 +362,20 @@ export const Workbench = memo(
       workbenchStore.currentView.set('diff');
     }, []);
 
+    const handleRestoreCheckpoint = useCallback(async (checkpoint: VersionCheckpoint) => {
+      const filePaths = Object.keys(checkpoint.files);
+
+      for (const filePath of filePaths) {
+        const content = checkpoint.files[filePath];
+        workbenchStore.setSelectedFile(filePath);
+        workbenchStore.setCurrentDocumentContent(content);
+        await workbenchStore.saveFile(filePath);
+      }
+
+      setShowHistoryPanel(false);
+      toast.success(`Restored to ${checkpoint.label}`);
+    }, []);
+
     const handleSyncFiles = useCallback(async () => {
       setIsSyncing(true);
 
@@ -409,6 +426,67 @@ export const Workbench = memo(
                   <div className="ml-auto" />
                   {selectedView === 'code' && (
                     <div className="flex overflow-y-auto">
+                      {/* Version History Button */}
+                      <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden mr-1 relative">
+                        <button
+                          onClick={() => setShowHistoryPanel((v) => !v)}
+                          title="Version History"
+                          className="rounded-md items-center justify-center px-2 py-1.5 text-xs bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary flex gap-1"
+                        >
+                          <div className="i-ph:clock-counter-clockwise text-base" />
+                          {checkpoints.length > 0 && (
+                            <span className="text-xs">{checkpoints.length}</span>
+                          )}
+                        </button>
+                        {showHistoryPanel && (
+                          <div className="absolute top-full right-0 z-50 mt-1 w-72 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-lg shadow-xl">
+                            <div className="flex items-center justify-between px-3 py-2 border-b border-bolt-elements-borderColor">
+                              <span className="text-sm font-medium text-bolt-elements-textPrimary">Version History</span>
+                              <button
+                                onClick={() => setShowHistoryPanel(false)}
+                                className="text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary"
+                              >
+                                <div className="i-ph:x text-sm" />
+                              </button>
+                            </div>
+                            {checkpoints.length === 0 ? (
+                              <div className="px-3 py-4 text-center text-sm text-bolt-elements-textTertiary">
+                                No checkpoints yet. Checkpoints are saved automatically after AI writes files.
+                              </div>
+                            ) : (
+                              <div className="max-h-64 overflow-y-auto">
+                                {checkpoints.map((cp, index) => {
+                                  const date = new Date(cp.timestamp);
+                                  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                                  return (
+                                    <div
+                                      key={cp.id}
+                                      className="flex items-center justify-between px-3 py-2 hover:bg-bolt-elements-background-depth-3 border-b border-bolt-elements-borderColor last:border-b-0"
+                                    >
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-medium text-bolt-elements-textPrimary">
+                                          {index === 0 ? 'latest' : cp.label} — {timeStr}
+                                        </span>
+                                        <span className="text-xs text-bolt-elements-textTertiary">
+                                          {cp.fileCount} file{cp.fileCount !== 1 ? 's' : ''}
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={() => handleRestoreCheckpoint(cp)}
+                                        className="ml-2 px-2 py-1 text-xs rounded bg-bolt-elements-button-primary-background text-white hover:bg-bolt-elements-button-primary-backgroundHover shrink-0"
+                                      >
+                                        Restore
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       {/* Export Chat Button */}
                       <ExportChatButton exportChat={exportChat} messages={messages} />
 

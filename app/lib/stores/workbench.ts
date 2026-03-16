@@ -18,6 +18,7 @@ import { description } from '~/lib/persistence';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
 import type { ActionAlert, DeployAlert, SupabaseAlert } from '~/types/actions';
+import { createCheckpoint } from './versionHistory';
 
 const { saveAs } = fileSaver;
 
@@ -596,10 +597,33 @@ export class WorkbenchStore {
       if (!isStreaming) {
         await artifact.runner.runAction(data);
         this.resetAllFileModifications();
+        this.#scheduleCheckpoint();
       }
     } else {
       await artifact.runner.runAction(data);
     }
+  }
+
+  #checkpointTimer: ReturnType<typeof setTimeout> | null = null;
+
+  #scheduleCheckpoint() {
+    if (this.#checkpointTimer) {
+      clearTimeout(this.#checkpointTimer);
+    }
+
+    this.#checkpointTimer = setTimeout(() => {
+      this.#checkpointTimer = null;
+      const filesMap = this.files.get();
+      const snapshot: Record<string, string> = {};
+
+      for (const [filePath, dirent] of Object.entries(filesMap)) {
+        if (dirent?.type === 'file' && !dirent.isBinary && typeof dirent.content === 'string') {
+          snapshot[filePath] = dirent.content;
+        }
+      }
+
+      createCheckpoint(snapshot);
+    }, 1500);
   }
 
   actionStreamSampler = createSampler(async (data: ActionCallbackData, isStreaming: boolean = false) => {

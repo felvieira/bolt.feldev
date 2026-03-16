@@ -2,7 +2,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 
 interface LLMComplexityBadgeProps {
   input: string;
-  chatMode?: 'discuss' | 'build';
+  chatMode?: 'discuss' | 'build' | 'plan';
 }
 
 type ComplexityLevel = 'fast' | 'balanced' | 'advanced';
@@ -27,8 +27,8 @@ const COMPLEXITY_CONFIG: Record<ComplexityLevel, { icon: string; label: string; 
 
 const ADVANCED_KEYWORDS = /\b(refactor|architecture|redesign|complex|rewrite|migrate|optimize|scaffold)\b/i;
 
-function detectComplexity(input: string, chatMode?: 'discuss' | 'build'): ComplexityLevel {
-  if (chatMode === 'discuss') {
+function detectComplexity(input: string, chatMode?: 'discuss' | 'build' | 'plan'): ComplexityLevel {
+  if (chatMode === 'discuss' || chatMode === 'plan') {
     return 'fast';
   }
 

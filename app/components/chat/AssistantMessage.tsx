@@ -25,8 +25,8 @@ interface AssistantMessageProps {
   onRewind?: (messageId: string) => void;
   onFork?: (messageId: string) => void;
   append?: (message: Message) => void;
-  chatMode?: 'discuss' | 'build';
-  setChatMode?: (mode: 'discuss' | 'build') => void;
+  chatMode?: 'discuss' | 'build' | 'plan';
+  setChatMode?: (mode: 'discuss' | 'build' | 'plan') => void;
   model?: string;
   provider?: ProviderInfo;
   parts:
