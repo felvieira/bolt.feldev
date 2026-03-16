@@ -8,7 +8,8 @@
       "Bash(which sshpass:*)",
       "WebFetch(domain:opencode.ai)",
       "WebFetch(domain:deepwiki.com)",
-      "WebFetch(domain:cefboud.com)"
+      "WebFetch(domain:cefboud.com)",
+      "Bash(cd:*)"
     ]
   }
 }
