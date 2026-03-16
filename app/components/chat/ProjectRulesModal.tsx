@@ -59,7 +59,7 @@ export function ProjectRulesButton() {
             </Dialog.Close>
             <button
               onClick={handleSave}
-              className="px-4 py-2 text-sm rounded-lg bg-accent-500 text-white hover:bg-accent-600 transition-colors"
+              className="px-4 py-2 text-sm rounded-lg bg-[var(--surface-2)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)] transition-colors"
             >
               {saved ? 'Saved!' : 'Save Rules'}
             </button>

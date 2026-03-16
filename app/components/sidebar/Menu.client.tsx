@@ -14,6 +14,7 @@ import { classNames } from '~/utils/classNames';
 import { useStore } from '@nanostores/react';
 import { useRouteLoaderData } from '@remix-run/react';
 import { profileStore } from '~/lib/stores/profile';
+import { sidebarOpen } from '~/lib/stores/sidebar';
 import type { AuthUser } from '~/lib/auth.server';
 
 const menuVariants = {
@@ -71,7 +72,8 @@ export const Menu = () => {
   const { duplicateCurrentChat, exportChat } = useChatHistory();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
-  const [open, setOpen] = useState(false);
+  const open = useStore(sidebarOpen);
+  const setOpen = (v: boolean) => sidebarOpen.set(v);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const profile = useStore(profileStore);

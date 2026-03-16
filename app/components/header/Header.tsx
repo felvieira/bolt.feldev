@@ -8,6 +8,7 @@ import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 import { UserMenu } from './UserMenu';
 import { chatId as chatIdStore } from '~/lib/persistence/useChatHistory';
 import { projectsStore, fetchProjects, createProject } from '~/lib/stores/projects';
+import { sidebarOpen } from '~/lib/stores/sidebar';
 import { ProjectSettingsModal } from '~/components/projects/ProjectSettingsModal';
 
 export function Header() {
@@ -77,6 +78,7 @@ export function Header() {
               (e.currentTarget as HTMLElement).style.background = 'transparent';
             }}
             aria-label="Toggle sidebar"
+            onClick={() => sidebarOpen.set(!sidebarOpen.get())}
           >
             <div className="i-ph:sidebar-simple text-base" />
           </button>
