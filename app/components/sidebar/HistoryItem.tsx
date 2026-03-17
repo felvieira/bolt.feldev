@@ -67,7 +67,7 @@ export function HistoryItem({
 
   return (
     <div
-      className={classNames('group text-sm overflow-hidden flex justify-between items-center transition-colors', {
+      className={classNames('group text-sm overflow-hidden flex justify-between items-center transition-colors hover:bg-[var(--surface-2)]', {
         'cursor-pointer': selectionMode,
       })}
       style={{
@@ -77,16 +77,6 @@ export function HistoryItem({
         background: isActiveChat ? 'var(--surface-2)' : 'transparent',
         borderLeft: isActiveChat ? '2px solid var(--accent)' : '2px solid transparent',
         fontSize: '13px',
-      }}
-      onMouseEnter={(e) => {
-        if (!isActiveChat) {
-          (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isActiveChat) {
-          (e.currentTarget as HTMLElement).style.background = 'transparent';
-        }
       }}
       onClick={selectionMode ? handleItemClick : undefined}
     >
@@ -203,10 +193,7 @@ const ChatActionButton = forwardRef(
         <button
           ref={ref}
           type="button"
-          className={`transition-colors ${icon} ${className ? className : ''}`}
-          style={{ color: 'var(--text-tertiary)' }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)')}
+          className={`transition-colors duration-150 ${icon} ${className ? className : ''} text-[var(--text-tertiary)] hover:text-[var(--accent)]`}
           onClick={onClick}
         />
       </WithTooltip>

@@ -67,16 +67,7 @@ export function Header() {
         {/* Sidebar toggle + Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <button
-            className="flex items-center justify-center w-7 h-7 rounded-[var(--radius-sm)] transition-colors duration-150"
-            style={{ color: 'var(--text-tertiary)' }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-              (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)';
-              (e.currentTarget as HTMLElement).style.background = 'transparent';
-            }}
+            className="flex items-center justify-center w-7 h-7 rounded-[var(--radius-sm)] transition-colors duration-150 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
             aria-label="Toggle sidebar"
             onClick={() => sidebarOpen.set(!sidebarOpen.get())}
           >
@@ -91,16 +82,7 @@ export function Header() {
           </a>
           <a
             href="/projects"
-            className="ml-2 px-2 py-1 text-xs font-medium rounded-md transition-colors duration-150"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
-              (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-              (e.currentTarget as HTMLElement).style.background = 'transparent';
-            }}
+            className="ml-2 px-2 py-1 text-xs font-medium rounded-md transition-colors duration-150 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]"
           >
             Projects
           </a>
@@ -124,16 +106,7 @@ export function Header() {
                 linkedProjectId ? (
                   <button
                     onClick={() => setShowProjectSettings(true)}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors duration-150"
-                    style={{ color: 'var(--text-tertiary)' }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-                      (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)';
-                      (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors duration-150 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
                     aria-label="Project settings"
                     title="Project settings"
                   >
@@ -143,21 +116,10 @@ export function Header() {
                   <button
                     onClick={handleConvertToProject}
                     disabled={converting}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 text-[var(--text-primary)] hover:bg-[var(--surface-2)] hover:border-[var(--border-active)]"
                     style={{
-                      color: 'var(--text-primary)',
                       border: '1px solid var(--border-default)',
                       background: 'var(--surface-1)',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
-                      (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-                      (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-active)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
-                      (e.currentTarget as HTMLElement).style.background = 'var(--surface-1)';
-                      (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
                     }}
                     aria-label="Convert to project"
                     title="Convert this chat to a project"

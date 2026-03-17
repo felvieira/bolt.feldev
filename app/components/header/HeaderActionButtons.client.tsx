@@ -7,10 +7,6 @@ interface HeaderActionButtonsProps {
   chatStarted: boolean;
 }
 
-const ghostButtonStyle: React.CSSProperties = {
-  color: 'var(--text-tertiary)',
-};
-
 function GhostIconButton({
   onClick,
   title,
@@ -26,16 +22,7 @@ function GhostIconButton({
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center w-7 h-7 rounded-[var(--radius-sm)] transition-colors duration-150 gap-1.5 text-sm"
-      style={ghostButtonStyle}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-        (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)';
-        (e.currentTarget as HTMLElement).style.background = 'transparent';
-      }}
+      className="flex items-center justify-center w-7 h-7 rounded-[var(--radius-sm)] transition-colors duration-150 gap-1.5 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
       aria-label={title}
     >
       <div className={`${icon} text-base`} />

@@ -63,20 +63,14 @@ export function UserMenu() {
             <Link
               to="/profile"
               onClick={() => setOpen(false)}
-              className="block w-full text-left px-3 py-2 text-sm rounded-md transition-colors"
-              style={{ color: 'var(--text-primary)' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              className="block w-full text-left px-3 py-2 text-sm rounded-md transition-colors text-[var(--text-primary)] hover:bg-[var(--surface-2)]"
             >
               Profile
             </Link>
             <Form method="post" action="/logout">
               <button
                 type="submit"
-                className="w-full text-left px-3 py-2 text-sm rounded-md transition-colors"
-                style={{ color: 'var(--text-primary)' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                className="w-full text-left px-3 py-2 text-sm rounded-md transition-colors text-[var(--text-primary)] hover:bg-[var(--surface-2)]"
               >
                 Logout
               </button>

@@ -255,16 +255,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
                   <button
                     onClick={handleClose}
-                    className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent transition-all duration-200"
-                    style={{ color: 'var(--text-tertiary)' }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--surface-2)';
-                      e.currentTarget.style.color = 'var(--text-primary)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-tertiary)';
-                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent transition-all duration-200 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]"
                   >
                     <div className="i-ph:x w-4 h-4" />
                   </button>

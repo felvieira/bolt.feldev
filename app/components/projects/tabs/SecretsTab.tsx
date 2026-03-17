@@ -127,14 +127,7 @@ export const SecretsTab = ({ projectId }: SecretsTabProps) => {
                   <td className="px-4 py-2.5">
                     <button
                       onClick={() => handleDelete(secret.key)}
-                      className="p-1.5 rounded-md transition-all duration-150 hover:bg-red-500/10"
-                      style={{ color: 'var(--text-tertiary)' }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.color = '#ef4444';
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)';
-                      }}
+                      className="p-1.5 rounded-md transition-all duration-150 hover:bg-red-500/10 text-[var(--text-tertiary)] hover:text-[#ef4444]"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

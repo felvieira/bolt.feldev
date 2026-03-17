@@ -125,14 +125,7 @@ export const ProjectSettingsModal = ({ open, onClose, projectId }: ProjectSettin
                   </h2>
                   <button
                     onClick={onClose}
-                    className="flex items-center justify-center w-8 h-8 rounded-full transition-all duration-150 hover:bg-[var(--surface-3)]"
-                    style={{ color: 'var(--text-tertiary)' }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)';
-                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded-full transition-all duration-150 hover:bg-[var(--surface-3)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                   >
                     <X className="w-4 h-4" />
                   </button>

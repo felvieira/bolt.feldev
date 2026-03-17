@@ -126,10 +126,7 @@ export default function ProfilePage() {
         {/* Back link */}
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm mb-8 transition-colors group"
-          style={{ color: 'var(--text-tertiary)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+          className="inline-flex items-center gap-2 text-sm mb-8 transition-colors duration-150 group text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
         >
           <div className="i-ph:arrow-left text-base transition-transform group-hover:-translate-x-0.5" />
           Back to app
