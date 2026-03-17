@@ -8,10 +8,10 @@ const variantStyles: Record<string, string> = {
   primary:     'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-transparent',
   secondary:   'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
   ghost:       'bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
-  danger:      'bg-transparent border-[rgba(239,68,68,0.3)] text-[var(--error)] hover:bg-[rgba(239,68,68,0.1)]',
+  danger:      'bg-transparent border-[var(--error-border)] text-[var(--error)] hover:bg-[var(--error-muted)]',
   // Legacy aliases for backwards compat
   default:     'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
-  destructive: 'bg-transparent border-[rgba(239,68,68,0.3)] text-[var(--error)] hover:bg-[rgba(239,68,68,0.1)]',
+  destructive: 'bg-transparent border-[var(--error-border)] text-[var(--error)] hover:bg-[var(--error-muted)]',
   outline:     'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]',
   link:        'bg-transparent border-transparent text-[var(--text-secondary)] underline-offset-4 hover:underline',
 };

@@ -157,9 +157,9 @@ export const DatabaseTab = ({ projectId }: DatabaseTabProps) => {
       >
         <span
           className="w-2.5 h-2.5 rounded-full shrink-0"
-          style={{ background: connected ? '#22c55e' : '#ef4444', boxShadow: connected ? '0 0 6px rgba(34,197,94,0.4)' : 'none' }}
+          style={{ background: connected ? 'var(--success)' : 'var(--error)', boxShadow: connected ? '0 0 6px var(--success-border)' : 'none' }}
         />
-        <span className="text-sm font-medium" style={{ color: connected ? '#22c55e' : 'var(--text-secondary)' }}>
+        <span className="text-sm font-medium" style={{ color: connected ? 'var(--success)' : 'var(--text-secondary)' }}>
           {connected ? 'Connected' : 'Not connected'}
         </span>
       </div>

@@ -27,7 +27,7 @@ export const DialogButton = memo(({ type, children, onClick, disabled }: DialogB
           ? 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-transparent'
           : type === 'secondary'
             ? 'bg-transparent border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]'
-            : 'bg-transparent border-[rgba(239,68,68,0.3)] text-[var(--error)] hover:bg-[rgba(239,68,68,0.1)]',
+            : 'bg-transparent border-[var(--error-border)] text-[var(--error)] hover:bg-[var(--error-muted)]',
       )}
       onClick={onClick}
       disabled={disabled}
