@@ -155,8 +155,8 @@ export default function AdminPage() {
                 <div
                   className="text-xs p-2.5 rounded-lg mt-1"
                   style={{
-                    background: 'rgba(239,68,68,0.08)',
-                    border: '1px solid rgba(239,68,68,0.2)',
+                    background: 'var(--error-muted)',
+                    border: '1px solid var(--error-border)',
                     color: 'var(--text-secondary)',
                   }}
                 >
@@ -333,7 +333,7 @@ function CheckItem({ label, ok, hint }: { label: string; ok: boolean; hint?: str
           <span
             className="text-[10px] px-1.5 py-0.5 rounded font-medium uppercase"
             style={{
-              background: ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+              background: ok ? 'var(--success-muted)' : 'var(--error-muted)',
               color: ok ? 'var(--success)' : 'var(--error)',
             }}
           >

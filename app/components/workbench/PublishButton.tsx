@@ -200,7 +200,7 @@ export const PublishButton = () => {
             width: '360px',
             background: 'var(--surface-1)',
             border: '1px solid var(--border-subtle)',
-            boxShadow: '0 20px 60px -12px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--shadow-popover)',
           }}
         >
           {/* Header */}
@@ -296,7 +296,7 @@ export const PublishButton = () => {
 
                 {/* Error state */}
                 {phase === 'error' && (
-                  <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'var(--error-muted)', border: '1px solid var(--error-border)' }}>
                     <div className="flex items-center gap-2">
                       <div className="i-ph:warning-circle text-base" style={{ color: 'var(--error)' }} />
                       <span className="text-xs font-medium" style={{ color: 'var(--error)' }}>

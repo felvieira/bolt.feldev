@@ -186,7 +186,7 @@ const InternalOverview = ({ schema, onNavigate }: { schema: string; onNavigate: 
             schema: {schema}
           </code>
           {status === 'ok' && !provisioned && (
-            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--warning)' }}>
+            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--warning-muted)', color: 'var(--warning)' }}>
               not provisioned
             </span>
           )}
@@ -199,7 +199,7 @@ const InternalOverview = ({ schema, onNavigate }: { schema: string; onNavigate: 
       </div>
 
       {status === 'error' && (
-        <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--error)' }}>
+        <div className="p-3 rounded-lg text-xs" style={{ background: 'var(--error-muted)', border: '1px solid var(--error-border)', color: 'var(--error)' }}>
           Cannot reach internal database. Make sure <code className="font-mono">DATABASE_URL</code> is configured.
         </div>
       )}
@@ -392,7 +392,7 @@ const InternalSqlEditor = ({ schema }: { schema: string }) => {
       </div>
       <div className="flex flex-col gap-2 px-4 py-3" style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--surface-1)' }}>
         <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Results</p>
-        {error && <div className="text-xs font-mono p-2.5 rounded-lg whitespace-pre-wrap" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--error)' }}>{error}</div>}
+        {error && <div className="text-xs font-mono p-2.5 rounded-lg whitespace-pre-wrap" style={{ background: 'var(--error-muted)', border: '1px solid var(--error-border)', color: 'var(--error)' }}>{error}</div>}
         {result && result.rows.length === 0 && <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>✓ 0 rows returned</p>}
         {result && result.rows.length > 0 && (
           <div className="overflow-auto max-h-44 rounded-lg" style={{ border: '1px solid var(--border-subtle)' }}>
@@ -892,7 +892,7 @@ const DeploySection = () => {
               <span
                 className="text-xs px-2 py-0.5 rounded capitalize"
                 style={{
-                  background: hosting.deploy_status === 'live' ? 'var(--accent-muted)' : 'rgba(245,158,11,0.1)',
+                  background: hosting.deploy_status === 'live' ? 'var(--accent-muted)' : 'var(--warning-muted)',
                   color: hosting.deploy_status === 'live' ? 'var(--accent)' : 'var(--warning)',
                 }}
               >
