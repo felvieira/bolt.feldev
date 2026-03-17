@@ -206,16 +206,15 @@ export const PublishButton = () => {
           {/* Header */}
           <div className="px-5 pt-5 pb-3">
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
                 Website address
               </h3>
               <a href="https://docs.bolt.feldev" target="_blank" rel="noreferrer"
-                className="text-xs flex items-center gap-1 hover:underline"
-                style={{ color: 'var(--text-tertiary)' }}>
+                className="text-xs flex items-center gap-1 hover:underline text-[var(--text-tertiary)]">
                 <div className="i-ph:question text-sm" /> Docs
               </a>
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs text-[var(--text-secondary)]">
               Choose your app's URL or use the generated one
             </p>
           </div>
@@ -223,7 +222,7 @@ export const PublishButton = () => {
           <div className="px-5 pb-4 flex flex-col gap-3">
             {loading ? (
               <div className="flex justify-center py-6">
-                <div className="i-ph:spinner-gap animate-spin text-xl" style={{ color: 'var(--accent)' }} />
+                <div className="i-ph:spinner-gap animate-spin text-xl text-[var(--accent)]" />
               </div>
             ) : (
               <>
@@ -238,19 +237,18 @@ export const PublishButton = () => {
                   </button>
                   <div className="flex-1 min-w-0">
                     {autoUrl ? (
-                      <p className="text-sm font-mono truncate" style={{ color: 'var(--text-primary)' }}>
+                      <p className="text-sm font-mono truncate text-[var(--text-primary)]">
                         {autoUrl.replace(/^https?:\/\//, '')}
                       </p>
                     ) : (
-                      <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                      <p className="text-sm text-[var(--text-tertiary)]">
                         URL will be generated on publish
                       </p>
                     )}
                   </div>
                   {autoUrl && (
                     <button onClick={() => { navigator.clipboard.writeText(autoUrl); toast.success('Copied!'); }}
-                      className="shrink-0 w-6 h-6 flex items-center justify-center rounded"
-                      style={{ color: 'var(--text-tertiary)' }}>
+                      className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-[var(--text-tertiary)]">
                       <div className="i-ph:copy text-xs" />
                     </button>
                   )}
@@ -259,11 +257,11 @@ export const PublishButton = () => {
                 {/* Live badge */}
                 {phase === 'live' && autoUrl && (
                   <div className="flex items-center gap-2 px-1">
-                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--success)' }} />
-                    <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>Live</span>
-                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>·</span>
+                    <div className="w-2 h-2 rounded-full animate-pulse bg-[var(--success)]" />
+                    <span className="text-xs font-medium text-[var(--success)]">Live</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">·</span>
                     <a href={autoUrl} target="_blank" rel="noreferrer"
-                      className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                      className="text-xs hover:underline text-[var(--accent)]">
                       Open ↗
                     </a>
                   </div>
@@ -273,16 +271,16 @@ export const PublishButton = () => {
                 {isPublishing && (
                   <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
                     <div className="flex items-center gap-2">
-                      <div className={`${PHASE_ICONS[phase]} text-base animate-pulse`} style={{ color: 'var(--accent)' }} />
-                      <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                      <div className={`${PHASE_ICONS[phase]} text-base animate-pulse text-[var(--accent)]`} />
+                      <span className="text-xs font-medium text-[var(--text-primary)]">
                         {PHASE_LABELS[phase]}
                       </span>
                       {phase === 'collecting' && fileCount > 0 && (
-                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>({fileCount} files)</span>
+                        <span className="text-xs text-[var(--text-tertiary)]">({fileCount} files)</span>
                       )}
                     </div>
                     {/* Progress bar */}
-                    <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                    <div className="h-1 rounded-full overflow-hidden bg-[var(--surface-3)]">
                       <div
                         className="h-full rounded-full transition-all duration-1000"
                         style={{
@@ -298,14 +296,14 @@ export const PublishButton = () => {
                 {phase === 'error' && (
                   <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'var(--error-muted)', border: '1px solid var(--error-border)' }}>
                     <div className="flex items-center gap-2">
-                      <div className="i-ph:warning-circle text-base" style={{ color: 'var(--error)' }} />
-                      <span className="text-xs font-medium" style={{ color: 'var(--error)' }}>
+                      <div className="i-ph:warning-circle text-base text-[var(--error)]" />
+                      <span className="text-xs font-medium text-[var(--error)]">
                         {deployError || 'Deploy failed'}
                       </span>
                     </div>
                     {deployLogs && (
                       <>
-                        <button onClick={() => setShowLogs(!showLogs)} className="text-xs hover:underline text-left" style={{ color: 'var(--text-tertiary)' }}>
+                        <button onClick={() => setShowLogs(!showLogs)} className="text-xs hover:underline text-left text-[var(--text-tertiary)]">
                           {showLogs ? 'Hide' : 'Show'} logs
                         </button>
                         {showLogs && (
@@ -322,8 +320,7 @@ export const PublishButton = () => {
                 {!isPublishing && (
                   <>
                     <button onClick={() => setShowCustom(!showCustom)}
-                      className="flex items-center gap-2 text-xs py-1"
-                      style={{ color: 'var(--text-secondary)' }}>
+                      className="flex items-center gap-2 text-xs py-1 text-[var(--text-secondary)]">
                       <div className={`i-ph:plus text-sm ${showCustom ? 'rotate-45' : ''} transition-transform`} />
                       Add custom domain
                     </button>
@@ -333,7 +330,7 @@ export const PublishButton = () => {
                           placeholder="app.yourdomain.com"
                           className="w-full px-3 py-2 rounded-lg text-sm font-mono focus:outline-none"
                           style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                        <p className="text-xs px-1" style={{ color: 'var(--text-tertiary)' }}>
+                        <p className="text-xs px-1 text-[var(--text-tertiary)]">
                           Point CNAME to your instance domain. SSL auto-provisioned.
                         </p>
                       </div>
@@ -348,11 +345,11 @@ export const PublishButton = () => {
           <div className="px-5 py-3 flex items-center justify-between"
             style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--surface-2)' }}>
             {phase === 'live' ? (
-              <p className="text-xs" style={{ color: 'var(--success)' }}>
+              <p className="text-xs text-[var(--success)]">
                 ✓ Your app is live
               </p>
             ) : phase === 'error' ? (
-              <p className="text-xs" style={{ color: 'var(--error)' }}>Deploy failed</p>
+              <p className="text-xs text-[var(--error)]">Deploy failed</p>
             ) : (
               <div />
             )}
