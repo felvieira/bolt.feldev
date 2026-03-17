@@ -113,6 +113,7 @@ export default function ProjectsPage() {
   const loading = useStore(projectsLoadingStore);
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterTab>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchProjects();
@@ -120,11 +121,13 @@ export default function ProjectsPage() {
 
   const filtered = projects.filter((p) => {
     if (filter === 'deployed') {
-      return p.deploy_status === 'live';
+      if (p.deploy_status !== 'live') return false;
+    } else if (filter === 'draft') {
+      if (p.deploy_status && p.deploy_status !== 'pending') return false;
     }
 
-    if (filter === 'draft') {
-      return !p.deploy_status || p.deploy_status === 'pending';
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) {
+      return false;
     }
 
     return true;
@@ -164,6 +167,21 @@ export default function ProjectsPage() {
           </button>
         </div>
         <p className="text-sm text-bolt-elements-textTertiary mb-6">Manage your projects, deployments, and settings.</p>
+
+        {/* Search */}
+        <div className="mb-4">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search projects..."
+            className="w-full max-w-sm px-3 py-2 rounded-lg text-sm transition-colors duration-150 focus:outline-none"
+            style={{
+              background: 'var(--surface-2)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
 
         {/* Filter tabs */}
         <div className="flex items-center gap-1 mb-6 border-b border-bolt-elements-borderColor">
