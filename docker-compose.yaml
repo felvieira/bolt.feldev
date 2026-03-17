@@ -178,26 +178,6 @@ services:
     profiles: ['production', 'development', 'default']
 
 
-  # ─── Caddy reverse proxy (SSL + domain routing) ──────────────────────────
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - deployments_data:/deployments:ro
-    depends_on:
-      - app-prod
-      - deploy-service
-    profiles:
-      - production
-
 volumes:
   postgres_data:
-  caddy_data:
-  caddy_config:
   deployments_data:
